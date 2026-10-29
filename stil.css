@@ -562,6 +562,15 @@ header h1 .dot{color:#E2001A}
 .sr-bahn > div { height: 100%; border-radius: 3px; }
 .sr-bahn > i { position: absolute; top: -5px; width: 3px; height: 20px; background: #2c2c2e; margin-left: -1.5px; }
 .sr-ue-fin { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.sr-rails { margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--border); }
+.sr-ue-sub { font-size: 13px; font-weight: 700; color: #8E5BB8; margin-bottom: 2px; }
+.sr-ue-sub .gedaempft { font-weight: 400; font-size: 12px; margin-left: 6px; }
+.sr-ue-sub2 { font-size: 12px; font-weight: 700; margin: 10px 0 4px; }
+.sr-rail-tab { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; font-size: 12px; margin-top: 6px; }
+.sr-rail-tab > span { padding: 4px 0 4px 12px; text-align: right; border-bottom: 1px solid #F0ECEA; }
+.sr-rail-tab > span:nth-child(4n+1) { text-align: left; padding-left: 0; }
+.sr-rail-tab > span.k { font-size: 11px; font-weight: 600; color: var(--muted); line-height: 1.2; align-self: end; border-bottom-color: var(--border); }
+.sr-fr.sr-rail-beste { grid-template-columns: minmax(0, max-content) max-content minmax(0, max-content); }
 .sr-ue-conti { font-size: 12px; color: var(--muted); }
 .sr-ue-conti b { color: var(--text); }
 .sr-ue-text { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; font-size: 14px; line-height: 1.45; }
@@ -623,7 +632,7 @@ header h1 .dot{color:#E2001A}
 .sr-pt label { margin: 0; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; font-weight: 600; }
 .sr-pt input { width: 90px !important; }
 .sr-ev { font-size: 12px; margin-top: 10px; }
-.sr-ev div { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 3px; }
+.sr-ev .sr-fr { margin-top: 4px; }
 
 /* Wettkämpfe (BA / SS / HP Comp) */
 .sr-event { border: 1px solid var(--border); border-radius: 12px; background: #fff; margin-bottom: 10px; overflow: hidden; }
@@ -640,11 +649,16 @@ header h1 .dot{color:#E2001A}
 .sr-lauf.zaehlt > span:nth-child(2) { font-weight: 700; }
 .sr-lauf-n { color: var(--muted); }
 .sr-zaehlt { font-size: 12px; font-weight: 700; color: #3E8E5A; border: 1px solid #3E8E5A; border-radius: 999px; padding: 0 6px; margin-left: 4px; }
-.sr-teile { grid-column: 2 / -1; display: flex; flex-wrap: wrap; gap: 4px 6px; margin-bottom: 4px; }
-.sr-sek-chip { font-size: 12px; border: 1px solid var(--border); border-radius: 8px; padding: 2px 8px; background: var(--surface2); }
-.sr-sek-chip.rail { background: #F1EAF7; border-color: #E2D3EF; }
-.sr-sek-chip i { font-style: normal; font-weight: 700; color: var(--muted); margin-right: 5px; }
-.sr-fr { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 12px; }
+.sr-teile { grid-column: 2 / -1; display: flex; flex-direction: column; gap: 2px; margin: 2px 0 6px; font-size: 12px; }
+.sr-sek-z { display: grid; grid-template-columns: 16px 38px minmax(0, 1fr) 64px; gap: 8px; align-items: baseline; padding: 3px 8px; border-radius: 6px; background: var(--surface2); }
+.sr-sek-z.rail { background: #F1EAF7; }
+.sr-sek-z.hit { grid-template-columns: 16px minmax(0, 1fr); }
+.sr-sek-z i { font-style: normal; font-weight: 700; color: var(--muted); }
+.sr-sek-typ { color: var(--muted); }
+.sr-sek-z.rail .sr-sek-typ { color: #8E5BB8; font-weight: 600; }
+.sr-sek-note { text-align: right; white-space: nowrap; }
+.sr-fr { display: grid; grid-template-columns: max-content minmax(0, max-content) minmax(0, max-content) max-content; gap: 3px 14px; font-size: 12px; align-items: baseline; }
+.sr-fr-z { display: contents; }
 
 /* Team-Ebene */
 .sr-team { display: flex; gap: 8px; flex-wrap: wrap; align-items: baseline; font-size: 12px; color: var(--muted); background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; margin: 0 0 16px; }

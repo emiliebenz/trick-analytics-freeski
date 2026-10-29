@@ -1882,11 +1882,12 @@ function srRundeHtml(dz, rd) {
     const sc = l.score != null ? `<b>${srF(l.score, 2)}</b>` : `<span class="gedaempft">${srEsc(srStatusTxt(l.status))}</span>`;
     if (dz === 'BA') return `<div class="sr-lauf ${l.zaehlt ? 'zaehlt' : ''}"><span class="sr-lauf-n">Jump ${srEsc(l.run)}</span><span>${l.trick ? srEsc(l.trick) : '<span class="gedaempft">trick not coded</span>'}</span><span>${sc}${l.zaehlt ? ' <span class="sr-zaehlt">counts</span>' : ''}</span></div>`;
     const sekt = l.sektionen || [];
+    // Sektionen bzw. Hits untereinander: Nummer · Art · Trick · Note
     const teile = dz === 'SS'
       ? (sekt.some(x => x.trick || x.score != null)
-          ? sekt.map((x, i) => `<span class="sr-sek-chip ${x.typ}"><i>${i + 1}</i>${x.typ === 'jump' ? 'Jump' : x.typ === 'rail' ? 'Rail' : 'Section'}${x.trick ? ': ' + srEsc(x.trick) : ''}${x.score != null ? ` <b>${srF(x.score, 2)}</b>${x.max ? `<span class="gedaempft">/${srF(x.max, 0)}</span>` : ''}` : ''}</span>`).join('')
+          ? sekt.map((x, i) => `<div class="sr-sek-z ${x.typ}"><i>${i + 1}</i><span class="sr-sek-typ">${x.typ === 'jump' ? 'Jump' : x.typ === 'rail' ? 'Rail' : 'Section'}</span><span>${x.trick ? srEsc(x.trick) : '<span class="gedaempft">not coded</span>'}</span><span class="sr-sek-note">${x.score != null ? `<b>${srF(x.score, 2)}</b>${x.max ? `<span class="gedaempft">/${srF(x.max, x.max % 1 ? 1 : 0)}</span>` : ''}` : ''}</span></div>`).join('')
           : '<span class="gedaempft">sections not in the FIS list</span>')
-      : (l.hits || []).map((h, i) => `<span class="sr-sek-chip"><i>${i + 1}</i>${srEsc(h)}</span>`).join('');
+      : (l.hits || []).map((h, i) => `<div class="sr-sek-z hit"><i>${i + 1}</i><span>${srEsc(h)}</span></div>`).join('');
     return `<div class="sr-lauf ${l.best ? 'zaehlt' : ''}"><span class="sr-lauf-n">Run ${srEsc(l.run)}</span><span>${sc}${l.best ? ' <span class="sr-zaehlt">best</span>' : ''}</span><span></span>
       ${teile ? `<div class="sr-teile">${teile}</div>` : (dz === 'HP' && l.score != null ? '<div class="sr-teile gedaempft">hits not coded</div>' : '')}</div>`;
   }).join('');
@@ -1909,8 +1910,9 @@ function srCompHtml(name, dz) {
     const kopf = `<div class="sr-h">${SR_DN[dz]} ${sa}</div>`;
     const elite = `<div class="sr-sub wc">WC · World Cup, Worlds, Olympics</div>` + (evs.length ? evs.map(ev => srEventHtml(dz, ev)).join('')
       : `<div class="leer-schmal">No World Cup, Worlds or Olympic start in ${SR_DN[dz]} ${sa}${sa === SR_JETZT ? ' yet' : ''}.</div>`);
+    // untereinander, in Spalten: Datum · Ort · Stufe · Rang
     const liste = (xs) => `<div class="sr-fr">${xs.map(x =>
-      `<span>${srDatum(x.datum).slice(0, 6)} ${srEsc(x.ort)} <span class="gedaempft">${SR_KAT[x.kat] || x.kat}</span> <b>${x.rang ? srOrd(x.rang) : srEsc(srStatusTxt(x.status))}</b>${x.n ? `<span class="gedaempft"> of ${x.n}</span>` : ''}</span>`).join('')}</div>`;
+      `<div class="sr-fr-z"><span>${srDatum(x.datum).slice(0, 6)}</span><span>${srEsc(x.ort)}</span><span class="gedaempft">${SR_KAT[x.kat] || x.kat}</span><span><b>${x.rang ? srOrd(x.rang) : srEsc(srStatusTxt(x.status))}</b>${x.n ? `<span class="gedaempft"> of ${x.n}</span>` : ''}</span></div>`).join('')}</div>`;
     const ec = fr.filter(x => x.kat === 'EC' || x.kat === 'ECP'), andere = fr.filter(x => x.kat !== 'EC' && x.kat !== 'ECP');
     const weitere = (ec.length ? `<div class="sr-sub ec">EC · Europa Cup (rank only)</div>${liste(ec)}` : '')
       + (andere.length ? `<div class="sr-sub">Other FIS · Junior Worlds, Nor-Am, ANC (rank only)</div>${liste(andere)}` : '');
@@ -1927,6 +1929,23 @@ function srBalken(lab, wert, ref, max, wtxt, rtxt, grau, gut) {
   return `<div class="sr-balken"><span>${lab}</span><div class="sr-bahn"><div style="width:${w}%;background:${grau ? SR_GRAU : gut ? SR_GUT : SR_SCHLECHT};"></div>${r != null ? `<i style="left:${r}%;"></i>` : ''}</div>
     <span><b style="color:${col};">${wert == null ? '–' : wtxt}</b> <span class="gedaempft">${rtxt}</span></span></div>`;
 }
+// Freeski-Slopestyle: Rails. Note pro Rail-Sektion (0–10) und Merkmale gegen die Podest-Athlet:innen derselben Saison
+// (alle ihre Läufe); Farbe nur bei Merkmalen, die im ganzen Feld mit einer anderen Rail-Note einhergehen (wie in den Decks)
+function srRailsHtml(r) {
+  const wirk = m => { if (m.wirkung == null) return '<span class="gedaempft">–</span>';
+    const r = Math.round(m.wirkung * 10) / 10;
+    return `<span class="${m.gekoppelt ? '' : 'gedaempft'}">${r > 0 ? '+' : r < 0 ? '−' : ''}${srF(Math.abs(r))}</span>`; };
+  // als Raster statt Tabelle: bleibt auch auf dem Handy eine kleine Tabelle (Tabellen ab 3 Spalten werden dort zu Karten)
+  const merk = (r.merkmale || []).map(m => `<span>${m.lab}</span>
+    <span><b style="color:${m.gekoppelt ? (m.gut ? SR_GUT : SR_SCHLECHT) : 'var(--text)'};">${srPct(m.wert)}</b></span><span>${srPct(m.ref)}</span><span>${wirk(m)}</span>`).join('');
+  const beste = (r.beste || []).map(b => `<div class="sr-fr-z"><span>${srEsc(b.trick)}</span><span><b>${srF(b.score, 2)}</b><span class="gedaempft">/${srF(b.max, b.max % 1 ? 1 : 0)}</span></span><span class="gedaempft">${srEsc(b.event)} ${srEsc(b.phase)}</span></div>`).join('');
+  return `<div class="sr-rails"><div class="sr-ue-sub">Rails <span class="gedaempft">${r.n} clean rail section${r.n === 1 ? '' : 's'}</span></div>
+    ${srBalken('Rail score per section' + (r.wenig ? ` (n = ${r.n})` : ''), r.score, r.ref_score, 10, srF(r.score) + ' of 10', 'Podium athletes ' + srF(r.ref_score), r.wenig, r.gut)}
+    ${merk ? `<div class="sr-rail-tab"><span class="k">Rail feature</span><span class="k">Share of rails</span><span class="k">Podium athletes</span><span class="k" title="Rail section score with minus without the feature, whole field (points of 10)">Effect on score</span>${merk}</div>`
+      : '<div class="sr-ue-fin">Rail features: the rail codes of this season are in an older notation that is not decoded.</div>'}
+    ${beste ? `<div class="sr-ue-sub2">Best rail sections</div><div class="sr-fr sr-rail-beste">${beste}</div>` : ''}
+  </div>`;
+}
 function srUebersichtHtml(U, saison) {
   if (!U) return '';
   const bl = Object.entries(U.disz).map(([k, d]) => `<div class="sr-ue-disz">
@@ -1938,14 +1957,15 @@ function srUebersichtHtml(U, saison) {
       <div><b style="${d.score_gut ? 'color:' + SR_GUT : ''}">${d.best_score_txt ?? srF(d.best_score)}</b><span>${d.best_score_lab} · ${d.ref_score == null ? 'no comparable reference' : d.ref_label + ' ' + (d.ref_score_txt ?? srF(d.ref_score))}</span></div>
     </div>
     ${d.lq == null && d.ref_land == null ? '' : srBalken(d.land_lab + (d.n_lq < 10 ? ` (n = ${d.n_lq})` : ''), d.lq, d.ref_land, 1, srPct(d.lq), 'Ref. ' + srPct(d.ref_land), d.wenig, d.land_gut)}
-    ${d.hoch == null && d.ref_rot == null ? '' : srBalken('Highest good rotation', d.hoch, d.ref_rot, d.rot_max, d.hoch + '°', `${d.rot_lab} ${d.ref_rot != null ? Math.round(d.ref_rot) + '°' : '–'}`, false, d.rot_gut)}
+    ${d.hoch == null && d.ref_rot == null ? '' : srBalken(k === 'SS' && d.rails ? 'Highest good rotation (jumps)' : 'Highest good rotation', d.hoch, d.ref_rot, d.rot_max, d.hoch + '°', `${d.rot_lab} ${d.ref_rot != null ? Math.round(d.ref_rot) + '°' : '–'}`, false, d.rot_gut)}
+    ${d.rails ? srRailsHtml(d.rails) : ''}
     <div class="sr-ue-fin">${srEsc(d.finals_txt)}</div>
   </div>`).join('');
   const conti = U.conti ? `<div class="sr-ue-conti"><b>${srEsc(U.conti.split(': ')[0])}:</b> ${srEsc(U.conti.split(': ').slice(1).join(': '))}</div>` : '';
   const texte = (U.texte || []).map(t => `<div class="sr-ue-th">${srEsc(t.titel)}</div><ul>${t.punkte.map(p => `<li>${srEsc(p)}</li>`).join('')}</ul>`).join('');
   return `<div class="sr-sek" id="sr-a-overview"><div class="sr-h">Overview ${saison}</div>
     <div class="sr-ue"><div>${bl}${conti}</div>${texte ? `<div class="sr-ue-text">${texte}</div>` : ''}</div>
-    <details class="sr-info"><summary>How to read</summary><div class="sr-fuss">World Cup, Worlds, Olympics ${saison}; reference values ${saison} (podium or cut, the same rounds one level up). Highest good rotation: largest rotation scored 65 or more. Green: at or above the reference; grey bar: fewer than 5 values. 2025/26: the same figures and texts as in the athlete feedback; earlier seasons: the key figures only.</div></details></div>`;
+    <details class="sr-info"><summary>How to read</summary><div class="sr-fuss">World Cup, Worlds, Olympics ${saison}; reference values ${saison} (podium or cut, the same rounds one level up). Highest good rotation: largest rotation scored 65 or more. Green: at or above the reference; grey bar: fewer than 5 values. 2025/26: the same figures and texts as in the athlete feedback; earlier seasons: the key figures only.${Object.values(U.disz).some(d => d.rails) ? ' Rails (Freeski slopestyle): every clean rail section (above the fall range, qualification and final), scaled to 0 to 10; podium athletes = all runs of the athletes with a podium in that season, same gender (the same base as for the athlete). Features decoded from the FIS rail codes. Effect on score = average rail score with minus without the feature, whole field; coloured only where that difference is at least 0.3 (green: share at or above the podium athletes where the feature goes with a higher score). A link, not proof: better riders also choose the harder tricks; how a rail is ridden (lock-in, control, style) is not in the codes. Grey bar: fewer than 10 rail sections.' : ''}</div></details></div>`;
 }
 
 // ─── Comp overview: Athletenweg ───
@@ -2150,7 +2170,7 @@ function srAltHtml(a) {
 }
 // Rookie-Kader nur für die DVLP-Gruppe: wer einmal im C-Kader war und nicht reselektioniert wird, fällt aus dem System
 function srIstDvlp(name) { return (SESS_ALL_ATHLETES.find(a => a.name === name) || {}).squad === 'DVLP'; }
-function srStufenHtml(S, ptWert, name) {
+function srStufenHtml(S, ptWert, name, vergangen) {
   if (!S.stufen) return `<div class="leer-schmal">${srEsc(S.hinweis)}</div>`;
   return S.stufen.filter(s => s.stufe !== 'Rookie' || srIstDvlp(name)).map(s => {
     // Powertest nur noch für die DVLP-Gruppe (Kaderathlet:innen machen ihn nicht mehr)
@@ -2158,9 +2178,9 @@ function srStufenHtml(S, ptWert, name) {
     const st = SR_STATUS[s.status] || SR_STATUS.open;
     const aktuell = (S.kader || '').split('/').includes(s.stufe) || (S.kader === 'Sichtung' && s.stufe === 'Rookie');
     const offen = ['met', 'on_track'].includes(s.status) || aktuell;
-    const zusTxt = zus.length ? `<div class="sr-zus">Also required: ${zus.map(z => `${srEsc(z.text)} <b style="color:${SR_STATUS[z.status].color};">${ptWert === null ? 'not entered' : ptWert + ' points'}</b>`).join(' · ')}</div>` : '';
+    const zusTxt = zus.length ? `<div class="sr-zus">Also required: ${zus.map(z => `${srEsc(z.text)} <b style="color:${SR_STATUS[z.status].color};">${ptWert === null ? (vergangen ? 'not in the app' : 'not entered') : ptWert + ' points'}</b>`).join(' · ')}</div>` : '';
     return `<details class="sr-stufe" ${offen ? 'open' : ''}>
-      <summary><span class="sr-stufe-n">${s.name}</span>${aktuell ? '<span class="sr-jetzt">current squad</span>' : ''}<b style="color:${st.color};margin-left:auto;">${st.label}</b></summary>
+      <summary><span class="sr-stufe-n">${s.name}</span>${aktuell ? `<span class="sr-jetzt">${vergangen ? 'selected ' + S.kader_saison : 'current squad'}</span>` : ''}<b style="color:${st.color};margin-left:auto;">${st.label}</b></summary>
       <div class="sr-alts"><div class="hinweis-winzig" style="margin-bottom:4px;">One of these:</div>${s.alt.map(srAltHtml).join('')}${zusTxt}</div>
     </details>`;
   }).join('');
@@ -2179,7 +2199,7 @@ function srSelektionHtml(name, S) {
   const kopf = !S.n_rennen_gefahren ? `No FIS event in ${S.saison} yet${S.naechstes_rennen ? `; the season starts ${srDatum(S.naechstes_rennen)}` : ''}.` : srResultateTxt(S, 4);
   const ev = (S.selektionsevents || []).map(e => {
     const r = (S.resultate || []).find(z => z.datum === e.datum && z.disz === e.disz);
-    return `<span>${srDatum(e.datum).slice(0, 6)} ${srEsc(e.ort)} ${e.disz} (${e.kat})${r ? ` <b>${r.rang ? r.rang + '.' : srEsc(r.status)}</b>` : e.gefahren ? ' <span class="gedaempft">no start</span>' : ''}</span>`;
+    return `<div class="sr-fr-z"><span>${srDatum(e.datum).slice(0, 6)}</span><span>${srEsc(e.ort)} ${e.disz}</span><span class="gedaempft">${SR_KAT[e.kat] || e.kat}</span><span>${r ? `<b>${r.rang ? srOrd(r.rang) : srEsc(srStatusTxt(r.status))}</b>${r.n ? `<span class="gedaempft"> of ${r.n}</span>` : ''}` : e.gefahren ? '<span class="gedaempft">no start</span>' : '<span class="gedaempft">upcoming</span>'}</span></div>`;
   }).join('');
   // Powertest nur für die DVLP-Gruppe; die Kaderathlet:innen machen ihn nicht mehr
   const mitPt = srIstDvlp(name);
@@ -2191,17 +2211,33 @@ function srSelektionHtml(name, S) {
     ${mitPt ? `<div class="sr-pt"><label for="sr-pt-in">Powertest (points)</label>
       <input id="sr-pt-in" type="number" min="0" max="100" step="1" value="${ptWert ?? ''}" onchange="srSaveInput(${srEsc(JSON.stringify(name))}, '${S.kader_saison}', 'powertest', this)">
       <span class="hinweis-winzig" id="sr-info-powertest">${srInfoText(pt)}</span></div>` : ''}
-    ${ev ? `<div class="sr-ev"><span class="sr-lab">Selection events (Annex A)</span><div>${ev}</div></div>` : ''}
+    ${ev ? `<div class="sr-ev"><span class="sr-lab">Selection events (Annex A)</span><div class="sr-fr">${ev}</div></div>` : ''}
     <details class="sr-info"><summary>How to read</summary><div class="sr-fuss">${srEsc(S.quelle)}. Checked from FIS result lists: ranks at Olympics, Worlds, World Cup, Junior Worlds and the selection events (Annex A). Standings are computed from the races with the FIS points table (official FIS standings decide); during the season they show «on track». Read as: World Cup SS / BA counts slopestyle and big air together; «1× top 3 and 1× top 5» means two different results. Coach judgement, PISTE assessment and Technical Check-up are not in the result lists. Powertest only for the DVLP group.</div></details>
     <div class="sr-hinweis">Meeting the criteria is not an automatic selection: the selection committee decides (4.1, 4.2).</div>
   </div>`;
 }
-// vergangene Saison: Resultate und das Kader, das daraus entstand; die Prüfung mit den damaligen Richtlinien folgt, wenn sie vorliegen
-function srSelektionVergangenHtml(S, saison) {
-  return `<div class="sr-sek" id="sr-a-selection">
+// vergangene Saison: Prüfung mit den damals geltenden Richtlinien (wo sie vorliegen) und das Kader, das daraus entstand
+function srSelektionVergangenHtml(name, S, saison) {
+  const kader = S.kader ? ` Squad ${S.kader_saison}: <b>${SR_KADER[S.kader] || srEsc(S.kader)}</b>.` : '';
+  if (!S.stufen) return `<div class="sr-sek" id="sr-a-selection">
     <div class="sr-h">Selection ${saison} <span class="sr-h-sub">results ${saison} counted for the squad ${S.kader_saison}</span></div>
-    <div class="sr-sel-kopf">${srResultateTxt(S, 5, true)}${S.kader ? ` Squad ${S.kader_saison}: <b>${SR_KADER[S.kader] || srEsc(S.kader)}</b>.` : ''}</div>
-    ${S.stufen ? srStufenHtml(S, null, S.athlet) : `<div class="sr-leer">The selection rules of ${saison} (for the squad ${S.kader_saison}) are not in the app yet, so no check against them.</div>`}
+    <div class="sr-sel-kopf">${srResultateTxt(S, 5, true)}${kader}</div>
+    <div class="sr-leer">${S.regeln ? srEsc(S.hinweis) : `The selection rules of ${saison} (for the squad ${S.kader_saison}) are not in the app yet, so no check against them.`}</div>
+  </div>`;
+  const ev = (S.selektionsevents || []).map(e => {
+    const r = (S.resultate || []).find(z => z.datum === e.datum && z.disz === e.disz);
+    return `<div class="sr-fr-z"><span>${srDatum(e.datum).slice(0, 6)}</span><span>${srEsc(e.ort)} ${e.disz}</span><span class="gedaempft">${SR_KAT[e.kat] || e.kat}</span><span>${r ? `<b>${r.rang ? srOrd(r.rang) : srEsc(srStatusTxt(r.status))}</b>${r.n ? `<span class="gedaempft"> of ${r.n}</span>` : ''}` : '<span class="gedaempft">no start</span>'}</span></div>`;
+  }).join('');
+  const pt = srInput(name, S.kader_saison, 'powertest');
+  const ptWert = pt && pt.wert !== '' && !isNaN(+pt.wert) ? +pt.wert : null;
+  _srUrteilKontext = null;                          // Trainerurteil jener Saison ist nicht in der App
+  return `<div class="sr-sek" id="sr-a-selection">
+    <div class="sr-h">Selection ${saison} <span class="sr-h-sub">results ${srDatum(S.fenster[0]).slice(3)} to ${srDatum(S.fenster[1]).slice(3)} against the rules for the squad ${S.kader_saison}</span></div>
+    <div class="sr-sel-kopf">${srResultateTxt(S, 5, true)}${kader}</div>
+    ${srStufenHtml(S, ptWert, name, true)}
+    ${ev ? `<div class="sr-ev"><span class="sr-lab">Selection events ${saison} (Annex A)</span><div class="sr-fr">${ev}</div></div>` : ''}
+    <details class="sr-info"><summary>How to read</summary><div class="sr-fuss">${srEsc(S.quelle)}. Checked from the FIS result lists of ${saison}: ranks at Olympics, Worlds, World Cup, Junior Worlds and the selection events of that season (Annex A, Europa Cup incl. Premium). Standings (World Cup, Europa Cup, and the overall ranking of the selection events) are computed with the FIS points table over all ranked athletes; the official standings decide. «Squad ${S.kader_saison}» is the squad the committee selected. Coach judgement, PISTE assessment and Technical Check-up of that season are not in the app.</div></details>
+    <div class="sr-hinweis">Meeting the criteria is not an automatic selection: the selection committee decides (4.1, 4.2).</div>
   </div>`;
 }
 
@@ -2234,10 +2270,12 @@ function srOpenSaison(sa, dz) {
   sbMonTyp = Object.keys(SR_COMP).find(k => SR_COMP[k] === dz) || '';
   renderMonitoring(); window.scrollTo(0, 0);
 }
-function srKarriereHtml(name, saison) {
+// nur die Saisons im gewählten Zeitraum (eine Saison oder All time / eigener Zeitraum); andere Saisons über das Menü oben
+function srKarriereHtml(name, saison, saisonen) {
   const revs = srReviews(name), zeilen = [];
   const kurz = {WJC: 'JW', NAC: 'Nor-Am', ANC: 'ANC'};
-  Object.keys(revs).sort().reverse().forEach(sa => {
+  const eine = saisonen && saisonen.length === 1;
+  Object.keys(revs).filter(sa => !saisonen || saisonen.includes(sa)).sort().reverse().forEach(sa => {
     const R = revs[sa];
     ['BA', 'SS', 'HP'].forEach(dz => {
       const evs = (R.wettkampf || {})[dz] || [], alle = (R.fis_resultate || []).filter(x => x.disz === dz);
@@ -2250,7 +2288,7 @@ function srKarriereHtml(name, saison) {
       const ecR = ec.map(x => x.rang).filter(Boolean), ecB = ecR.length ? Math.min(...ecR) : null;
       const an = andere.filter(x => x.rang).sort((a, b) => a.rang - b.rang)[0];
       const leer = '<span class="gedaempft">–</span>';
-      zeilen.push(`<tr class="${sa === saison ? 'on' : ''}" onclick="srOpenSaison('${sa}', '${dz}')" title="Open the events">
+      zeilen.push(`<tr class="${sa === saison && !eine ? 'on' : ''}" onclick="srOpenSaison('${sa}', '${dz}')" title="Open the events">
         <td>${sa}</td><td>${SR_DN[dz]}</td>
         <td class="wc">${evs.length || leer}</td><td class="wc">${evs.length ? fin.length : leer}</td><td class="wc">${evs.length ? `<b style="${pod ? 'color:' + SR_SCHLECHT : ''}">${pod}</b>` : leer}</td><td class="wc">${evs.length ? wcBest : leer}</td>
         <td class="ec">${ec.length || leer}</td><td class="ec">${ec.length ? ecR.filter(r => r <= 3).length : leer}</td><td class="ec">${ecB ? srOrd(ecB) : leer}</td>
@@ -2258,7 +2296,7 @@ function srKarriereHtml(name, saison) {
     });
   });
   if (!zeilen.length) return '';
-  return `<div class="sr-sek" id="sr-a-career"><div class="sr-h">Career <span class="sr-h-sub">all seasons in the data · click a row to open the events</span></div>
+  return `<div class="sr-sek" id="sr-a-career"><div class="sr-h">${eine ? 'Results ' + saison : 'Career'} <span class="sr-h-sub">${eine ? 'other seasons: menu at the top (All time for the whole career)' : saisonen ? 'seasons in the chosen period' : 'all seasons in the data'} · click a row to open the events</span></div>
     <div class="sr-karriere-leg"><span class="wc">WC = World Cup, Worlds, Olympics</span><span class="ec">EC = Europa Cup incl. Premium</span><span class="an">Other FIS = Junior Worlds (JW), Nor-Am, ANC</span></div>
     <div class="table-wrap"><table class="sr-karriere"><thead><tr><th>Season</th><th>Discipline</th>
       <th class="wc">WC starts</th><th class="wc">WC finals</th><th class="wc">WC podiums</th><th class="wc">WC best</th>
@@ -2352,6 +2390,7 @@ function srReviewTabHtml(name) {
   const W = wegSaison && saison >= srVorher(SR_JETZT) ? revs[wegSaison].weg : null;      // Athletenweg: heutiger Stand, nicht bei alten Saisons
   const mehrere = sbMonRange === 'all' || sbMonRange === 'custom';
   const trend = mehrere ? srTrendHtml(name, sbMonRange === 'custom' ? sl : null) : '';
+  const karriereS = mehrere ? (sbMonRange === 'custom' ? sl : null) : [saison];
   const teile = [], nav = [];
   const add = (id, lab, html) => { if (html) { teile.push(html); nav.push(`<a href="#sr-a-${id}" onclick="document.getElementById('sr-a-${id}').scrollIntoView({behavior:'smooth'});return false;">${lab}</a>`); } };
   if (saison === SR_JETZT) {
@@ -2360,7 +2399,7 @@ function srReviewTabHtml(name) {
     add('overview', 'Overview', srUebersichtHtml(R && R.uebersicht, saison));
     add('tricks', 'Podium tricks', srTricksHtml(name, R, saison));
     add('trend', 'Trend', trend);
-    add('career', 'Career', srKarriereHtml(name, saison));
+    add('career', mehrere ? 'Career' : 'Results', srKarriereHtml(name, saison, karriereS));
     add('pathway', 'Pathway', srWegHtml(W));
     if (!R || !R.uebersicht) {
       const letzte = Object.keys(revs).filter(s => s < saison && revs[s].uebersicht).sort().pop();
@@ -2369,10 +2408,10 @@ function srReviewTabHtml(name) {
   } else {
     add('overview', 'Overview', srUebersichtHtml(R && R.uebersicht, saison));
     add('trend', 'Trend', trend);
-    add('career', 'Career', srKarriereHtml(name, saison));
+    add('career', mehrere ? 'Career' : 'Results', srKarriereHtml(name, saison, karriereS));
     add('pathway', 'Pathway', srWegHtml(W));
     add('tricks', 'Podium tricks', srTricksHtml(name, R, saison));
-    add('selection', 'Selection', S ? srSelektionVergangenHtml(S, saison) : '');
+    add('selection', 'Selection', S ? srSelektionVergangenHtml(name, S, saison) : '');
     add('input', 'Coach input', srInputHtml(name, saison, R));
   }
   if (!teile.length) return `<div class="leer-schmal">No data for ${saison}.</div>`;
