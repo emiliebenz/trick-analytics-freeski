@@ -4321,14 +4321,12 @@ function monHeaderHtml(title, sub, backable) {
       ${sub ? `<div class="hinweis-gross">${sub}</div>` : ''}
     </div>
     <select onchange="sbMonSetRange(this.value)" style="padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;font-family:inherit;">
-      <option value="season" ${sbMonRange==='season'?'selected':''}>Current season</option>
-      <option value="last" ${sbMonRange==='last'?'selected':''}>Last season</option>
-      <option value="all" ${sbMonRange==='all'?'selected':''}>All time</option>
-      <option value="custom" ${sbMonRange==='custom'?'selected':''}>Custom period…</option>
+      ${srSaisonOptionen()}
     </select>
   </div>
   <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
     ${sbTypeChipsHtml(sbMonTyp, 'sbMonSetTyp')}
+    ${srChipHtml()}
     ${sbMonRange==='custom' ? `<div style="display:flex;align-items:center;gap:6px;">${dateInput('mon-date-from')}<span class="gedaempft">–</span>${dateInput('mon-date-to')}</div>` : ''}
   </div>`;
 }
@@ -4420,6 +4418,9 @@ function renderMonTeam() {
 function renderMonAthlete() {
   const root = document.getElementById('mon-root');
   const name = sbMonView.athlete;
+  // Tab «Season review» und BA/SS/HP Comp: Inhalt aus der Wettkampf-Auswertung statt der Trainingskarten (kern.js)
+  const srHtml = srAthleteHtml(name);
+  if (srHtml !== null) { root.innerHTML = `<div class="card polster-20">${monHeaderHtml(name, srSubline(name), true)}${srHtml}</div>`; return; }
   const rows = sbMonFiltered().filter(t => t.athlet === name);
   const att = rows.length;
   const stomped = rows.filter(t => sbMonOutcome(t) === 'stomped').length;
@@ -4479,14 +4480,12 @@ function renderMonAthlete() {
 
   root.innerHTML = `<div class="card polster-20">
     ${monHeaderHtml(name, att + ' attempts · ' + stomped + ' stomped · <b>' + rate + '% stomp rate</b> · ' + sbMonPeriodLabel(), true)}
-    ${srSlotHtml()}
     ${balanceBar}
     ${groups || '<div class="leer-schmal">No session attempts in this period.</div>'}
     <div style="border-top:1px solid var(--border);margin-top:8px;padding-top:16px;display:flex;justify-content:center;">
       <button onclick="sbMonAthletePdf()" style="padding:8px 16px;border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text);">📄 Athlete Report (PDF)</button>
     </div>
   </div>`;
-  srMount(name);
 }
 
 // Varianten & Grabs eines Kern-Tricks: volle Bezeichnung, Versuche, Stomp-Rate
