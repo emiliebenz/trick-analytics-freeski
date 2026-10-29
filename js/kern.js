@@ -1717,3 +1717,416 @@ function sbVideoBtn(e) {
     ? `<button onclick="sbPlayVideo(${e.id})" style="${st}background:rgba(62,142,90,.15);border:1px solid #3E8E5A;color:#3E8E5A;">▶ Video</button>`
     : `<button onclick="sbPickVideo(${e.id})" style="${st}background:none;border:1px solid #e7e3e1;color:#5c5c61;">⬆ Video</button>`;
 }
+
+// ═══════════════ SEASON REVIEW & SELECTION (Monitoring, Athlet:innen-Ebene) ═══════════════
+// Gemeinsamer Block für Freeski und Snowboard, unter dem Kopf der Athlet:innen-Seite im Monitoring.
+// Die Coaches wählen die Saison (Tabs). Pro Saison steht nur, was zu ihr gehört:
+//   vergangene Saison (z. B. 2025/26): fehlende Podiums-Tricks dieser Saison, ihre Resultate mit dem Kader, das daraus entstand,
+//                                      und als Fazit Ziel und Plan für die laufende Saison;
+//   laufende Saison (z. B. 2026/27):   Selektionsstand für das nächste Kaderjahr (geltende Richtlinien), Ziel und Plan, Powertest,
+//                                      die Trick-Auswertung, sobald die Pipeline für diese Saison läuft.
+// Inhalte aus der Wettkampf-Auswertung (Tabellen season_review und selection_check). Sie kommen per SQL aus der Pipeline
+// (skripte_coachdecks/season_review_export.py) und liegen NICHT im Repo, weil das Repo öffentlich ist.
+// Coach-Eingaben in season_review_input: Ziel und Plan unter der Saison, für die sie gelten; «was die Daten verpassen» unter der
+// ausgewerteten Saison; Powertest unter dem Kaderjahr. Ziel und Plan erscheinen in beiden Tabs, es ist derselbe Eintrag.
+// Trainingsstand je Podiums-Trick live aus den Trainingsdaten (Zeitraum und Typ wie oben im Monitoring);
+// was ein Trick ist und wie er bewertet wird, liefert das Modul: srParse(label) und srStats(rows).
+// «Set as goal» schreibt einen Assessment-Eintrag (standort, status 'goal') wie sbSave, damit nichts doppelt geführt wird.
+const SR_DN = {BA:'Big Air', SS:'Slopestyle', HP:'Halfpipe'};
+const SR_KADER = {NM:'National team', A:'A squad', B:'B squad', C:'C squad', Sichtung:'Rookie squad', 'NM/A':'National team / A squad'};
+const SR_STATUS = {
+  met:      {label:'Met',        color:'#3E8E5A'},
+  on_track: {label:'On track',   color:'#148FA0'},
+  open:     {label:'Open',       color:'#5c5c61'},
+  not_met:  {label:'Not met',    color:'#e2001a'},
+  coach:    {label:'Coaches decide', color:'#8E5BB8'},
+};
+// Saison wie im Monitoring: ab 1. Mai zählt die neue Saison
+function srSaisonVon(y) { return `${y}/${String((y + 1) % 100).padStart(2, '0')}`; }
+function srNaechste(s) { return srSaisonVon(+s.slice(0, 4) + 1); }
+function srVorher(s) { return srSaisonVon(+s.slice(0, 4) - 1); }
+const SR_JETZT = (() => { const d = new Date(); return srSaisonVon(d.getMonth() + 1 >= 5 ? d.getFullYear() : d.getFullYear() - 1); })();
+
+let _srData = null;          // {review: {norm: {saison: inhalt}}, selection: {norm: {kader_saison: inhalt}}, input: {norm: {saison|feld: row}}, fehlt}
+let _srLoading = null;
+let _srStandort = {};        // Athlet:in → Assessment-Einträge (für den Doppel-Check)
+let _srOpen = false;         // Block auf- oder zugeklappt
+let _srSaison = null;        // gewählte Saison (Tab); null = Standard
+let _srAlle = false;         // alle fehlenden Podiums-Tricks zeigen
+let _srCur = null;           // {name, items}
+
+function srEsc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]); }
+// gleiche Namensregel wie in der Pipeline: Akzente weg, klein, Wörter sortiert («Tanno Giulia» = «Giulia Tanno»)
+function srNorm(s) { return ((s || '').normalize('NFKD').replace(/[^\x00-\x7f]/g, '').toLowerCase().match(/[a-z]+/g) || []).sort().join(' '); }
+function srDatum(d) { if (!d) return '–'; const p = String(d).slice(0, 10).split('-'); return p[2] + '.' + p[1] + '.' + p[0]; }
+function srMonitoringSichtbar() { const r = document.getElementById('mon-root'); return !!(r && r.closest('.page')?.classList.contains('active')); }
+
+async function srLoad() {
+  if (_srData) return _srData;
+  if (_srLoading) return _srLoading;
+  _srLoading = (async () => {
+    const [r, s, i] = await Promise.all([
+      db.from('season_review').select('athlet,saison,inhalt'),
+      db.from('selection_check').select('athlet,kader_saison,inhalt'),
+      db.from('season_review_input').select('*'),
+    ]);
+    const d = {review:{}, selection:{}, input:{}, fehlt: !!(r.error || s.error || i.error)};
+    if (d.fehlt) console.warn('Season review: tables missing or not readable', r.error || s.error || i.error);
+    (r.data || []).forEach(x => { const k = srNorm(x.athlet); (d.review[k] = d.review[k] || {})[x.saison] = x.inhalt; });
+    (s.data || []).forEach(x => { const k = srNorm(x.athlet); (d.selection[k] = d.selection[k] || {})[x.kader_saison] = x.inhalt; });
+    (i.data || []).forEach(x => { const k = srNorm(x.athlet); (d.input[k] = d.input[k] || {})[x.saison + '|' + x.feld] = x; });
+    _srData = d; _srLoading = null;
+    return d;
+  })();
+  return _srLoading;
+}
+
+// Daten im Hintergrund laden und danach neu zeichnen (Team: ganze Seite, Athlet:in: nur der Block)
+function srEnsure() {
+  if (_srData || _srLoading) return;
+  srLoad().then(() => {
+    if (!srMonitoringSichtbar()) return;
+    if (sbMonView.level === 'athlete') srRender(); else if (sbMonView.level === 'team') renderMonitoring();
+  });
+}
+
+function srReviews(name) { return (_srData?.review || {})[srNorm(name)] || {}; }
+function srSelections(name) { return (_srData?.selection || {})[srNorm(name)] || {}; }
+function srInput(name, saison, feld) { return ((_srData?.input || {})[srNorm(name)] || {})[saison + '|' + feld] || null; }
+// «Eingabe da» = Ziel oder Plan für die laufende Saison
+function srHatInput(name) { return ['ziel', 'plan'].some(f => (srInput(name, SR_JETZT, f)?.wert || '').trim()); }
+function srHatInhalt(name) { return !!(_srData && (Object.keys(srReviews(name)).length || Object.keys(srSelections(name)).length)); }
+// Saisons mit Inhalt: ausgewertete Saisons und die Resultat-Saison jeder Selektion (Kaderjahr minus eins), dazu die laufende
+function srSaisons(name) {
+  const s = new Set(Object.keys(srReviews(name)));
+  Object.keys(srSelections(name)).forEach(k => s.add(srVorher(k)));
+  if (s.size) s.add(SR_JETZT);
+  return [...s].filter(x => x <= SR_JETZT).sort();
+}
+// Standard-Tab: die jüngste ausgewertete Saison (dort steht die Trick-Auswertung), sonst die laufende
+function srStandardSaison(name) { const r = Object.keys(srReviews(name)).filter(x => x <= SR_JETZT).sort(); return r.length ? r[r.length - 1] : SR_JETZT; }
+function srSaisonLabel(s) { return s === SR_JETZT ? 'this season' : s === srVorher(SR_JETZT) ? 'last season' : 'past season'; }
+
+// ── Team-Ebene: eine Zeile über den Kacheln und ein Hinweis pro Kachel ──
+function srTeamLine(names) {
+  srEnsure();
+  if (!_srData || _srData.fehlt) return '';
+  const mit = names.filter(srHatInhalt);
+  if (!mit.length) return '';
+  const fertig = mit.filter(srHatInput).length;
+  const col = fertig === mit.length ? '#3E8E5A' : '#C96A1F';
+  return `<div class="sr-team"><b>Season review</b><span>target and plan ${SR_JETZT} entered for <b style="color:${col};">${fertig} of ${mit.length}</b> athletes · open the athlete to fill in</span></div>`;
+}
+function srTeamChip(name) {
+  if (!_srData || _srData.fehlt || !srHatInhalt(name) || srHatInput(name)) return '';
+  return `<div class="sr-chip-open">Target ${SR_JETZT} open</div>`;
+}
+
+// ── Athlet:innen-Ebene ──
+function srSlotHtml() { return '<div id="sr-block"></div>'; }
+
+function srMount(name) {
+  if (!_srCur || _srCur.name !== name) _srSaison = null;    // neue Athlet:in: wieder mit dem Standard-Tab beginnen
+  _srCur = {name, items: []};
+  srEnsure();
+  if (_srData && !_srStandort[name]) {
+    _srStandort[name] = 'laden';
+    db.from('standort').select('*').eq('athlet', name).then(({data, error}) => {
+      _srStandort[name] = error ? [] : (data || []);
+      if (_srCur && _srCur.name === name) srRender();
+    });
+  }
+  srRender();
+}
+
+function srItems(R) { return R ? R.fehlend.map(it => ({...it, p: srParse(it.fam)})) : []; }
+
+// Trainingsstand eines Podiums-Tricks: derselbe Trick (Richtung inkl. Seite, Flips, Rotation), sonst der nächstgrössere
+// gelandete Trick derselben Richtung («bigger»). Gleiche Regel wie in den Coach-Review-Decks (landingbag.py).
+function srTraining(name, it) {
+  const z = it.p; if (!z) return null;
+  const hp = it.disz === 'HP';
+  const rows = sbMonFiltered().filter(t => t.athlet === name && !/Competition/.test(t.typ || '')
+    && (hp ? t.disziplin === 'Halfpipe' : t.disziplin !== 'Halfpipe' && t.disziplin !== 'Rail'));
+  const zf = z.flips || 1;
+  const V = rows.map(t => ({t, p: srParse(t.trickaufbau)}))
+    .filter(v => v.p && v.p.dir === z.dir && v.p.rot >= z.rot && (v.p.flips == null || v.p.flips >= zf));
+  const gleich = V.filter(v => v.p.rot === z.rot && v.p.flips === zf);
+  const gleichOf = V.filter(v => v.p.rot === z.rot && v.p.flips == null);
+  const groesser = V.filter(v => !gleich.includes(v) && !gleichOf.includes(v));
+  const lands = X => X.some(v => srStats([v.t]).landed);
+  let wahl = null, W = [];
+  if (lands(gleich)) { wahl = 'same'; W = gleich; }
+  else if (lands(gleichOf)) { wahl = 'flips n/a'; W = gleichOf; }
+  else if (lands(groesser)) {
+    const kosten = v => (v.p.rot - z.rot) + 360 * ((v.p.flips || zf) - zf);
+    const best = Math.min(...groesser.filter(v => srStats([v.t]).landed).map(kosten));
+    wahl = 'bigger'; W = groesser.filter(v => kosten(v) === best);
+  } else if (gleich.length || gleichOf.length) { wahl = 'same'; W = gleich.concat(gleichOf); }
+  else if (groesser.length) { wahl = 'bigger'; W = groesser; }
+  if (!W.length) return {wahl: null};
+  const lab = {};
+  W.forEach(v => { const l = (v.t.trickaufbau || '').split(' — ')[0]; lab[l] = (lab[l] || 0) + 1; });
+  const label = Object.entries(lab).sort((a, b) => b[1] - a[1])[0][0];
+  return {wahl, label, ...srStats(W.map(v => v.t))};
+}
+
+// Steht der Trick schon im Assessment? Richtung und Rotation gleich, Flips gleich oder bei einem der beiden nicht erfasst.
+function srAssessment(name, it) {
+  const S = _srStandort[name];
+  if (!Array.isArray(S)) return null;
+  const z = it.p; if (!z) return null;
+  const hp = it.disz === 'HP';
+  const treffer = S.filter(e => (hp ? e.disziplin === 'Halfpipe' : e.disziplin !== 'Halfpipe' && e.disziplin !== 'Rail')).filter(e => {
+    const p = srParse(e.trick_label); if (!p) return false;
+    return p.dir === z.dir && p.rot === z.rot && (p.flips == null || z.flips == null || p.flips === z.flips);
+  });
+  const st = ['mastered', 'erreicht', 'goal'].find(s => treffer.some(e => e.status === s));
+  return st ? {status: st, label: treffer.find(e => e.status === st).trick_label} : {status: null};
+}
+
+async function srSetGoal(i) {
+  const name = _srCur?.name, it = _srCur?.items[i];
+  if (!name || !it || !it.goal) return;
+  const btn = document.getElementById('sr-goal-' + i); if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+  const row = {athlet: name, datum: new Date().toISOString().split('T')[0], disziplin: it.goal.disziplin, drehrichtung: it.goal.drehrichtung,
+               flips: it.goal.flips || null, rotation: it.goal.rotation, status: 'goal',
+               notiz: `Season review ${_srCur.saison}: podium trick ${SR_DN[it.disz]} (${it.pod} podium place${it.pod === 1 ? '' : 's'})`};
+  row.trick_label = trickDesc(row);
+  const {data, error} = await db.from('standort').insert(row).select();
+  if (error) { showToast('Error: ' + error.message, 'error'); if (btn) { btn.disabled = false; btn.textContent = 'Set as goal'; } return; }
+  if (Array.isArray(_srStandort[name])) _srStandort[name] = [data[0], ..._srStandort[name]];
+  if (Array.isArray(dbAllStandort) && dbAllStandort.length) dbAllStandort = [data[0], ...dbAllStandort];
+  if (typeof sbAthlet !== 'undefined' && sbAthlet === name && Array.isArray(sbData)) sbData = [data[0], ...sbData];
+  showToast('🎯 Saved as goal in Assessment: ' + row.trick_label, 'success');
+  srRender();
+}
+
+let _srSpeichern = {};
+function srSaveInput(name, saison, feld, el) {
+  const wert = (el.value || '').trim();
+  const alt = srInput(name, saison, feld);
+  if ((alt?.wert || '') === wert) return;
+  const key = saison + '|' + feld;
+  clearTimeout(_srSpeichern[key]);
+  _srSpeichern[key] = setTimeout(async () => {
+    const info = document.getElementById(`sr-info-${feld}`);
+    if (info) info.textContent = 'Saving…';
+    const row = {athlet: name, saison, feld, wert, von: AUTH_USER?.email || null, updated_at: new Date().toISOString()};
+    const {error} = await db.from('season_review_input').upsert(row, {onConflict: 'athlet,saison,feld'});
+    if (error) { if (info) info.textContent = 'Not saved: ' + error.message; showToast('Not saved: ' + error.message, 'error'); return; }
+    const k = srNorm(name);
+    (_srData.input[k] = _srData.input[k] || {})[key] = row;
+    if (info) info.innerHTML = srInfoText(row);
+    if (feld === 'powertest') srRender();
+    else srKopfAktualisieren();
+  }, 300);
+}
+function srInfoText(r) { return r && r.updated_at ? `Saved ${srDatum(r.updated_at)}${r.von ? ' · ' + srEsc(r.von.split('@')[0]) : ''}` : ''; }
+
+function srToggle() { _srOpen = !_srOpen; srRender(); }
+function srSetSaison(s) { _srSaison = s; _srAlle = false; srRender(); }
+function srAlleToggle() { _srAlle = !_srAlle; srRender(); }
+
+function srChip(text, col, fill) {
+  return `<span class="sr-chip" style="--c:${col};${fill ? `background:${col};color:#fff;` : ''}">${text}</span>`;
+}
+
+// Kopf: die jüngste Trick-Auswertung, der laufende Selektionsstand und ob Ziel und Plan für die laufende Saison stehen
+function srKopfChips(name) {
+  const revs = srReviews(name), sels = srSelections(name);
+  const rs = Object.keys(revs).filter(x => x <= SR_JETZT).sort().pop();
+  const chips = [];
+  if (rs) {
+    const items = srItems(revs[rs]);
+    const ziele = items.filter(it => ['goal', 'mastered', 'erreicht'].includes(srAssessment(name, it)?.status)).length;
+    chips.push(srChip(`${rs}: ${items.length} podium trick${items.length === 1 ? '' : 's'} missing`, '#396FA8'));
+    if (ziele) chips.push(srChip(`${ziele} in Assessment`, '#3E8E5A'));
+  }
+  const S = sels[srNaechste(SR_JETZT)];
+  if (S && S.stufen) {
+    const best = S.stufen.find(s => s.status === 'met') || S.stufen.find(s => s.status === 'on_track');
+    chips.push(best ? srChip(`Selection ${S.kader_saison}: ${best.stufe} ${SR_STATUS[best.status].label.toLowerCase()}`, SR_STATUS[best.status].color)
+                    : srChip(`Selection ${S.kader_saison}: open`, '#5c5c61'));
+  }
+  chips.push(srHatInput(name) ? srChip(`Target ${SR_JETZT} ✓`, '#3E8E5A') : srChip(`Target ${SR_JETZT} missing`, '#e2001a', true));
+  return chips.join('');
+}
+function srKopfAktualisieren() {
+  const el = document.getElementById('sr-chips');
+  if (el && _srCur) el.innerHTML = srKopfChips(_srCur.name);
+}
+
+function srTrickHtml(name, it, i) {
+  const own = it.own;
+  const step = it.step.ref === null && !own ? 'nothing in this direction yet'
+    : `${srEsc(it.step.text)}${it.own_landed_only ? '*' : ''} from <b>${srEsc(own?.name || '–')}</b>` +
+      (own ? ` <span class="gedaempft">· ${own.n_well ? `well scored ${own.n_well}×` : `landed ${own.n_landed}×, never 65+`}${own.last ? ', last ' + srEsc(own.last) : ''}</span>` : '');
+  const vers = it.versions.map(v => `${srEsc(v.name)} <span class="gedaempft">${v.n}</span>`).join(' · ') + (it.more ? ` <span class="gedaempft">+${it.more} more</span>` : '');
+  const od = it.other_dir ? `<div class="sr-zeile"><span class="sr-lab">Other direction</span><span>${srEsc(it.other_dir.name)} <span class="gedaempft">(${it.other_dir.n_well}× well scored)</span></span></div>` : '';
+  const tr = srTraining(name, it);
+  let trTxt;
+  if (!tr || !tr.wahl) trTxt = `<span class="gedaempft">not in training (${sbMonPeriodLabel()})</span>`;
+  else trTxt = `${tr.wahl === 'bigger' ? '<span class="gedaempft">↑ bigger:</span> ' : ''}<b>${srEsc(tr.label)}</b>${tr.wahl === 'flips n/a' ? ' <span class="gedaempft">(flips not recorded)</span>' : ''} · ${tr.text}` +
+    (tr.status ? ` <span style="color:${tr.color};font-weight:700;">${tr.status}</span>` : '');
+  const as = srAssessment(name, it);
+  let ziel;
+  if (!as) ziel = `<span class="gedaempft">…</span>`;
+  else if (as.status === 'mastered' || as.status === 'erreicht') ziel = `<span class="sr-state" style="--c:#3E8E5A;" title="${srEsc(as.label)}">✅ Learned in Assessment</span>`;
+  else if (as.status === 'goal') ziel = `<span class="sr-state" style="--c:#C96A1F;" title="${srEsc(as.label)}">🎯 Goal in Assessment</span>`;
+  else if (it.goal) ziel = `<button class="sr-goal" id="sr-goal-${i}" onclick="srSetGoal(${i})">🎯 Set as goal</button>`;
+  else ziel = `<span class="gedaempft" title="The FIS code does not name the side">side not in the code</span>`;
+  return `<div class="sr-trick">
+    <div class="sr-trick-h">
+      <div><b class="sr-trick-n">${srEsc(it.trick)}</b> <span class="sr-disz">${SR_DN[it.disz]}</span> <span class="gedaempft">${it.pod} podium place${it.pod === 1 ? '' : 's'}</span></div>
+      <div>${ziel}</div>
+    </div>
+    <div class="sr-zeile"><span class="sr-lab">Step</span><span>${step}</span></div>
+    <div class="sr-zeile"><span class="sr-lab">On the podium</span><span>${vers || '–'}</span></div>
+    ${od}
+    <div class="sr-zeile"><span class="sr-lab">Training</span><span>${trTxt}</span></div>
+  </div>`;
+}
+
+function srReviewHtml(name, R, saison) {
+  if (!R) {
+    if (saison !== SR_JETZT) return '';
+    const letzte = Object.keys(srReviews(name)).filter(x => x < saison).sort().pop();
+    return `<div class="sr-sek"><div class="sr-h">Podium tricks ${saison}</div><div class="sr-leer">The trick analysis for ${saison} follows once the first World Cup events of the season are analysed.${letzte ? ` Until then the podium tricks of <button class="sr-link" onclick="srSetSaison('${letzte}')">${letzte}</button> are the basis for the plan.` : ''}</div></div>`;
+  }
+  const disz = Object.entries(R.disz).map(([k, d]) =>
+    `<span><b>${d.name}</b> ${d.events} event${d.events === 1 ? '' : 's'} · ${d.finals} final${d.finals === 1 ? '' : 's'}${d.best ? ' · best ' + d.best : ''}` +
+    (d.codes ? ` · <b>${d.n_covered} of ${d.n_podium_tricks}</b> podium tricks covered` : ' · no trick codes') + '</span>').join('');
+  const items = _srCur.items;
+  const zeigen = _srAlle ? items : items.filter(it => it.im_deck);
+  const liste = zeigen.map(it => srTrickHtml(name, it, items.indexOf(it))).join('');
+  const mehr = items.length > zeigen.length || _srAlle
+    ? `<button class="sr-mehr" onclick="srAlleToggle()">${_srAlle ? 'Show the five from the coach review' : `Show all ${items.length} missing podium tricks`}</button>` : '';
+  return `<div class="sr-sek">
+    <div class="sr-h">Podium tricks ${saison} not yet in the contest record</div>
+    <div class="sr-disz-zeile">${disz}</div>
+    ${liste || '<div class="leer-schmal">Every podium trick is covered by an own well-scored contest trick.</div>'}
+    ${mehr}
+    <div class="sr-fuss">${srEsc(R.methode)} Training: same trick (direction, flips, rotation) in the period selected above, competition entries left out; ↑ = only a bigger trick of the same direction. Set as goal adds the trick to Assessment (direction, flips, rotation; add axis and grab there).</div>
+  </div>`;
+}
+
+function srFeldHtml(name, saison, feld, lab, ph) {
+  const r = srInput(name, saison, feld);
+  return `<label class="sr-feld"><span>${lab}</span>
+    <textarea rows="3" placeholder="${srEsc(ph)}" oninput="srSaveInput(${srEsc(JSON.stringify(name))}, '${saison}', '${feld}', this)">${srEsc(r?.wert || '')}</textarea>
+    <span class="hinweis-winzig" id="sr-info-${feld}">${srInfoText(r)}</span></label>`;
+}
+
+// Coach-Eingaben im Tab einer Saison: Ziel und Plan für die laufende Saison (in der vergangenen als Fazit, in der laufenden als Ziel),
+// «was die Daten verpassen» nur dort, wo es eine Trick-Auswertung gibt
+function srInputHtml(name, saison, R) {
+  const felder = [];
+  if (saison === SR_JETZT || srNaechste(saison) === SR_JETZT) {
+    felder.push(srFeldHtml(name, SR_JETZT, 'ziel', `Target ${SR_JETZT}`, 'Results or level for the season, e.g. two World Cup finals in Big Air'));
+    felder.push(srFeldHtml(name, SR_JETZT, 'plan', `Plan ${SR_JETZT}`, 'Tricks, events, next stage'));
+  }
+  if (R) felder.push(srFeldHtml(name, saison, 'fehlt', `What the ${saison} data miss or get wrong`, 'Injury, training, course, judging …'));
+  if (!felder.length) return '';
+  const titel = saison === SR_JETZT ? 'Coach input' : `Coach input: conclusions for ${SR_JETZT}`;
+  return `<div class="sr-sek"><div class="sr-h">${titel}</div><div class="sr-felder">${felder.join('')}</div>
+    ${saison !== SR_JETZT && srNaechste(saison) === SR_JETZT ? `<div class="sr-fuss">Target and plan ${SR_JETZT} are the same entries as in the ${SR_JETZT} tab.</div>` : ''}</div>`;
+}
+
+function srAltHtml(a) {
+  const st = SR_STATUS[a.status] || SR_STATUS.open;
+  let det = '';
+  if (a.belege && a.belege.length) det = a.belege.map(b => srEsc(b.text) + ' ' + srDatum(b.datum).slice(0, 6)).join(' · ');
+  else if (a.wertung && a.wertung.length) det = a.wertung.map(w => `${w.disz}: ${w.platz}. (${w.punkte} pts, computed)`).join(' · ');
+  else if (a.bestes) det = 'best: ' + srEsc(a.bestes.text);
+  else if (a.status === 'open' && a.starts === 0) det = 'no start yet';
+  if (a.fortschritt && a.status !== 'met') det = a.fortschritt + (det ? ' · ' + det : '');
+  return `<div class="sr-alt"><i style="background:${st.color};"></i><span>${srEsc(a.text)}${det ? ` <span class="gedaempft">· ${det}</span>` : ''}</span><b style="color:${st.color};">${st.label}</b></div>`;
+}
+
+function srStufenHtml(S, ptWert, offenAuch) {
+  if (!S.stufen) return `<div class="leer-schmal">${srEsc(S.hinweis)}</div>`;
+  return S.stufen.map(s => {
+    const zus = s.zusatz.map(z => ({...z, status: ptWert === null ? 'open' : ptWert >= z.punkte ? 'met' : 'not_met'}));
+    const st = SR_STATUS[s.status] || SR_STATUS.open;
+    const aktuell = S.basis !== 'baseline' && ((S.kader || '').split('/').includes(s.stufe) || (S.kader === 'Sichtung' && s.stufe === 'Rookie'));
+    const offen = ['met', 'on_track'].includes(s.status) || aktuell || offenAuch === s.stufe;
+    const zusTxt = zus.length && S.basis !== 'baseline' ? `<div class="sr-zus">Also required: ${zus.map(z => `${srEsc(z.text)} <b style="color:${SR_STATUS[z.status].color};">${ptWert === null ? 'not entered' : ptWert + ' points'}</b>`).join(' · ')}</div>` : '';
+    return `<details class="sr-stufe" ${offen ? 'open' : ''}>
+      <summary><span class="sr-stufe-n">${s.name}</span>${aktuell ? '<span class="sr-jetzt">current squad</span>' : ''}<b style="color:${st.color};margin-left:auto;">${st.label}</b></summary>
+      <div class="sr-alts"><div class="hinweis-winzig" style="margin-bottom:4px;">One of these:</div>${s.alt.map(srAltHtml).join('')}${zusTxt}</div>
+    </details>`;
+  }).join('');
+}
+
+// laufende Saison: die letzten Resultate; vergangene Saison: die besten
+function srResultateTxt(S, n, beste) {
+  const r = S.resultate || [];
+  const z_ = z => `${z.rang ? z.rang + '.' : srEsc(z.status)} ${srEsc(z.ort)} ${z.disz} (${z.kat})`;
+  const wahl = beste ? r.filter(z => z.rang).sort((a, b) => a.rang - b.rang).slice(0, n) : r.slice(-n);
+  return `${r.length} result${r.length === 1 ? '' : 's'} in the window` + (wahl.length ? (beste ? ', best: ' : ', latest: ') + wahl.map(z_).join(' · ') : '') + '.';
+}
+
+// Laufende Saison: Stand gegen die geltenden Richtlinien, mit Powertest und Selektionswettkämpfen
+function srSelektionHtml(name, S) {
+  const pt = srInput(name, S.kader_saison, 'powertest');
+  const ptWert = pt && pt.wert !== '' && !isNaN(+pt.wert) ? +pt.wert : null;
+  const stand = `results ${srDatum(S.fenster[0]).slice(3)} to ${srDatum(S.fenster[1]).slice(3)} · FIS lists as of ${srDatum(S.stand)}`;
+  const kopf = !S.n_rennen_gefahren ? `No FIS event in the window yet${S.naechstes_rennen ? `; the season starts ${srDatum(S.naechstes_rennen)}` : ''}.` : srResultateTxt(S, 4);
+  const ev = (S.selektionsevents || []).map(e => {
+    const r = (S.resultate || []).find(z => z.datum === e.datum && z.disz === e.disz);
+    return `<span>${srDatum(e.datum).slice(0, 6)} ${srEsc(e.ort)} ${e.disz} (${e.kat})${r ? ` <b>${r.rang ? r.rang + '.' : srEsc(r.status)}</b>` : e.gefahren ? ' <span class="gedaempft">no start</span>' : ''}</span>`;
+  }).join('');
+  return `<div class="sr-sek">
+    <div class="sr-h">Selection ${S.kader_saison} <span class="sr-h-sub">${stand}</span></div>
+    <div class="sr-sel-kopf">${kopf}${S.kader ? ` Current squad: <b>${SR_KADER[S.kader] || srEsc(S.kader)}</b>.` : ''}</div>
+    ${srStufenHtml(S, ptWert)}
+    <div class="sr-pt"><label for="sr-pt-in">Powertest (points, autumn ${S.fenster[0].slice(0, 4)})</label>
+      <input id="sr-pt-in" type="number" min="0" max="100" step="1" value="${ptWert ?? ''}" onchange="srSaveInput(${srEsc(JSON.stringify(name))}, '${S.kader_saison}', 'powertest', this)">
+      <span class="hinweis-winzig" id="sr-info-powertest">${srInfoText(pt)}</span></div>
+    ${ev ? `<div class="sr-ev"><span class="sr-lab">Selection events (Annex A)</span><div>${ev}</div></div>` : ''}
+    <div class="sr-fuss">${srEsc(S.quelle)}. Checked from FIS result lists: ranks at Olympics, Worlds, World Cup, Junior Worlds and the selection events (Annex A). Standings are computed from the races with the FIS points table (official FIS standings decide); during the season they show «on track». Read as: World Cup SS / BA counts slopestyle and big air together; «1× top 3 and 1× top 5» means two different results. Coach judgement, PISTE assessment, Technical Check-up and Powertest are not in the result lists. Meeting the criteria is not an automatic selection: the selection committee decides (4.1, 4.2).</div>
+  </div>`;
+}
+
+// Vergangene Saison: Resultate und das Kader, das daraus entstand; dieselben Resultate gegen die heute geltenden Regeln als Vergleich
+function srSelektionVergangenHtml(name, S, saison) {
+  const regel = S.regeln || srNaechste(SR_JETZT);
+  return `<div class="sr-sek">
+    <div class="sr-h">Results ${saison} and squad ${S.kader_saison}</div>
+    <div class="sr-sel-kopf">${srResultateTxt(S, 5, true)}${S.kader ? ` Selected for ${S.kader_saison}: <b>${SR_KADER[S.kader] || srEsc(S.kader)}</b>.` : ''}</div>
+    <details class="sr-vergleich">
+      <summary>The same results against the rules for ${regel}</summary>
+      <div class="sr-fuss" style="margin:4px 0 8px;">A comparison, not the selection for ${S.kader_saison}: that used the rules of the time and the coaches' judgement. It shows what last season's results would be worth under the rules that count now (${srEsc(S.quelle)}).</div>
+      ${srStufenHtml(S, null)}
+    </details>
+  </div>`;
+}
+
+function srRender() {
+  const el = document.getElementById('sr-block');
+  if (!el || !_srCur) return;
+  const name = _srCur.name;
+  if (!_srData) { el.innerHTML = `<div class="sr"><div class="sr-kopf sr-laden">Season review &amp; selection <span class="spinner"></span></div></div>`; return; }
+  if (_srData.fehlt || !srHatInhalt(name)) { el.innerHTML = ''; return; }      // Tabellen noch nicht angelegt oder keine Inhalte
+  const saisons = srSaisons(name);
+  if (!_srSaison || !saisons.includes(_srSaison)) _srSaison = srStandardSaison(name);
+  const saison = _srSaison;
+  const R = srReviews(name)[saison], S = srSelections(name)[srNaechste(saison)];
+  _srCur.items = srItems(R); _srCur.saison = saison;
+  let body = '';
+  if (_srOpen) {
+    const tabs = saisons.map(s => `<button class="sr-tab ${s === saison ? 'on' : ''}" onclick="srSetSaison('${s}')">${s}<span>${srSaisonLabel(s)}</span></button>`).join('');
+    const sel = !S ? '' : S.basis === 'baseline' ? srSelektionVergangenHtml(name, S, saison) : srSelektionHtml(name, S);
+    const teile = saison === SR_JETZT
+      ? [sel, srInputHtml(name, saison, R), srReviewHtml(name, R, saison)]      // laufende Saison: Selektion zuerst
+      : [srReviewHtml(name, R, saison), srInputHtml(name, saison, R), sel];     // vergangene Saison: Trick-Auswertung zuerst
+    body = `<div class="sr-body"><div class="sr-tabs">${tabs}</div>${teile.join('')}</div>`;
+  }
+  el.innerHTML = `<div class="sr">
+    <button class="sr-kopf" onclick="srToggle()" aria-expanded="${_srOpen}">
+      <span class="sr-titel">Season review &amp; selection</span>
+      <span class="sr-chips" id="sr-chips">${srKopfChips(name)}</span>
+      <span class="sr-pfeil">${_srOpen ? '▴' : '▾'}</span>
+    </button>${body}</div>`;
+}

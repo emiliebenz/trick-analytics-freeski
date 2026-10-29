@@ -529,3 +529,66 @@ header h1 .dot{color:#E2001A}
 .status-pill{display:flex !important;align-items:center;gap:8px;border:0 !important;border-left:4px solid var(--c) !important;border-radius:8px !important;background:#fff !important;padding:7px 12px !important}
 .status-pill span{margin-left:auto}
 .status-key-n{margin-top:2px}
+
+/* ── Season review & Selection (Monitoring, Athlet:innen-Ebene; Team-Zeile) ── */
+.sr { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
+.sr-kopf { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; width: 100%; padding: 12px 14px; background: none; border: 0; cursor: pointer; text-align: left; font-family: inherit; color: var(--text); }
+.sr-laden { cursor: default; font-size: 12px; color: var(--muted); }
+.sr-titel { font-size: 12px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: var(--muted); }
+.sr-chips { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; }
+.sr-chip { display: inline-block; border: 1.5px solid var(--c); color: var(--c); border-radius: 999px; padding: 2px 9px; font-size: 12px; font-weight: 700; background: #fff; white-space: nowrap; }
+.sr-pfeil { margin-left: auto; color: var(--muted); font-size: 14px; }
+.sr-body { border-top: 1px solid var(--border); padding: 4px 14px 14px; background: var(--surface); }
+.sr-sek { padding-top: 14px; }
+.sr-sek + .sr-sek { border-top: 1px solid var(--border); margin-top: 14px; }
+.sr-h { font-size: 12px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: var(--text); margin-bottom: 8px; }
+.sr-h-sub { font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--muted); margin-left: 6px; }
+.sr-disz-zeile { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+.sr-disz-zeile b { color: var(--text); }
+.sr-trick { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; background: #fff; }
+.sr-trick-h { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; font-size: 14px; }
+.sr-trick-n { font-size: 14px; }
+.sr-disz { font-size: 12px; font-weight: 700; color: #396FA8; background: #EAF1F8; border-radius: 999px; padding: 1px 8px; margin: 0 4px; }
+.sr-zeile { display: grid; grid-template-columns: 112px 1fr; gap: 8px; font-size: 12px; padding: 2px 0; line-height: 1.45; }
+.sr-lab { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; font-weight: 600; }
+.sr-state { display: inline-block; font-size: 12px; font-weight: 700; color: var(--c); border: 1px solid var(--c); border-radius: 999px; padding: 3px 10px; }
+.sr-goal { font-family: inherit; font-size: 12px; font-weight: 700; color: #C96A1F; background: rgba(201,106,31,.1); border: 1px solid #C96A1F; border-radius: 999px; padding: 4px 12px; cursor: pointer; }
+.sr-goal:disabled { opacity: .6; cursor: default; }
+.sr-mehr { font-family: inherit; font-size: 12px; font-weight: 600; color: #148FA0; background: none; border: 0; cursor: pointer; padding: 4px 0; }
+.sr-fuss { font-size: 12px; color: var(--muted); margin-top: 8px; line-height: 1.45; }
+.sr-felder { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.sr-feld { display: flex; flex-direction: column; gap: 4px; text-transform: none; letter-spacing: 0; }
+.sr-feld > span:first-child { font-size: 12px; font-weight: 700; color: var(--text); }
+.sr-feld textarea { min-height: 84px; font-size: 14px; }
+.sr-sel-kopf { font-size: 12px; color: var(--text); margin-bottom: 8px; }
+.sr-stufe { border: 1px solid var(--border); border-radius: 10px; background: #fff; margin-bottom: 6px; }
+.sr-stufe summary { display: flex; align-items: center; gap: 8px; padding: 8px 12px; cursor: pointer; font-size: 14px; list-style: none; }
+.sr-stufe summary::-webkit-details-marker { display: none; }
+.sr-stufe summary::before { content: '▸'; color: var(--muted); font-size: 12px; }
+.sr-stufe[open] summary::before { content: '▾'; }
+.sr-stufe-n { font-weight: 700; }
+.sr-jetzt { font-size: 12px; color: #148FA0; border: 1px solid #148FA0; border-radius: 999px; padding: 0 7px; }
+.sr-alts { padding: 0 12px 10px 30px; }
+.sr-alt { display: grid; grid-template-columns: 9px 1fr auto; gap: 8px; align-items: baseline; font-size: 12px; padding: 3px 0; border-top: 1px solid var(--border); }
+.sr-alt i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.sr-zus { font-size: 12px; color: var(--muted); padding-top: 6px; }
+.sr-pt { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 10px 0 4px; }
+.sr-pt label { margin: 0; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; font-weight: 600; }
+.sr-pt input { width: 90px !important; }
+.sr-ev { font-size: 12px; margin-top: 10px; }
+.sr-ev div { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 3px; }
+.sr-tabs { display: flex; gap: 6px; flex-wrap: wrap; padding-top: 12px; }
+.sr-tab { font-family: inherit; display: inline-flex; align-items: baseline; gap: 6px; padding: 6px 14px; border-radius: 999px; border: 1.5px solid var(--border); background: var(--surface2); color: var(--muted); font-size: 14px; font-weight: 700; cursor: pointer; }
+.sr-tab span { font-size: 12px; font-weight: 500; }
+.sr-tab.on { border-color: #148FA0; background: rgba(20,143,160,0.12); color: #148FA0; }
+.sr-leer { font-size: 12px; color: var(--muted); }
+.sr-link { font-family: inherit; font-size: 12px; font-weight: 700; color: #148FA0; background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; }
+.sr-vergleich > summary { font-size: 12px; font-weight: 700; color: #148FA0; cursor: pointer; padding: 4px 0; }
+.sr-team { display: flex; gap: 8px; flex-wrap: wrap; align-items: baseline; font-size: 12px; color: var(--muted); background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; margin: 0 0 16px; }
+.sr-team > b { color: var(--text); text-transform: uppercase; letter-spacing: .5px; }
+.sr-chip-open { font-size: 12px; color: #C96A1F; text-align: center; margin-top: 6px; font-weight: 600; }
+@media (max-width: 768px) {
+  .sr-felder { grid-template-columns: 1fr; }
+  .sr-zeile { grid-template-columns: 1fr; gap: 0; }
+  .sr-alts { padding-left: 12px; }
+}

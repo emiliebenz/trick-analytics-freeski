@@ -3814,6 +3814,23 @@ function monHeaderHtml(title, sub, backable) {
   </div>`;
 }
 
+// Season review (kern.js): was ein Trick ist und wie er im Training steht, in der Freeski-Logik.
+// srParse: Label → {dir: Left / Right / Switch Left / Switch Right, flips (ohne Flip-Wort 1), rot}; null ohne Rotation.
+function srParse(label) {
+  const t = (label || '').split(' — ')[0];
+  const rot = ((t.match(/\b\d{3,4}\b/g) || []).map(Number).find(x => x >= 180)) || null;
+  if (!rot) return null;
+  const seite = /\bLeft\b/.test(t) ? 'Left' : /\bRight\b/.test(t) ? 'Right' : '?';
+  const f = t.match(/\b(Single|Double|Triple|Quad)\b/);
+  return {dir: (/\bSwitch\b/.test(t) ? 'Switch ' : '') + seite, flips: f ? {Single:1, Double:2, Triple:3, Quad:4}[f[1]] : 1, rot};
+}
+// srStats: Versuche, Landungen, Ø QoE und Status wie die Trick-Karten im Monitoring
+function srStats(rows) {
+  const att = rows.length, landed = rows.filter(fsMonLanded).length, qoe = fsMonAvgQoe(rows);
+  const st = FS_MON_STATUS[sbMonStatusKey(att, qoe ?? 0)];
+  return {att, landed, text: `${att} att. · ${att ? Math.round(landed / att * 100) : 0}% landed · Ø QoE ${qoe !== null ? qoe + '%' : '–'}`, status: st.label, color: st.color};
+}
+
 function renderMonTeam() {
   const root = document.getElementById('mon-root');
   const rows = sbMonFiltered();
@@ -3852,6 +3869,7 @@ function renderMonTeam() {
           <div><div style="font-size:16px;font-weight:800;color:#C96A1F;">${cnt.building}</div><div class="hinweis-winzig">Building</div></div>
           <div><div style="font-size:16px;font-weight:800;color:#e2001a;">${cnt.critical}</div><div class="hinweis-winzig">Critical</div></div>
         </div>
+        ${srTeamChip(a.name)}
         <div style="text-align:center;font-size:12px;color:#148FA0;margin-top:10px;">View details →</div>
       </div>`;
     }).join('');
@@ -3862,6 +3880,7 @@ function renderMonTeam() {
   }).join('');
   root.innerHTML = `<div class="card polster-20">
     ${monHeaderHtml('Team Monitoring', rows.length + ' attempts · ' + sbMonPeriodLabel(), false)}
+    ${srTeamLine(SESS_ALL_ATHLETES.filter(a => SESS_SQUADS.some(s => s.key === a.squad)).map(a => a.name))}
     <div class="status-key"><span class="status-key-t">Trick status (Ø QoE)</span><span class="status-pill" style="--c:#3E8E5A"><i></i><b>Ready</b><span>≥ 70%</span></span><span class="status-pill" style="--c:#C96A1F"><i></i><b>Building</b><span>50–69%</span></span><span class="status-pill" style="--c:#D64545"><i></i><b>Critical</b><span>&lt; 50%</span></span><span class="status-pill" style="--c:#8a8a8f"><i></i><b>Low data</b><span>&lt; 5 attempts</span></span><span class="status-key-n">Ø QoE = average execution quality: Miss 0% · Okay 50% · Perfect 100% per rated category</span></div>
     ${sections || '<div class="leer-schmal">No athletes configured.</div>'}
     <div style="border-top:1px solid var(--border);margin-top:8px;padding-top:16px;display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
@@ -3934,12 +3953,14 @@ function renderMonAthlete() {
 
   root.innerHTML = `<div class="card polster-20">
     ${monHeaderHtml(name, att + ' attempts · Ø QoE <b>' + (qoe !== null ? qoe + '%' : '—') + '</b> · ' + landedPct + '% landed · ' + sbMonPeriodLabel(), true)}
+    ${srSlotHtml()}
     ${balanceBar}
     ${groups || '<div class="leer-schmal">No session attempts in this period.</div>'}
     <div style="border-top:1px solid var(--border);margin-top:8px;padding-top:16px;display:flex;justify-content:center;">
       <button onclick="sbMonAthletePdf()" style="padding:8px 16px;border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text);">📄 Athlete Report (PDF)</button>
     </div>
   </div>`;
+  srMount(name);
 }
 
 // Varianten & Grabs eines Kern-Tricks (FS): volle Bezeichnung, Versuche, Landed-Quote, Ø QoE
@@ -5000,5 +5021,5 @@ function init() {
   document.body.classList.add('sport-freeski');
   sbLoadRailData();   // team-weite Rail-Arten, -Tricks und Run-Tags nachladen
 }
-return { fragments, init, showPage, dbRawLoad, sbRunToggleAdd, sbRunSetRailType, sbRunNewRailType, sbRunAddJump, sbRunAddRailCommit, sbRunRemoveEl, sbRunRate, sbRunNoteToggle, sbRunTagToggle, sbRunNoteInput, sbRunSave, sbMonTimeSel, sbMonOpenTrickReport, sbMonToggleHistory, sbMonSaveComment, loadReportsTab, renderReportsList, sbOpenReportInline, sbRepSetTyp, sbRepSetRange, sbRepApplyCustom, sbRepDeleteCurrent, sbRVPrintPdf, sbRVShowDetail, sbRVEditStart, sbRVEditCatSet, sbRVEditCancel, sbRVEditDelete, sbRVEditSave, openSessionReportView, loadMonitoring, renderMonitoring, sbMonSetRange, sbMonSetTyp, sbMonApplyCustom, sbMonRealityCheck, sbMonTeamPdf, sbMonAthletePdf, sbMonOpenAthlete, sbMonOpenTrick, sbMonBack, updateSbDisciplines, updateFwdSwBtn, toggleDisziplin, trickDesc, setPerfFilter, onPfSeasonChange, setPerfDateRange, clearPerfDateRange, getSeasonRange, extractRotation, extractQuality, renderSessionPerformance, realityCheck, applyRealityCheckSelected, updateSeasonLabels, loadDB, deleteSessionReport, rebuildReportFromTimestamps, renderSessionReports, generateAthleteReport, openTeamPdfReport, saveSessionState, clearSessionStorage, restoreSessionState, toggleSessionAthlete, baseLabel, renderLiveSession, selectSessAthlete, setSessRating, highlightRatingBtn, autoLogAttempt, logRatedAttempt, sessSetTrick, sessSelectGrab, logAttempt, renderSessionLog, deleteLogEntry, editLogEntry, setEditRating, saveFsLogEdit, clearSessionSelection, addAthleteToSession, resetSession, cancelSession, endSession, parseSubRating, buildFsTrickBlocks, saveSessionReport, loadLastSessionReport, openReportPrint, viewSessionReportByDate, loadStandort, renderSbDirRadar, drawSessionDirRadar, renderStandort, sbSave, cycleGrabStatus, loadEntwicklung, sortFsTricksByDir, initTrickAnalytics, buildSessionList, appendTrendChart, renderSessionSummary, renderRawEntries, syncTrickNameLocally, editRawEntry, cancelRawEdit, saveRawEdit, deleteRawEntry, setStatsMode, parseDateInput, setDateRange, clearDateRange, setTypeFilter, renderTrickAnalytics, openSbEdit, saveSbEdit, renderMonAthlete, renderMonTeam, renderMonTrick }
+return { fragments, init, showPage, dbRawLoad, sbRunToggleAdd, sbRunSetRailType, sbRunNewRailType, sbRunAddJump, sbRunAddRailCommit, sbRunRemoveEl, sbRunRate, sbRunNoteToggle, sbRunTagToggle, sbRunNoteInput, sbRunSave, sbMonTimeSel, sbMonOpenTrickReport, sbMonToggleHistory, sbMonSaveComment, loadReportsTab, renderReportsList, sbOpenReportInline, sbRepSetTyp, sbRepSetRange, sbRepApplyCustom, sbRepDeleteCurrent, sbRVPrintPdf, sbRVShowDetail, sbRVEditStart, sbRVEditCatSet, sbRVEditCancel, sbRVEditDelete, sbRVEditSave, openSessionReportView, loadMonitoring, renderMonitoring, sbMonSetRange, sbMonSetTyp, sbMonApplyCustom, sbMonRealityCheck, sbMonTeamPdf, sbMonAthletePdf, sbMonOpenAthlete, sbMonOpenTrick, sbMonBack, updateSbDisciplines, updateFwdSwBtn, toggleDisziplin, trickDesc, setPerfFilter, onPfSeasonChange, setPerfDateRange, clearPerfDateRange, getSeasonRange, extractRotation, extractQuality, renderSessionPerformance, realityCheck, applyRealityCheckSelected, updateSeasonLabels, loadDB, deleteSessionReport, rebuildReportFromTimestamps, renderSessionReports, generateAthleteReport, openTeamPdfReport, saveSessionState, clearSessionStorage, restoreSessionState, toggleSessionAthlete, baseLabel, renderLiveSession, selectSessAthlete, setSessRating, highlightRatingBtn, autoLogAttempt, logRatedAttempt, sessSetTrick, sessSelectGrab, logAttempt, renderSessionLog, deleteLogEntry, editLogEntry, setEditRating, saveFsLogEdit, clearSessionSelection, addAthleteToSession, resetSession, cancelSession, endSession, parseSubRating, buildFsTrickBlocks, saveSessionReport, loadLastSessionReport, openReportPrint, viewSessionReportByDate, loadStandort, renderSbDirRadar, drawSessionDirRadar, renderStandort, sbSave, cycleGrabStatus, loadEntwicklung, sortFsTricksByDir, initTrickAnalytics, buildSessionList, appendTrendChart, renderSessionSummary, renderRawEntries, syncTrickNameLocally, editRawEntry, cancelRawEdit, saveRawEdit, deleteRawEntry, setStatsMode, parseDateInput, setDateRange, clearDateRange, setTypeFilter, renderTrickAnalytics, openSbEdit, saveSbEdit, renderMonAthlete, renderMonTeam, renderMonTrick, srParse, srStats }
 })();

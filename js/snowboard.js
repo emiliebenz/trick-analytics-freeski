@@ -4333,6 +4333,30 @@ function monHeaderHtml(title, sub, backable) {
   </div>`;
 }
 
+// Season review (kern.js): was ein Trick ist und wie er im Training steht, in der Snowboard-Logik.
+// srParse: Label → {dir: Frontside / Backside / Cab (= Switch Frontside) / Switch Backside, flips (null = nicht erfasst), rot}.
+function srParse(label) {
+  const t = (label || '').split(' — ')[0];
+  if (/\bHardway\b/.test(t)) return null;
+  const rot = ((t.match(/\b\d{3,4}\b/g) || []).map(Number).find(x => x >= 180)) || null;
+  if (!rot) return null;
+  let dir;
+  if (/Switch Frontside/.test(t) || /(^|\s)Cab(\s|$)/.test(t)) dir = 'Cab';
+  else if (/Switch Backside/.test(t)) dir = 'Switch Backside';
+  else if (/Backside/.test(t)) dir = 'Backside';
+  else if (/Frontside/.test(t)) dir = 'Frontside';
+  else return null;
+  const f = t.match(/\b(Single|Double|Triple|Quad)\b/);
+  return {dir, flips: f ? {Single:1, Double:2, Triple:3, Quad:4}[f[1]] : null, rot};
+}
+// srStats: Versuche, stomped / landed und Status (Stomp-Rate) wie die Trick-Karten im Monitoring
+function srStats(rows) {
+  const att = rows.length, o = rows.map(sbMonOutcome);
+  const st = o.filter(x => x === 'stomped').length, la = st + o.filter(x => x === 'landed').length;
+  const s = SB_MON_STATUS[sbMonStatusKey(att, st)];
+  return {att, landed: la, text: `${att} att. · ${st} stomped (${att ? Math.round(st / att * 100) : 0}%) · ${la} landed`, status: s.label, color: s.color};
+}
+
 function renderMonTeam() {
   const root = document.getElementById('mon-root');
   const rows = sbMonFiltered();
@@ -4372,6 +4396,7 @@ function renderMonTeam() {
           <div><div style="font-size:16px;font-weight:800;color:#C96A1F;">${cnt.building}</div><div class="hinweis-winzig">Building</div></div>
           <div><div style="font-size:16px;font-weight:800;color:#e2001a;">${cnt.critical}</div><div class="hinweis-winzig">Critical</div></div>
         </div>
+        ${srTeamChip(a.name)}
         <div style="text-align:center;font-size:12px;color:#148FA0;margin-top:10px;">View details →</div>
       </div>`;
     }).join('');
@@ -4382,6 +4407,7 @@ function renderMonTeam() {
   }).join('');
   root.innerHTML = `<div class="card polster-20">
     ${monHeaderHtml('Team Monitoring', rows.length + ' attempts · ' + sbMonPeriodLabel(), false)}
+    ${srTeamLine(SESS_ALL_ATHLETES.filter(a => SESS_SQUADS.some(s => s.key === a.squad)).map(a => a.name))}
     <div class="status-key"><span class="status-key-t">Trick status (stomp rate)</span><span class="status-pill" style="--c:#3E8E5A"><i></i><b>Ready</b><span>≥ 70%</span></span><span class="status-pill" style="--c:#C96A1F"><i></i><b>Building</b><span>40–69%</span></span><span class="status-pill" style="--c:#D64545"><i></i><b>Critical</b><span>&lt; 40%</span></span><span class="status-pill" style="--c:#8a8a8f"><i></i><b>Low data</b><span>&lt; 5 attempts</span></span><span class="status-key-n">Stomped = all KPIs met</span></div>
     ${sections || '<div class="leer-schmal">No athletes configured.</div>'}
     <div style="border-top:1px solid var(--border);margin-top:8px;padding-top:16px;display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
@@ -4453,12 +4479,14 @@ function renderMonAthlete() {
 
   root.innerHTML = `<div class="card polster-20">
     ${monHeaderHtml(name, att + ' attempts · ' + stomped + ' stomped · <b>' + rate + '% stomp rate</b> · ' + sbMonPeriodLabel(), true)}
+    ${srSlotHtml()}
     ${balanceBar}
     ${groups || '<div class="leer-schmal">No session attempts in this period.</div>'}
     <div style="border-top:1px solid var(--border);margin-top:8px;padding-top:16px;display:flex;justify-content:center;">
       <button onclick="sbMonAthletePdf()" style="padding:8px 16px;border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text);">📄 Athlete Report (PDF)</button>
     </div>
   </div>`;
+  srMount(name);
 }
 
 // Varianten & Grabs eines Kern-Tricks: volle Bezeichnung, Versuche, Stomp-Rate
@@ -4916,5 +4944,5 @@ function init() {
   sbLoadCustomFails();   // team-weite Custom-Fail-Tags nachladen
   sbLoadRailData();      // team-weite Rail-Arten und -Tricks nachladen
 }
-return { fragments, init, showPage, sbCustomFailPrompt, toggleSbFail, commitFailedMulti, sbRunToggleAdd, sbRunSetRailType, sbRunNewRailType, sbRunAddJump, sbRunAddRailCommit, sbRunRemoveEl, sbRunRate, sbRunNoteToggle, sbRunTagToggle, sbRunNoteInput, sbRunSave, updateFwdSwBtn, updateSbDisciplines, toggleDisziplin, trickDesc, loadDB, generateAthleteReport, renderSessionReports, rebuildReportFromTimestamps, deleteSessionReport, openTeamPdfReport, saveSessionState, clearSessionStorage, restoreSessionState, toggleSessionAthlete, normSbTrick, tricksForDir, baseLabel, parseGrabsFromLabel, showGrabPicker, toggleDoubleGrab, doubleGrabClick, addTrickWithGrab, renderSessionTrickSelection, toggleSessGrab, renderSessSelected, toggleSessAssessmentTrick, removeSessTrick, toggleSessTrick, selectSessAthlete, sbSetTrick, sbSelectGrab, renderLiveSession, sessSetTrick, logAttempt, logAttemptStart, renderSbDisclosure, toggleSbKpi, commitLandedAttempt, commitFailedAttempt, sbAttemptNo, toggleSbEditKpi, setSbEditFail, saveSbLogEdit, deleteLogEntry, editLogEntry, renderSessionLog, clearSessionSelection, addAthleteToSession, resetSession, cancelSession, endSession, buildFsTrickBlocks, saveSessionReport, loadLastSessionReport, openReportPrint, openSessionReportView, sbReportInnerHtml, sbRVShowDetail, sbRVPrintPdf, loadReportsTab, renderReportsList, sbOpenReportInline, sbRepSetTyp, sbRepSetRange, sbRepApplyCustom, sbRepDeleteCurrent, sbRVEditStart, sbRVEditKpiToggle, sbRVEditFailSet, sbRVEditCancel, sbRVEditDelete, sbRVEditSave, sbMonSetTyp, sbMonApplyCustom, sbMonRealityCheck, sbMonTeamPdf, sbMonAthletePdf, sbMonTimeSel, sbMonOpenTrickReport, sbMonToggleHistory, sbMonSaveComment, viewSessionReportByDate, loadStandort, renderSbDirRadar, renderStandort, sbSave, cycleGrabStatus, loadEntwicklung, openSbEdit, saveSbEdit, extractQuality, trickDir, sortFsTricksByDir, initTrickAnalytics, buildSessionList, setStatsMode, setTypeFilter, parseDateInput, setDateRange, clearDateRange, renderTrickAnalytics, renderRawEntries, syncTrickNameLocally, editRawEntry, cancelRawEdit, saveRawEdit, deleteRawEntry, showPerfTip, hidePerfTip, setPerfFilter, onPfSeasonChange, setPerfDateRange, clearPerfDateRange, getSeasonRange, updateSeasonLabels, renderSessionPerformance, realityCheck, applyRealityCheckSelected, drawSessionDirRadar, loadMonitoring, renderMonitoring, sbMonSetRange, sbMonOpenAthlete, sbMonOpenTrick, sbMonBack, renderMonAthlete, renderMonTeam, renderMonTrick }
+return { fragments, init, showPage, sbCustomFailPrompt, toggleSbFail, commitFailedMulti, sbRunToggleAdd, sbRunSetRailType, sbRunNewRailType, sbRunAddJump, sbRunAddRailCommit, sbRunRemoveEl, sbRunRate, sbRunNoteToggle, sbRunTagToggle, sbRunNoteInput, sbRunSave, updateFwdSwBtn, updateSbDisciplines, toggleDisziplin, trickDesc, loadDB, generateAthleteReport, renderSessionReports, rebuildReportFromTimestamps, deleteSessionReport, openTeamPdfReport, saveSessionState, clearSessionStorage, restoreSessionState, toggleSessionAthlete, normSbTrick, tricksForDir, baseLabel, parseGrabsFromLabel, showGrabPicker, toggleDoubleGrab, doubleGrabClick, addTrickWithGrab, renderSessionTrickSelection, toggleSessGrab, renderSessSelected, toggleSessAssessmentTrick, removeSessTrick, toggleSessTrick, selectSessAthlete, sbSetTrick, sbSelectGrab, renderLiveSession, sessSetTrick, logAttempt, logAttemptStart, renderSbDisclosure, toggleSbKpi, commitLandedAttempt, commitFailedAttempt, sbAttemptNo, toggleSbEditKpi, setSbEditFail, saveSbLogEdit, deleteLogEntry, editLogEntry, renderSessionLog, clearSessionSelection, addAthleteToSession, resetSession, cancelSession, endSession, buildFsTrickBlocks, saveSessionReport, loadLastSessionReport, openReportPrint, openSessionReportView, sbReportInnerHtml, sbRVShowDetail, sbRVPrintPdf, loadReportsTab, renderReportsList, sbOpenReportInline, sbRepSetTyp, sbRepSetRange, sbRepApplyCustom, sbRepDeleteCurrent, sbRVEditStart, sbRVEditKpiToggle, sbRVEditFailSet, sbRVEditCancel, sbRVEditDelete, sbRVEditSave, sbMonSetTyp, sbMonApplyCustom, sbMonRealityCheck, sbMonTeamPdf, sbMonAthletePdf, sbMonTimeSel, sbMonOpenTrickReport, sbMonToggleHistory, sbMonSaveComment, viewSessionReportByDate, loadStandort, renderSbDirRadar, renderStandort, sbSave, cycleGrabStatus, loadEntwicklung, openSbEdit, saveSbEdit, extractQuality, trickDir, sortFsTricksByDir, initTrickAnalytics, buildSessionList, setStatsMode, setTypeFilter, parseDateInput, setDateRange, clearDateRange, renderTrickAnalytics, renderRawEntries, syncTrickNameLocally, editRawEntry, cancelRawEdit, saveRawEdit, deleteRawEntry, showPerfTip, hidePerfTip, setPerfFilter, onPfSeasonChange, setPerfDateRange, clearPerfDateRange, getSeasonRange, updateSeasonLabels, renderSessionPerformance, realityCheck, applyRealityCheckSelected, drawSessionDirRadar, loadMonitoring, renderMonitoring, sbMonSetRange, sbMonOpenAthlete, sbMonOpenTrick, sbMonBack, renderMonAthlete, renderMonTeam, renderMonTrick, srParse, srStats }
 })();
