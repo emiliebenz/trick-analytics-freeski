@@ -1927,26 +1927,25 @@ function srCompHtml(name, dz) {
 }
 
 // ─── Comp overview: Übersicht ───
-function srBalken(lab, wert, ref, max, wtxt, rtxt, grau, gut) {
-  const w = wert == null ? 0 : Math.max(2, Math.min(100, wert / max * 100)), r = ref == null ? null : Math.min(100, ref / max * 100);
-  const col = grau || wert == null ? 'var(--muted)' : gut ? SR_GUT : SR_SCHLECHT;
-  return `<div class="sr-balken"><span>${lab}</span><div class="sr-bahn"><div style="width:${w}%;background:${grau ? SR_GRAU : gut ? SR_GUT : SR_SCHLECHT};"></div>${r != null ? `<i style="left:${r}%;"></i>` : ''}</div>
+function srBalken(lab, wert, ref, max, wtxt, rtxt, grau, gut, farbe, klasse) {
+  const w = !wert ? 0 : Math.max(2, Math.min(100, wert / max * 100)), r = ref == null ? null : Math.min(100, ref / max * 100);
+  const col = grau || wert == null ? 'var(--muted)' : gut == null ? 'var(--text)' : gut ? SR_GUT : SR_SCHLECHT;   // gut null = keine Wertung
+  return `<div class="sr-balken${klasse ? ' ' + klasse : ''}"><span>${lab}</span><div class="sr-bahn"><div style="width:${w}%;background:${farbe || (grau ? SR_GRAU : gut ? SR_GUT : SR_SCHLECHT)};"></div>${r != null ? `<i style="left:${r}%;"></i>` : ''}</div>
     <span><b style="color:${col};">${wert == null ? '–' : wtxt}</b> <span class="gedaempft">${rtxt}</span></span></div>`;
 }
 // Punktebänder des FIS Judges Handbook (wie im Coach-Deck): Sturz 1–30, Durchschnitt 30–65, gut 65–85, exzellent 85–100.
 // Athlet:in = alle gewerteten Sprünge/Runs der Saison, Ref. = nächste Stufe in denselben Phasen (Finalist:innen in der Quali, Podest im Final).
-const SR_BAND = [['fall', 'Fall', '#F2B8B5', '#5c2a28'], ['mid', 'Average or below', '#C5D5E4', '#2c3e55'], ['good', 'Good', '#8DB4D9', '#fff'], ['excellent', 'Excellent', '#0B2E59', '#fff']];
-function srBandBar(s) {
-  return `<div class="sr-bandbar">${SR_BAND.map(([k, l, bg, fg]) => { const p = Math.round(100 * (s[k] || 0));
-    return p ? `<div style="width:${p}%;background:${bg};color:${fg};" title="${l} ${p}%">${p >= 12 ? p + '%' : ''}</div>` : ''; }).join('')}</div>`;
-}
+const SR_BAND = [['fall', 'Fall', '#E8A09B'], ['mid', 'Average or below', '#C5D5E4'], ['good', 'Good', '#8DB4D9'], ['excellent', 'Excellent', '#0B2E59']];
+// Eine Zeile pro Band, gleiche Lesart wie die anderen Balken: eigener Anteil als Balken in der Bandfarbe, Referenz als Strich.
+// Wertung nur an den Enden: Sturz rot, wenn klar über der Referenz; exzellent grün ab Referenz, sonst rot.
 function srBaender(lab, b, r, wenig) {
   if (!b || !b.n) return '';
-  const ex = Math.round(100 * b.excellent), rex = r ? Math.round(100 * r.excellent) : null, fa = Math.round(100 * b.fall), rfa = r ? Math.round(100 * r.fall) : null;
-  const col = wenig ? 'var(--muted)' : rex == null ? 'var(--text)' : ex >= rex ? SR_GUT : SR_SCHLECHT;
-  return `<div class="sr-balken sr-baender"><span>${lab}</span>
-    <div><div class="sr-bandrow"><i>Athlete</i>${srBandBar(b)}</div>${r ? `<div class="sr-bandrow"><i>Ref.</i>${srBandBar(r)}</div>` : ''}</div>
-    <span><b style="color:${col};">${ex}% excellent</b> <span class="gedaempft">${rex == null ? '' : 'Ref. ' + rex + '%'}</span><br><span class="gedaempft">falls ${fa}%${rfa == null ? '' : ' · Ref. ' + rfa + '%'}</span></span></div>`;
+  const zeile = (k, l, farbe) => {
+    const w = b[k] || 0, rf = r ? r[k] : null;
+    const gut = wenig || rf == null ? null : k === 'excellent' ? w >= rf : k === 'fall' ? w <= rf + 0.05 : null;
+    return srBalken(l, w, rf, 1, srPct(w), rf == null ? '' : 'Ref. ' + srPct(rf), wenig, gut, wenig ? SR_GRAU : farbe, 'sr-band');
+  };
+  return `<div class="sr-band-kopf">${lab}</div>${SR_BAND.map(([k, l, c]) => zeile(k, l, c)).join('')}`;
 }
 // Freeski-Slopestyle: Rails. Note pro Rail-Sektion (0–10) und Merkmale gegen die Podest-Athlet:innen derselben Saison
 // (alle ihre Läufe); Farbe nur bei Merkmalen, die im ganzen Feld mit einer anderen Rail-Note einhergehen (wie in den Decks)

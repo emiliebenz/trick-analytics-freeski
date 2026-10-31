@@ -561,11 +561,9 @@ header h1 .dot{color:#E2001A}
 .sr-bahn { position: relative; height: 10px; background: #EEE9E7; border-radius: 3px; }
 .sr-bahn > div { height: 100%; border-radius: 3px; }
 .sr-bahn > i { position: absolute; top: -5px; width: 3px; height: 20px; background: #2c2c2e; margin-left: -1.5px; }
-.sr-baender { align-items: start; }
-.sr-bandrow { display: grid; grid-template-columns: 44px 1fr; align-items: center; gap: 6px; margin: 2px 0; }
-.sr-bandrow > i { font-style: normal; font-size: 10px; color: var(--muted); }
-.sr-bandbar { display: flex; height: 11px; border-radius: 3px; overflow: hidden; background: #EEE9E7; }
-.sr-bandbar > div { font-size: 9px; font-weight: 600; line-height: 11px; text-align: center; overflow: hidden; white-space: nowrap; }
+.sr-band-kopf { font-size: 12px; margin: 8px 0 0; }
+.sr-balken.sr-band { margin: 3px 0; }
+.sr-balken.sr-band > span:first-child { padding-left: 14px; color: var(--muted); }
 .sr-ue-fin { font-size: 12px; color: var(--muted); margin-top: 4px; }
 .sr-rails { margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--border); }
 .sr-ue-sub { font-size: 13px; font-weight: 700; color: #8E5BB8; margin-bottom: 2px; }
