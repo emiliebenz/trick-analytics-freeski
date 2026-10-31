@@ -253,14 +253,18 @@ async function sbLoadCustomSelectValues() {
 // Park-Gruppen (SS&BA) Bag + Big Air/Slopestyle; DVLP und «All» sehen alles.
 const HP_SQUAD_KEYS = new Set(SPORT === 'freeski' ? ['HP'] : ['M']);
 const ALLROUND_SQUAD_KEYS = new Set(['DVLP']);
-function updateSessTypeButtons() {
+// Welche Session-Typen die gewählte Gruppe braucht: Halfpipe-TGs nur Halfpipe, Park-TGs nur Big Air und Slopestyle,
+// DVLP beides, «All» alles; Landing Bag immer. Gilt für die Typ-Knöpfe der Session und die Filter-Chips in Monitoring und Reports.
+function typFuerGruppe(typ) {
+  if (!typ || typ.startsWith('sr:') || typ === 'Landing Bag') return true;
   const hasHp = CFG.squads.some(sq => HP_SQUAD_KEYS.has(sq.key) || ALLROUND_SQUAD_KEYS.has(sq.key));
   const hasPark = CFG.squads.some(sq => !HP_SQUAD_KEYS.has(sq.key));
+  return typ.startsWith('Halfpipe') ? hasHp : hasPark;
+}
+function updateSessTypeButtons() {
   document.querySelectorAll('.sess-type-btn').forEach(b => {
     const t = b.dataset.type || b.textContent.trim();
-    const isHp = t.startsWith('Halfpipe');
-    const isPark = t.startsWith('Big Air') || t.startsWith('Slopestyle');
-    b.style.display = (isHp && !hasHp) || (isPark && !hasPark) ? 'none' : '';
+    b.style.display = typFuerGruppe(t) ? '' : 'none';
   });
   // Zeilen ohne sichtbare Knöpfe (z.B. Halfpipe für Park-Gruppen) ganz ausblenden
   document.querySelectorAll('.sess-type-row').forEach(r => {
@@ -1957,7 +1961,10 @@ function srUebersichtHtml(U, saison) {
       <div><b style="${d.score_gut ? 'color:' + SR_GUT : ''}">${d.best_score_txt ?? srF(d.best_score)}</b><span>${d.best_score_lab} · ${d.ref_score == null ? 'no comparable reference' : d.ref_label + ' ' + (d.ref_score_txt ?? srF(d.ref_score))}</span></div>
     </div>
     ${d.lq == null && d.ref_land == null ? '' : srBalken(d.land_lab + (d.n_lq < 10 ? ` (n = ${d.n_lq})` : ''), d.lq, d.ref_land, 1, srPct(d.lq), 'Ref. ' + srPct(d.ref_land), d.wenig, d.land_gut)}
-    ${d.hoch == null && d.ref_rot == null ? '' : srBalken(k === 'SS' && d.rails ? 'Highest good rotation (jumps)' : 'Highest good rotation', d.hoch, d.ref_rot, d.rot_max, d.hoch + '°', `${d.rot_lab} ${d.ref_rot != null ? Math.round(d.ref_rot) + '°' : '–'}`, false, d.rot_gut)}
+    ${d.rot_run === undefined ? '' : srBalken('Rotation, best clean ' + (k === 'BA' ? 'round' : 'run') + (d.rot_run_rots && d.rot_run_rots.length ? ` (${d.rot_run_rots.join('/')})` : ''), d.rot_run, d.ref_rot, d.rot_max, Math.round(d.rot_run) + '°', `${d.rot_lab} Ø ${d.ref_rot != null ? Math.round(d.ref_rot) + '°' : '–'}`, false, d.rot_run_gut)}
+    ${d.hoch == null && d.ref_rot == null ? '' : d.ref_rot_max != null
+      ? srBalken('Highest good rotation (one jump)', d.hoch, d.ref_rot_max, d.rot_max, d.hoch + '°', `${d.rot_lab} biggest jump Ø ${Math.round(d.ref_rot_max)}°`, false, d.rot_max_gut)
+      : srBalken(k === 'SS' && d.rails ? 'Highest good rotation (jumps)' : 'Highest good rotation', d.hoch, d.ref_rot, d.rot_max, d.hoch + '°', `${d.rot_lab} ${d.ref_rot != null ? Math.round(d.ref_rot) + '°' : '–'}`, false, d.rot_gut)}
     ${d.rails ? srRailsHtml(d.rails) : ''}
     <div class="sr-ue-fin">${srEsc(d.finals_txt)}</div>
   </div>`).join('');
@@ -1965,7 +1972,7 @@ function srUebersichtHtml(U, saison) {
   const texte = (U.texte || []).map(t => `<div class="sr-ue-th">${srEsc(t.titel)}</div><ul>${t.punkte.map(p => `<li>${srEsc(p)}</li>`).join('')}</ul>`).join('');
   return `<div class="sr-sek" id="sr-a-overview"><div class="sr-h">Overview ${saison}</div>
     <div class="sr-ue"><div>${bl}${conti}</div>${texte ? `<div class="sr-ue-text">${texte}</div>` : ''}</div>
-    <details class="sr-info"><summary>How to read</summary><div class="sr-fuss">World Cup, Worlds, Olympics ${saison}; reference values ${saison} (podium or cut, the same rounds one level up). Highest good rotation: largest rotation scored 65 or more. Green: at or above the reference; grey bar: fewer than 5 values. 2025/26: the same figures and texts as in the athlete feedback; earlier seasons: the key figures only.${Object.values(U.disz).some(d => d.rails) ? ' Rails (Freeski slopestyle): every clean rail section (above the fall range, qualification and final), scaled to 0 to 10; podium athletes = all runs of the athletes with a podium in that season, same gender (the same base as for the athlete). Features decoded from the FIS rail codes. Effect on score = average rail score with minus without the feature, whole field; coloured only where that difference is at least 0.3 (green: share at or above the podium athletes where the feature goes with a higher score). A link, not proof: better riders also choose the harder tricks; how a rail is ridden (lock-in, control, style) is not in the codes. Grey bar: fewer than 10 rail sections.' : ''}</div></details></div>`;
+    <details class="sr-info"><summary>How to read</summary><div class="sr-fuss">World Cup, Worlds, Olympics ${saison}; reference values ${saison} (podium or cut, the same rounds one level up). Rotation, best clean run: the average rotation of the jumps (hits) in the athlete's best clean run, Big Air the two counting jumps of the best round with both landed, against the average jump of the podium runs (or of the last qualifiers), so a run against runs. Highest good rotation: the largest single rotation scored 65 or more (slopestyle: section score), against the biggest jump of the podium runs (or last qualifiers), averaged over the places. Green: at or above the reference; grey bar: fewer than 5 values. 2025/26: the same figures and texts as in the athlete feedback; earlier seasons: the key figures only.${Object.values(U.disz).some(d => d.rails) ? ' Rails (Freeski slopestyle): every clean rail section (above the fall range, qualification and final), scaled to 0 to 10; podium athletes = all runs of the athletes with a podium in that season, same gender (the same base as for the athlete). Features decoded from the FIS rail codes. Effect on score = average rail score with minus without the feature, whole field; coloured only where that difference is at least 0.3 (green: share at or above the podium athletes where the feature goes with a higher score). A link, not proof: better riders also choose the harder tricks; how a rail is ridden (lock-in, control, style) is not in the codes. Grey bar: fewer than 10 rail sections.' : ''}</div></details></div>`;
 }
 
 // ─── Comp overview: Athletenweg ───
@@ -2252,15 +2259,17 @@ function srTrendHtml(name, saisonen) {
       zeilen.push(`<tr onclick="srOpenSaison('${sa}', '${k}')" title="Open the events"><td>${sa}</td><td>${d.name}</td><td>${d.n_events}</td><td>${d.finals}</td>
         <td><b style="${d.podeste ? 'color:' + SR_SCHLECHT : ''}">${d.podeste}</b></td><td>${srEsc(d.best_rank)}${/quali/.test(d.best_rank_lab) ? ' <span class="gedaempft">quali</span>' : ''}</td>
         <td>${zelle(d.lq, d.ref_land, d.land_gut, d.wenig, srPct(d.lq), 'ref ' + srPct(d.ref_land))}</td>
-        <td>${zelle(d.hoch, d.ref_rot, d.rot_gut, false, d.hoch + '°', (d.rot_lab === 'Podium' ? 'podium ' : 'cut ') + (d.ref_rot != null ? Math.round(d.ref_rot) + '°' : ''))}</td>
+        <td>${zelle(d.rot_run, d.ref_rot, d.rot_run_gut, false, d.rot_run != null ? Math.round(d.rot_run) + '°' : '–', (d.rot_lab === 'Podium' ? 'podium Ø ' : 'cut Ø ') + (d.ref_rot != null ? Math.round(d.ref_rot) + '°' : ''))}</td>
+        <td>${d.ref_rot_max != null ? zelle(d.hoch, d.ref_rot_max, d.rot_max_gut, false, d.hoch + '°', (d.rot_lab === 'Podium' ? 'podium biggest ' : 'cut biggest ') + Math.round(d.ref_rot_max) + '°')
+          : zelle(d.hoch, d.ref_rot, d.rot_gut, false, d.hoch + '°', (d.rot_lab === 'Podium' ? 'podium ' : 'cut ') + (d.ref_rot != null ? Math.round(d.ref_rot) + '°' : ''))}</td>
         <td>${zelle(d.best_score, d.ref_score, d.score_gut, false, d.best_score_txt ?? srF(d.best_score), d.ref_label + ' ' + (d.ref_score_txt ?? srF(d.ref_score)))}</td></tr>`);
     });
   });
   if (zeilen.length < 2) return '';
   return `<div class="sr-sek" id="sr-a-trend"><div class="sr-h">Trend <span class="sr-h-sub">World Cup, Worlds, Olympics · each season against its own reference values</span></div>
-    <div class="table-wrap"><table class="sr-karriere sr-trend"><thead><tr><th>Season</th><th>Discipline</th><th>Events</th><th>Finals</th><th>Podiums</th><th>Best rank</th><th>Landed / clean</th><th>Highest good rotation</th><th>Best score</th></tr></thead>
+    <div class="table-wrap"><table class="sr-karriere sr-trend"><thead><tr><th>Season</th><th>Discipline</th><th>Events</th><th>Finals</th><th>Podiums</th><th>Best rank</th><th>Landed / clean</th><th>Best clean run (Ø)</th><th>Highest good rotation</th><th>Best score</th></tr></thead>
     <tbody>${zeilen.join('')}</tbody></table></div>
-    <details class="sr-info"><summary>How to read</summary><div class="sr-fuss">Every season is compared with the reference values of the same season (podium mark or cut, landing rate of the rounds one level up, rotation of the podium or of the cut). Seasons are not pooled, because the podium marks and rotations change from year to year. Green: at or above the reference; red: below; grey: fewer than 5 values. Highest good rotation: largest rotation scored 65 or more (trick codes from 2017/18). Big Air: «Best jump» where only one jump was scored.</div></details></div>`;
+    <details class="sr-info"><summary>How to read</summary><div class="sr-fuss">Every season is compared with the reference values of the same season (podium mark or cut, landing rate of the rounds one level up, rotation of the podium or of the cut). Seasons are not pooled, because the podium marks and rotations change from year to year. Green: at or above the reference; red: below; grey: fewer than 5 values. Best clean run (Ø): average rotation of the jumps in the best clean run (Big Air: the two counting jumps of the best round with both landed) against the average podium or cut jump. Highest good rotation: largest single rotation scored 65 or more (trick codes from 2017/18), against the biggest jump of the podium or cut runs where the season data has it, otherwise against the average jump. Big Air: «Best jump» where only one jump was scored.</div></details></div>`;
 }
 
 // ─── Comp overview: Karriere (alle Saisons in den Daten) ───

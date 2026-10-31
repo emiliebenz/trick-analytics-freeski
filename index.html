@@ -17,14 +17,16 @@
 <body>
 
 <header>
-  <h1>Trick Analyses Freeski<span class="dot">.</span></h1>
+  <h1>Trick Analyses<span class="dot">.</span></h1>
   <nav class="nav-tabs">
-    <button class="nav-tab active" onclick="showPage('standort', this)">Assessment</button>
-    <button class="nav-tab" onclick="showPage('erfassen', this)">Session</button>
-    <button class="nav-tab" onclick="showPage('entwicklung', this)">Development</button>
-    <button class="nav-tab" onclick="showPage('datenbank', this)">Database</button>
-    <button class="nav-tab" id="nav-tab-monitoring" style="display:none;" onclick="showPage('monitoring', this)">Monitoring</button>
-    <button class="nav-tab" id="nav-tab-sessionreport" style="display:none;" onclick="showPage('sessionreport', this)">Reports</button>
+    <!-- Sichtbarkeit und Reihenfolge schon im HTML wie nach init() (Assessment · Session · Reports · Monitoring), damit beim Laden
+         nicht zuerst die alten Tabs (Development, Database) erscheinen; die DOM-Reihenfolge bleibt, nav.js zaehlt Indizes. -->
+    <button class="nav-tab active" style="order:0;" onclick="showPage('standort', this)">Assessment</button>
+    <button class="nav-tab" style="order:1;" onclick="showPage('erfassen', this)">Session</button>
+    <button class="nav-tab" style="display:none;order:4;" onclick="showPage('entwicklung', this)">Development</button>
+    <button class="nav-tab" style="display:none;order:5;" onclick="showPage('datenbank', this)">Database</button>
+    <button class="nav-tab" id="nav-tab-monitoring" style="order:3;" onclick="showPage('monitoring', this)">Monitoring</button>
+    <button class="nav-tab" id="nav-tab-sessionreport" style="order:2;" onclick="showPage('sessionreport', this)">Reports</button>
   </nav>
   <div id="auth-controls" style="display:none;align-items:center;gap:8px;margin-left:12px;flex-shrink:0;">
     <select id="group-filter-sel" class="pill-sel" onchange="setGroupFilter(this.value)"></select>
@@ -471,27 +473,27 @@
 
 
 <nav class="mobile-nav" id="mobile-nav">
-  <button class="mobile-nav-btn" onclick="showPage('standort', this); updateMobileNav('standort')">
+  <button class="mobile-nav-btn" style="order:0;" onclick="showPage('standort', this); updateMobileNav('standort')">
     <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>
     Assessment
   </button>
-  <button class="mobile-nav-btn" onclick="showPage('erfassen', this); updateMobileNav('erfassen')">
+  <button class="mobile-nav-btn" style="order:1;" onclick="showPage('erfassen', this); updateMobileNav('erfassen')">
     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
     Session
   </button>
-  <button class="mobile-nav-btn" onclick="showPage('entwicklung', this); updateMobileNav('entwicklung')">
+  <button class="mobile-nav-btn" style="display:none;order:4;" onclick="showPage('entwicklung', this); updateMobileNav('entwicklung')">
     <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
     Development
   </button>
-  <button class="mobile-nav-btn" onclick="showPage('datenbank', this); updateMobileNav('datenbank')">
+  <button class="mobile-nav-btn" style="display:none;order:5;" onclick="showPage('datenbank', this); updateMobileNav('datenbank')">
     <svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
     Database
   </button>
-  <button class="mobile-nav-btn" id="mobile-nav-monitoring" style="display:none;" onclick="showPage('monitoring', this); updateMobileNav('monitoring')">
+  <button class="mobile-nav-btn" id="mobile-nav-monitoring" style="order:3;" onclick="showPage('monitoring', this); updateMobileNav('monitoring')">
     <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
     Monitoring
   </button>
-  <button class="mobile-nav-btn" id="mobile-nav-sessionreport" style="display:none;" onclick="showPage('sessionreport', this); updateMobileNav('sessionreport')">
+  <button class="mobile-nav-btn" id="mobile-nav-sessionreport" style="order:2;" onclick="showPage('sessionreport', this); updateMobileNav('sessionreport')">
     <svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><rect x="7" y="10" width="3" height="8"/><rect x="12" y="6" width="3" height="12"/><rect x="17" y="13" width="3" height="5"/></svg>
     Reports
   </button>

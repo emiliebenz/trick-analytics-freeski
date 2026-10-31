@@ -2235,7 +2235,7 @@ const SB_TYPE_FILTERS = [['','All'],['Landing Bag','Bag'],['Big Air Training','B
 
 
 function sbTypeChipsHtml(current, handler) {
-  return `<div style="display:flex;gap:6px;flex-wrap:wrap;">${SB_TYPE_FILTERS.map(([v,l]) =>
+  return `<div style="display:flex;gap:6px;flex-wrap:wrap;">${SB_TYPE_FILTERS.filter(([v]) => typFuerGruppe(v)).map(([v,l]) =>
     `<button onclick="${handler}('${v}')" style="padding:6px 14px;border-radius:999px;border:1.5px solid ${current===v?'#148FA0':'var(--border)'};background:${current===v?'rgba(20,143,160,0.18)':'var(--surface2)'};color:${current===v?'#148FA0':'var(--muted)'};font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;">${l}</button>`).join('')}</div>`;
 }
 
