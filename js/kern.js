@@ -2318,8 +2318,9 @@ function srSelektionVergangenHtml(name, S, saison) {
   const ptWert = pt && pt.wert !== '' && !isNaN(+pt.wert) ? +pt.wert : null;
   _srUrteilKontext = null;                          // Trainerurteil jener Saison ist nicht in der App
   return `<div class="sr-sek" id="sr-a-selection">
-    <div class="sr-h">Selection ${saison} <span class="sr-h-sub">results ${srDatum(S.fenster[0]).slice(3)} to ${srDatum(S.fenster[1]).slice(3)} against the rules for the squad ${S.kader_saison}</span></div>
+    <div class="sr-h">Selection ${saison} <span class="sr-h-sub">results ${srDatum(S.fenster[0]).slice(3)} to ${srDatum(S.fenster[1]).slice(3)} against the rules for the squad ${S.regeln || S.kader_saison}</span></div>
     <div class="sr-sel-kopf">${srResultateTxt(S, 5, true)}${kader}</div>
+    ${S.regeln && S.regeln !== S.kader_saison ? `<div class="sr-fuss" style="margin:0 0 8px;">The rules for the squad ${S.kader_saison} are not available in the app, so this is a comparison with the current rules (${S.regeln}); the squad was selected under the rules of its own year.</div>` : ''}
     ${srStufenHtml(S, ptWert, name, true)}
     ${ev ? `<div class="sr-ev"><span class="sr-lab">Selection events ${saison} (Annex A)</span><div class="sr-fr">${ev}</div></div>` : ''}
     <details class="sr-info"><summary>How to read</summary><div class="sr-fuss">${srListe([`<b>Rules:</b> ${srEsc(S.quelle)}.`, `<b>Checked from the FIS result lists of ${saison}:</b> ranks at Olympics, Worlds, World Cup, Junior Worlds and the selection events of that season (Annex A, Europa Cup incl. Premium).`, '<b>Standings</b> (World Cup, Europa Cup, and the overall ranking of the selection events) are computed with the FIS points table over all ranked athletes; the official standings decide.', `«Squad ${S.kader_saison}» is the squad the committee selected.`, 'Coach judgement, PISTE assessment and Technical Check-up of that season are not in the app.'])}</div></details>
