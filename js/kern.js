@@ -2323,7 +2323,7 @@ function srSelektionHtml(name, S) {
     ${mitPt ? `<div class="sr-pt"><label for="sr-pt-in">Powertest (points)</label>
       <input id="sr-pt-in" type="number" min="0" max="100" step="1" value="${ptWert ?? ''}" onchange="srSaveInput(${srEsc(JSON.stringify(name))}, '${S.kader_saison}', 'powertest', this)">
       <span class="hinweis-winzig" id="sr-info-powertest">${srInfoText(pt)}</span></div>` : ''}
-    ${ev ? `<div class="sr-ev"><span class="sr-lab">Selection events (Annex A)</span><div class="sr-fr">${ev}</div></div>` : ''}
+    ${ev ? `<details class="sr-info sr-ev" ${(S.selektionsevents || []).some(e => (S.resultate || []).find(z => z.datum === e.datum && z.disz === e.disz)) ? 'open' : ''}><summary>Selection events (Annex A) · ${(S.selektionsevents || []).length}, the results count for the squad ${S.kader_saison}</summary><div class="sr-fr" style="margin-top:6px;">${ev}</div></details>` : ''}
     <details class="sr-info"><summary>How to read</summary><div class="sr-fuss">${srListe([`<b>Rules:</b> ${srEsc(S.quelle)}.`, '<b>Checked from FIS result lists:</b> ranks at Olympics, Worlds, World Cup, Junior Worlds and the selection events (Annex A).', '<b>Standings</b> are computed from the races with the FIS points table (official FIS standings decide); during the season they show «on track».', '<b>Read as:</b> World Cup SS / BA counts slopestyle and big air together; «1× top 3 and 1× top 5» means two different results.', 'Coach judgement, PISTE assessment and Technical Check-up are not in the result lists. Powertest only for the DVLP group.'])}</div></details>
     <div class="sr-hinweis">Meeting the criteria is not an automatic selection: the selection committee decides (4.1, 4.2).</div>
   </div>`;
@@ -2348,7 +2348,7 @@ function srSelektionVergangenHtml(name, S, saison) {
     <div class="sr-sel-kopf">${srResultateTxt(S, 5, true)}${kader}</div>
     ${S.regeln && S.regeln !== S.kader_saison ? `<div class="sr-fuss" style="margin:0 0 8px;">The rules for the squad ${S.kader_saison} are not available in the app, so this is a comparison with the current rules (${S.regeln}); the squad was selected under the rules of its own year.</div>` : ''}
     ${srStufenHtml(S, ptWert, name, true)}
-    ${ev ? `<div class="sr-ev"><span class="sr-lab">Selection events ${saison} (Annex A)</span><div class="sr-fr">${ev}</div></div>` : ''}
+    ${ev ? `<details class="sr-info sr-ev"><summary>Selection events ${saison} (Annex A) · ${(S.selektionsevents || []).length}</summary><div class="sr-fr" style="margin-top:6px;">${ev}</div></details>` : ''}
     <details class="sr-info"><summary>How to read</summary><div class="sr-fuss">${srListe([`<b>Rules:</b> ${srEsc(S.quelle)}.`, `<b>Checked from the FIS result lists of ${saison}:</b> ranks at Olympics, Worlds, World Cup, Junior Worlds and the selection events of that season (Annex A, Europa Cup incl. Premium).`, '<b>Standings</b> (World Cup, Europa Cup, and the overall ranking of the selection events) are computed with the FIS points table over all ranked athletes; the official standings decide.', `«Squad ${S.kader_saison}» is the squad the committee selected.`, 'Coach judgement, PISTE assessment and Technical Check-up of that season are not in the app.'])}</div></details>
     <div class="sr-hinweis">Meeting the criteria is not an automatic selection: the selection committee decides (4.1, 4.2).</div>
   </div>`;
