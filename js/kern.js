@@ -1758,7 +1758,7 @@ const srListe = items => `<ul style="margin:4px 0 0 16px;padding:0;">${items.fil
 function srLegende(saison, sektionen) {
   return `<div class="sr-fuss" style="margin:0 0 8px;">${srListe([
     `<b>Bars:</b> the athlete in ${saison}. <b style="color:${SR_GUT};">Green</b> at or above the reference, <b style="color:${SR_SCHLECHT};">red</b> below, <b style="color:var(--muted);">grey</b> fewer than 5 values${sektionen ? ' (sections: fewer than 10)' : ''} or no judgement.`,
-    '<b>Lines:</b> <b>F</b> = the cut into the final (what the last qualifiers did), <b>P</b> = the podium of the finals, both from the same season. The black line is the level the athlete is judged against (podium for finalists, cut for the others), the grey line is the other level.'])}</div>`;
+    '<b>Lines:</b> <b>F</b> = the final cut-off (the score or rotation of the last qualifiers), <b>P</b> = the podium of the finals, both from the same season. The athlete is judged against one of them: the podium after reaching a final, otherwise the final cut-off. That line is black and decides the colour of the bar; the second line is grey and only shows how far away the other level is.'])}</div>`;
 }
 // Saison wie im Monitoring: ab 1. Mai zählt die neue Saison
 function srSaisonVon(y) { return `${y}/${String((y + 1) % 100).padStart(2, '0')}`; }
@@ -1938,13 +1938,18 @@ function srCompHtml(name, dz) {
 
 // ─── Comp overview: Übersicht ───
 // Striche: P = Podest, F = Cut ins Final; der gewertete Strich schwarz, die andere Stufe grau, je mit Buchstaben (Entscheid 1.11.2026)
-const srStrich = (pos, farbe, buchstabe) => `<i style="left:${pos}%;background:${farbe};"></i>` + (buchstabe ? `<b style="position:absolute;left:calc(${pos}% + 4px);top:-7px;font-size:9px;line-height:9px;font-weight:700;color:${farbe};">${buchstabe}</b>` : '');
+// Strich mit weissem Saum (bleibt auf rot, grün, grau und weiss sichtbar), Buchstabe 11 px fett darüber, zentriert; liegen beide Stufen
+// nahe beieinander, weicht der gewertete Buchstabe nach rechts und der andere nach links aus (seite = 1 / -1). Die Bahn hat oben 16 px
+// Rand, damit die Buchstaben auch im schmalen Layout (Beschriftung über dem Balken) frei stehen.
+const srStrich = (pos, farbe, buchstabe, seite, breit) => `<i style="left:${pos}%;background:${farbe};width:${breit ? 3 : 2}px;margin-left:${breit ? -1.5 : -1}px;box-shadow:0 0 0 1px #fff;"></i>`
+  + (buchstabe ? `<b style="position:absolute;top:-16px;font-size:11px;line-height:12px;font-weight:800;color:${farbe};${seite > 0 ? `left:calc(${pos}% + 4px);` : seite < 0 ? `right:calc(${100 - pos}% + 4px);` : `left:${pos}%;transform:translateX(-50%);`}">${buchstabe}</b>` : '');
 const srBuchstabe = lv => lv ? (/^Podium/i.test(lv) ? 'P' : 'F') : '';
 function srBalken(lab, wert, ref, max, wtxt, rtxt, grau, gut, farbe, klasse, ref2, lv, lv2) {
   const w = !wert ? 0 : Math.max(2, Math.min(100, wert / max * 100)), r = ref == null ? null : Math.min(100, ref / max * 100);
   const r2 = ref2 == null ? null : Math.min(100, ref2 / max * 100);         // zweite Stufe (grau): Cut neben Podest oder umgekehrt
   const col = grau || wert == null ? 'var(--muted)' : gut == null ? 'var(--text)' : gut ? SR_GUT : SR_SCHLECHT;   // gut null = keine Wertung
-  return `<div class="sr-balken${klasse ? ' ' + klasse : ''}"><span>${lab}</span><div class="sr-bahn" style="background:#fff;border:1px solid #6E6E6E;box-sizing:border-box;"><div style="width:${w}%;background:${grau || wert == null || gut == null ? SR_GRAU : gut ? SR_GUT : SR_SCHLECHT};"></div>${r2 != null ? srStrich(r2, '#8A8A8A', srBuchstabe(lv2)) : ''}${r != null ? srStrich(r, '#2c2c2e', srBuchstabe(lv)) : ''}</div>
+  const nah = r != null && r2 != null && Math.abs(r - r2) < 5;             // Stufen nahe beieinander: Buchstaben ausweichen lassen
+  return `<div class="sr-balken${klasse ? ' ' + klasse : ''}"><span>${lab}</span><div class="sr-bahn" style="background:#fff;border:1px solid #6E6E6E;box-sizing:border-box;margin-top:16px;"><div style="width:${w}%;background:${grau || wert == null || gut == null ? SR_GRAU : gut ? SR_GUT : SR_SCHLECHT};"></div>${r2 != null ? srStrich(r2, '#6E6E6E', srBuchstabe(lv2), nah ? -1 : 0, false) : ''}${r != null ? srStrich(r, '#1d1d1f', srBuchstabe(lv), nah ? 1 : 0, true) : ''}</div>
     <span><b style="color:${col};">${wert == null ? '–' : wtxt}</b> <span class="gedaempft">${rtxt}</span></span></div>`;
 }
 // Punktebänder des FIS Judges Handbook (wie im Coach-Deck): Sturz 1–30, Durchschnitt 30–65, gut 65–85, exzellent 85–100.
@@ -1964,13 +1969,13 @@ function srBaender(lab, b, r, wenig, lv, r2, lv2) {
 // Slopestyle: Note pro Jump- und pro Rail-Sektion (0–10, saubere Sektionen über dem Sturzbereich) gegen die Podest-Athlet:innen
 // derselben Saison (alle ihre Läufe). Merkmal-Tabellen und beste Sektionen bewusst weggelassen (Entscheid 1.11.2026), die Daten bleiben im Export.
 function srSektionHtml(lab, s) {
-  const cutJudged = s.ref_label === 'Cut level', other = cutJudged ? s.ref_podium : s.ref_cut;
-  const txt = `${s.ref_label || 'Podium athletes'} ${srF(s.ref_score)}` + (other != null ? ` · ${cutJudged ? 'Podium' : 'Cut'} ${srF(other)}` : '');
-  return srBalken(lab + (s.wenig ? ` (n = ${s.n})` : ''), s.score, s.ref_score, 10, srF(s.score) + ' of 10', txt, s.wenig, s.gut, null, null, other, cutJudged ? 'Cut' : 'Podium', cutJudged ? 'Podium' : 'Cut');
+  const cutJudged = /cut/i.test(s.ref_label || ''), other = cutJudged ? s.ref_podium : s.ref_cut;
+  const txt = `${s.ref_label || 'Podium athletes'} ${srF(s.ref_score)}` + (other != null ? ` · ${cutJudged ? 'Podium' : 'Cut-off'} ${srF(other)}` : '');
+  return srBalken(lab + (s.wenig ? ` (n = ${s.n})` : ''), s.score, s.ref_score, 10, srF(s.score) + ' of 10', txt, s.wenig, s.gut, null, null, other, cutJudged ? 'Cut-off' : 'Podium', cutJudged ? 'Podium' : 'Cut-off');
 }
 function srUebersichtHtml(U, saison) {
   if (!U) return '';
-  const bl = Object.entries(U.disz).map(([k, d]) => { const podJ = d.rot_lab === 'Podium', oth = (podJ ? d.ref_cut : d.ref_podium) || {}, lv = podJ ? 'Podium' : 'Cut', lv2 = podJ ? 'Cut' : 'Podium';
+  const bl = Object.entries(U.disz).map(([k, d]) => { const podJ = d.rot_lab === 'Podium', oth = (podJ ? d.ref_cut : d.ref_podium) || {}, lv = podJ ? 'Podium' : 'Cut-off', lv2 = podJ ? 'Cut-off' : 'Podium';
     const o = (v, f) => v == null ? '' : ` · ${lv2} ${f(v)}`;
     return `<div class="sr-ue-disz">
     <div class="sr-ue-h"><b>${d.name}</b><span class="gedaempft">${d.n_events} event${d.n_events === 1 ? '' : 's'} ${saison} · next level: ${d.next_level}</span></div>
@@ -1978,16 +1983,16 @@ function srUebersichtHtml(U, saison) {
       <div><b>${d.finals}</b><span>Finals in ${d.n_events} event${d.n_events === 1 ? '' : 's'}</span></div>
       <div><b style="${d.podeste ? 'color:' + SR_SCHLECHT : ''}">${d.podeste}</b><span>Podium places</span></div>
       <div><b>${srEsc(d.best_rank)}</b><span>${d.best_rank_lab}</span></div>
-      <div><b style="${d.score_gut ? 'color:' + SR_GUT : ''}">${d.best_score_txt ?? srF(d.best_score)}</b><span>${d.best_score_lab} · ${d.ref_cut_score != null || d.ref_pod_score != null
-          ? [['F', d.ref_cut_score_txt ?? srF(d.ref_cut_score), d.ref_label === 'cut'], ['P', d.ref_pod_score_txt ?? srF(d.ref_pod_score), d.ref_label === 'podium']].filter(([, v]) => v && v !== '–').map(([l, v, j]) => j ? `<b>${l} ${v}</b>` : `${l} ${v}`).join(' · ')
+      <div><b style="${d.score_gut ? 'color:' + SR_GUT : ''}">${d.best_score_txt ?? srF(d.best_score)}</b><span>${d.best_score_lab}</span><span>${d.ref_cut_score != null || d.ref_pod_score != null
+          ? [['F', d.ref_cut_score_txt ?? srF(d.ref_cut_score), d.ref_label === 'cut'], ['P', d.ref_pod_score_txt ?? srF(d.ref_pod_score), d.ref_label === 'podium']].filter(([, v]) => v && v !== '–').map(([l, v, j]) => j ? `<strong style="font-weight:800;color:var(--text);">${l} ${v}</strong>` : `${l} ${v}`).join(' · ')
           : d.ref_score == null ? 'no comparable reference' : d.ref_label + ' ' + (d.ref_score_txt ?? srF(d.ref_score))}</span></div>
     </div>
     ${(d.lq == null && d.ref_land == null) || (d.bands && k !== 'SS') ? '' : srBalken(d.land_lab + (d.n_lq < 10 ? ` (n = ${d.n_lq})` : ''), d.lq, d.ref_land, 1, srPct(d.lq), `${lv} ${srPct(d.ref_land)}` + o(oth.land, srPct), d.wenig, d.land_gut, null, null, oth.land, lv, lv2)}
     ${d.bands ? srBaender((k === 'BA' ? 'Jump scores' : 'Run scores') + (d.bands.n < 10 ? ` (n = ${d.bands.n})` : ''), d.bands, d.ref_bands, d.bands.n < 5, lv, oth.bands, lv2) : ''}
     ${d.rot_run === undefined ? '' : srBalken('Rotation, best clean ' + (k === 'BA' ? 'round' : 'run') + (d.rot_run_rots && d.rot_run_rots.length ? ` (${d.rot_run_rots.join('/')})` : ''), d.rot_run, d.ref_rot, d.rot_max, Math.round(d.rot_run) + '°',
-        (d.rot_run == null ? (k === 'BA' ? 'no round with the counting jumps landed · ' : k === 'SS' ? 'no clean run · ' : 'no landed run · ') : '') + `${d.rot_lab} Ø ${d.ref_rot != null ? Math.round(d.ref_rot) + '°' : '–'}` + o(oth.rot, v => 'Ø ' + Math.round(v) + '°'), false, d.rot_run_gut, null, null, oth.rot, lv, lv2)}
+        (d.rot_run == null ? (k === 'BA' ? 'no round with the counting jumps landed · ' : k === 'SS' ? 'no clean run · ' : 'no landed run · ') : '') + `${lv} Ø ${d.ref_rot != null ? Math.round(d.ref_rot) + '°' : '–'}` + o(oth.rot, v => 'Ø ' + Math.round(v) + '°'), false, d.rot_run_gut, null, null, oth.rot, lv, lv2)}
     ${d.hoch == null && d.ref_rot == null ? '' : d.ref_rot_max != null
-      ? srBalken('Highest good rotation (one jump)', d.hoch, d.ref_rot_max, d.rot_max, d.hoch + '°', `${d.rot_lab} biggest jump Ø ${Math.round(d.ref_rot_max)}°` + o(oth.rot_max, v => 'biggest jump Ø ' + Math.round(v) + '°'), false, d.rot_max_gut, null, null, oth.rot_max, lv, lv2)
+      ? srBalken('Highest good rotation (one jump)', d.hoch, d.ref_rot_max, d.rot_max, d.hoch + '°', `${lv} biggest jump Ø ${Math.round(d.ref_rot_max)}°` + o(oth.rot_max, v => 'biggest jump Ø ' + Math.round(v) + '°'), false, d.rot_max_gut, null, null, oth.rot_max, lv, lv2)
       : srBalken(k === 'SS' && d.rails ? 'Highest good rotation (jumps)' : 'Highest good rotation', d.hoch, d.ref_rot, d.rot_max, d.hoch + '°', `${d.rot_lab} ${d.ref_rot != null ? Math.round(d.ref_rot) + '°' : '–'}`, false, d.rot_gut)}
     ${d.jumps ? srSektionHtml('Jump score per section', d.jumps) : ''}
     ${d.rails ? srSektionHtml('Rail score per section', d.rails) : ''}
@@ -2004,15 +2009,15 @@ function srUebersichtHtml(U, saison) {
     ${srLegende(saison, Object.values(U.disz).some(d => d.jumps || d.rails))}
     <div class="sr-ue" style="grid-template-columns:minmax(0, 1fr);"><div>${bl}${conti}</div></div>
     <details class="sr-info"><summary>How to read</summary><div class="sr-fuss">${srListe([
-      `<b>Base:</b> World Cup, Worlds and Olympics ${saison}; reference values of the same season: podium of the finals or cut of the qualification, the same rounds one level up.`,
-      `<b>Best score tile:</b> the athlete's best score of the season next to the two levels: <b>F</b> = what it took to reach the final (median of the last qualifier's score over all qualifications of the season), <b>P</b> = the podium (median of the 3rd-place score over all finals of the season); the level the athlete is judged against is in bold. Big Air: the sum of the two counting jumps; where only one jump was scored, per jump.`,
+      `<b>Base:</b> World Cup, Worlds and Olympics ${saison}; reference values of the same season: podium of the finals or final cut-off of the qualification, the same rounds one level up.`,
+      `<b>Best score tile:</b> the athlete's best score of the season next to the two levels: <b>F</b> = the final cut-off (median of the last qualifier's score over all qualifications of the season), <b>P</b> = the podium (median of the 3rd-place score over all finals of the season); the level the athlete is judged against is in bold. Big Air: the sum of the two counting jumps; where only one jump was scored, per jump.`,
       `<b>Clean runs (slopestyle):</b> every section scored above the fall range (more than 30 % of the section maximum), so the run was ridden through without a fall. A clean run is not the same as a good score. Landed jumps (Big Air, older seasons): score above 30.`,
       `<b>Jump / run scores:</b> the score bands of the FIS Judges Handbook (fall 1 to 30, average or below 30 to 65, good 65 to 85, excellent 85 to 100); all scored jumps (Big Air) or runs (slopestyle, halfpipe) of the season against the next level in the same rounds. Judged only at the ends: fall share clearly above the reference is red, excellent share at or above the reference is green.`,
       `<b>Rotation, best clean run:</b> average rotation of the jumps (hits) in the athlete's best clean run; Big Air: the counting jumps of the best round, all landed (one or two, depending on the format: «best of two» qualifications count one jump, finals two of different categories); against the average counting jump of the podium (or of the last qualifiers), so like against like.`,
       `<b>Highest good rotation:</b> the largest single rotation scored 65 or more (slopestyle: section score), against the biggest jump of the podium runs (or last qualifiers), averaged over the places.`,
-      `<b>What rotation says about the final:</b> in Big Air a best clean qualification round below the cut rotation went with a final in about one case in five (whole field, 2022/23 to 2025/26), at or above the cut in about half. In slopestyle rotation separates much less, because rails, composition and execution carry a large part of the run score; a rotation below the cut is a weaker signal there.`,
+      `<b>What rotation says about the final:</b> in Big Air a best clean qualification round below the cut-off rotation went with a final in about one case in five (whole field, 2022/23 to 2025/26), at or above it in about half. In slopestyle rotation separates much less, because rails, composition and execution carry a large part of the run score; a rotation below the cut-off is a weaker signal there.`,
       Object.values(U.disz).some(d => d.jumps || d.rails) ? `<b>Jump / rail score per section (slopestyle):</b> every clean section (above the fall range, qualification and final) scaled to 0 to 10, against the podium athletes of that season (all their runs, same gender). Rails only in freeski, where the codes name the trick. Grey: fewer than 10 sections.` : '',
-      `<b>Colours:</b> bars green at or above the reference, red below, grey: fewer than 5 values or no judgement (the middle score bands are not judged).`,
+      `<b>Colours:</b> bars green at or above the black line, red below it, grey: fewer than 5 values or no judgement (the middle score bands are not judged).`,
       `<b>Seasons:</b> 2025/26 with the same figures and texts as in the athlete feedback; earlier seasons: the key figures only.`])}</div></details></div>`;
 }
 
@@ -2111,9 +2116,9 @@ async function srSetGoal(i) {
 
 function srTrickHtml(name, it, i) {
   const own = it.own;
-  const step = it.step.ref === null && !own ? 'nothing in this direction yet'
-    : `${srEsc(it.step.text)}${it.own_landed_only ? '*' : ''} from <b>${srEsc(own?.name || '–')}</b>` +
-      (own ? ` <span class="gedaempft">· ${own.n_well ? `well scored ${own.n_well}×` : `landed ${own.n_landed}×, never 65+`}${own.last ? ', last ' + srEsc(own.last) : ''}</span>` : '');
+  // Nächster eigener Trick statt «+180° from …»: die Differenz in Rotation/Flips braucht es nicht (Entscheid 1.11.2026), die Reihenfolge der Karten bleibt nach Schritt.
+  const step = !own ? '<span class="gedaempft">nothing in this direction yet</span>'
+    : `<b>${srEsc(own.name)}</b> <span class="gedaempft">· ${own.n_well ? `well scored ${own.n_well}×` : `landed ${own.n_landed}×, never 65+`}${own.last ? ', last ' + srEsc(own.last) : ''}</span>`;
   const vers = it.versions.map(v => `${srEsc(v.name)} <span class="gedaempft">${v.n}</span>`).join(' · ') + (it.more ? ` <span class="gedaempft">+${it.more} more</span>` : '');
   const od = it.other_dir ? `<div class="sr-zeile"><span class="sr-lab">Other direction</span><span>${srEsc(it.other_dir.name)} <span class="gedaempft">(${it.other_dir.n_well}× well scored)</span></span></div>` : '';
   const tr = srTraining(name, it);
@@ -2133,7 +2138,7 @@ function srTrickHtml(name, it, i) {
       <div><b class="sr-trick-n">${srEsc(it.trick)}</b> <span class="sr-disz">${SR_DN[it.disz]}</span> <span class="gedaempft">${it.pod} podium place${it.pod === 1 ? '' : 's'}</span></div>
       <div>${ziel}</div>
     </div>
-    <div class="sr-zeile"><span class="sr-lab">Step</span><span>${step}</span></div>
+    <div class="sr-zeile"><span class="sr-lab">Closest own trick</span><span>${step}</span></div>
     <div class="sr-zeile"><span class="sr-lab">On the podium</span><span>${vers || '–'}</span></div>
     ${od}
     <div class="sr-zeile"><span class="sr-lab">Training ${SR_JETZT}</span><span>${trTxt}</span></div>
@@ -2377,9 +2382,9 @@ function srTrendHtml(name, saisonen) {
       zeilen.push(`<tr onclick="srOpenSaison('${sa}', '${k}')" title="Open the events"><td>${sa}</td><td>${d.name}</td><td>${d.n_events}</td><td>${d.finals}</td>
         <td><b style="${d.podeste ? 'color:' + SR_SCHLECHT : ''}">${d.podeste}</b></td><td>${srEsc(d.best_rank)}${/quali/.test(d.best_rank_lab) ? ' <span class="gedaempft">quali</span>' : ''}</td>
         <td>${zelle(d.lq, d.ref_land, d.land_gut, d.wenig, srPct(d.lq), 'ref ' + srPct(d.ref_land))}</td>
-        <td>${zelle(d.rot_run, d.ref_rot, d.rot_run_gut, false, d.rot_run != null ? Math.round(d.rot_run) + '°' : '–', (d.rot_lab === 'Podium' ? 'podium Ø ' : 'cut Ø ') + (d.ref_rot != null ? Math.round(d.ref_rot) + '°' : ''))}</td>
-        <td>${d.ref_rot_max != null ? zelle(d.hoch, d.ref_rot_max, d.rot_max_gut, false, d.hoch + '°', (d.rot_lab === 'Podium' ? 'podium biggest ' : 'cut biggest ') + Math.round(d.ref_rot_max) + '°')
-          : zelle(d.hoch, d.ref_rot, d.rot_gut, false, d.hoch + '°', (d.rot_lab === 'Podium' ? 'podium ' : 'cut ') + (d.ref_rot != null ? Math.round(d.ref_rot) + '°' : ''))}</td>
+        <td>${zelle(d.rot_run, d.ref_rot, d.rot_run_gut, false, d.rot_run != null ? Math.round(d.rot_run) + '°' : '–', (d.rot_lab === 'Podium' ? 'podium Ø ' : 'cut-off Ø ') + (d.ref_rot != null ? Math.round(d.ref_rot) + '°' : ''))}</td>
+        <td>${d.ref_rot_max != null ? zelle(d.hoch, d.ref_rot_max, d.rot_max_gut, false, d.hoch + '°', (d.rot_lab === 'Podium' ? 'podium biggest ' : 'cut-off biggest ') + Math.round(d.ref_rot_max) + '°')
+          : zelle(d.hoch, d.ref_rot, d.rot_gut, false, d.hoch + '°', (d.rot_lab === 'Podium' ? 'podium ' : 'cut-off ') + (d.ref_rot != null ? Math.round(d.ref_rot) + '°' : ''))}</td>
         <td>${zelle(d.best_score, d.ref_score, d.score_gut, false, d.best_score_txt ?? srF(d.best_score), d.ref_label + ' ' + (d.ref_score_txt ?? srF(d.ref_score)))}</td></tr>`);
     });
   });
