@@ -1750,7 +1750,7 @@ const SR_STATUS = {
   on_track: {label:'On track',   color:'#148FA0'},
   open:     {label:'Open',       color:'#5c5c61'},
   not_met:  {label:'Not met',    color:'#e2001a'},
-  coach:    {label:'Coaches decide', color:'#8E5BB8'},
+  coach:    {label:'Coach judgement', color:'#8E5BB8'},   // Stufe oder Kriterium hängt am Trainerurteil (Annex B), kein Knopf
 };
 const SR_GUT = '#3E8E5A', SR_SCHLECHT = '#e2001a', SR_GRAU = '#C9BFB9';
 // Saison wie im Monitoring: ab 1. Mai zählt die neue Saison
