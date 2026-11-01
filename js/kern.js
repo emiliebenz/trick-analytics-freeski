@@ -1753,6 +1753,11 @@ const SR_STATUS = {
   coach:    {label:'Coach judgement', color:'#8E5BB8'},   // Stufe oder Kriterium hängt am Trainerurteil (Annex B), kein Knopf
 };
 const SR_GUT = '#3E8E5A', SR_SCHLECHT = '#e2001a', SR_GRAU = '#C9BFB9';
+const SR_BALKEN = '#6E8FB3';     // one bar colour everywhere; the judgement sits in the number (green / red / grey), see srLegende()
+const srListe = items => `<ul style="margin:4px 0 0 16px;padding:0;">${items.filter(Boolean).map(x => `<li style="margin:2px 0;">${x}</li>`).join('')}</ul>`;
+function srLegende(saison, sektionen) {
+  return `<div class="sr-fuss" style="margin:0 0 8px;">Bars: the athlete in ${saison}. Black line: the reference, podium of the finals or cut of the qualification, same rounds. Numbers: <b style="color:${SR_GUT};">green</b> at or above the reference, <b style="color:${SR_SCHLECHT};">red</b> below, grey: fewer than 5 values${sektionen ? ' (sections: fewer than 10)' : ''} or no judgement.</div>`;
+}
 // Saison wie im Monitoring: ab 1. Mai zählt die neue Saison
 function srSaisonVon(y) { return `${y}/${String((y + 1) % 100).padStart(2, '0')}`; }
 function srNaechste(s) { return srSaisonVon(+s.slice(0, 4) + 1); }
@@ -1923,14 +1928,14 @@ function srCompHtml(name, dz) {
     return `<div class="sr-sek">${kopf}${elite}${weitere}</div>`;
   }).join('');
   return `<div class="sr-comp">${teile || '<div class="leer-schmal">No season in this period.</div>'}
-    <details class="sr-info"><summary>How to read</summary><div class="sr-fuss">FIS result lists and Results Analysis (World Cup, Worlds, Olympics): rank per round, every ${dz === 'BA' ? 'jump' : 'run'} with the full trick name from the FIS trick code and its score${dz === 'BA' ? '; the two counting jumps are marked' : dz === 'SS' ? '; sections with their score and maximum' : ''}. Older seasons: some lists give only the best score and no trick codes. Europa Cup and other FIS races only with the rank. The competition entries logged in the app are not shown here.</div></details></div>`;
+    <details class="sr-info"><summary>How to read</summary><div class="sr-fuss">${srListe([`<b>Source:</b> FIS result lists and Results Analysis (World Cup, Worlds, Olympics): rank per round, every ${dz === 'BA' ? 'jump' : 'run'} with the full trick name from the FIS trick code and its score${dz === 'BA' ? '; the two counting jumps are marked' : dz === 'SS' ? '; sections with their score and maximum' : ''}.`, 'Older seasons: some lists give only the best score and no trick codes.', 'Europa Cup and other FIS races: rank only.', 'The competition entries logged in the app are not shown here.'])}</div></details></div>`;
 }
 
 // ─── Comp overview: Übersicht ───
 function srBalken(lab, wert, ref, max, wtxt, rtxt, grau, gut, farbe, klasse) {
   const w = !wert ? 0 : Math.max(2, Math.min(100, wert / max * 100)), r = ref == null ? null : Math.min(100, ref / max * 100);
   const col = grau || wert == null ? 'var(--muted)' : gut == null ? 'var(--text)' : gut ? SR_GUT : SR_SCHLECHT;   // gut null = keine Wertung
-  return `<div class="sr-balken${klasse ? ' ' + klasse : ''}"><span>${lab}</span><div class="sr-bahn"><div style="width:${w}%;background:${farbe || (grau ? SR_GRAU : gut ? SR_GUT : SR_SCHLECHT)};"></div>${r != null ? `<i style="left:${r}%;"></i>` : ''}</div>
+  return `<div class="sr-balken${klasse ? ' ' + klasse : ''}"><span>${lab}</span><div class="sr-bahn"><div style="width:${w}%;background:${SR_BALKEN};"></div>${r != null ? `<i style="left:${r}%;"></i>` : ''}</div>
     <span><b style="color:${col};">${wert == null ? '–' : wtxt}</b> <span class="gedaempft">${rtxt}</span></span></div>`;
 }
 // Punktebänder des FIS Judges Handbook (wie im Coach-Deck): Sturz 1–30, Durchschnitt 30–65, gut 65–85, exzellent 85–100.
@@ -1943,7 +1948,7 @@ function srBaender(lab, b, r, wenig) {
   const zeile = (k, l, farbe) => {
     const w = b[k] || 0, rf = r ? r[k] : null;
     const gut = wenig || rf == null ? null : k === 'excellent' ? w >= rf : k === 'fall' ? w <= rf + 0.05 : null;
-    return srBalken(l, w, rf, 1, srPct(w), rf == null ? '' : 'Ref. ' + srPct(rf), wenig, gut, wenig ? SR_GRAU : farbe, 'sr-band');
+    return srBalken(l, w, rf, 1, srPct(w), rf == null ? '' : 'Ref. ' + srPct(rf), wenig, gut, null, 'sr-band');
   };
   return `<div class="sr-band-kopf">${lab}</div>${SR_BAND.map(([k, l, c]) => zeile(k, l, c)).join('')}`;
 }
@@ -1980,8 +1985,17 @@ function srUebersichtHtml(U, saison) {
   const fazit = T_.Strength ? [['Strength', T_.Strength[0]], ['Gap', (T_.Gap || [])[0]], ['Question', (T_['For the conversation'] || [])[0]]].filter(([, p]) => p) : [];
   const texte = fazit.length ? `<div class="sr-ue-th">In short</div><ul>${fazit.map(([l, p]) => `<li><b>${l}:</b> ${srEsc(p)}</li>`).join('')}</ul>` : '';
   return `<div class="sr-sek" id="sr-a-overview"><div class="sr-h">Overview ${saison}</div>
+    ${srLegende(saison, Object.values(U.disz).some(d => d.jumps || d.rails))}
     <div class="sr-ue"><div>${bl}${conti}</div>${texte ? `<div class="sr-ue-text">${texte}</div>` : ''}</div>
-    <details class="sr-info"><summary>How to read</summary><div class="sr-fuss">World Cup, Worlds, Olympics ${saison}; reference values ${saison} (podium or cut, the same rounds one level up). Jump / run scores: the score bands of the FIS Judges Handbook, fall 1 to 30, average or below 30 to 65, good 65 to 85, excellent 85 to 100; all scored jumps (Big Air) or runs (slopestyle, halfpipe) of the season against the next level in the same rounds. Slopestyle keeps clean runs (no section in the fall range) as its own line, because a run with one fallen section usually still scores above 30. Rotation, best clean run: the average rotation of the jumps (hits) in the athlete's best clean run, Big Air the two counting jumps of the best round with both landed, against the average jump of the podium runs (or of the last qualifiers), so a run against runs. Highest good rotation: the largest single rotation scored 65 or more (slopestyle: section score), against the biggest jump of the podium runs (or last qualifiers), averaged over the places. Green: at or above the reference; grey bar: fewer than 5 values. 2025/26: the same figures and texts as in the athlete feedback; earlier seasons: the key figures only.${Object.values(U.disz).some(d => d.jumps || d.rails) ? ' Jump / rail score per section (slopestyle): every clean section (above the fall range, qualification and final) scaled to 0 to 10, against the podium athletes of that season (all their runs, same gender); grey bar: fewer than 10 sections. Rails only in freeski, where the codes name the trick.' : ''}</div></details></div>`;
+    <details class="sr-info"><summary>How to read</summary><div class="sr-fuss">${srListe([
+      `<b>Base:</b> World Cup, Worlds and Olympics ${saison}; reference values of the same season: podium of the finals or cut of the qualification, the same rounds one level up.`,
+      `<b>Clean runs (slopestyle):</b> every section scored above the fall range (more than 30 % of the section maximum), so the run was ridden through without a fall. A clean run is not the same as a good score. Landed jumps (Big Air, older seasons): score above 30.`,
+      `<b>Jump / run scores:</b> the score bands of the FIS Judges Handbook (fall 1 to 30, average or below 30 to 65, good 65 to 85, excellent 85 to 100); all scored jumps (Big Air) or runs (slopestyle, halfpipe) of the season against the next level in the same rounds. Judged only at the ends: fall share clearly above the reference is red, excellent share at or above the reference is green.`,
+      `<b>Rotation, best clean run:</b> average rotation of the jumps (hits) in the athlete's best clean run; Big Air: the two counting jumps of the best round with both landed; against the average jump of the podium runs (or of the last qualifiers), so a run against runs.`,
+      `<b>Highest good rotation:</b> the largest single rotation scored 65 or more (slopestyle: section score), against the biggest jump of the podium runs (or last qualifiers), averaged over the places.`,
+      Object.values(U.disz).some(d => d.jumps || d.rails) ? `<b>Jump / rail score per section (slopestyle):</b> every clean section (above the fall range, qualification and final) scaled to 0 to 10, against the podium athletes of that season (all their runs, same gender). Rails only in freeski, where the codes name the trick. Grey: fewer than 10 sections.` : '',
+      `<b>Colours:</b> green at or above the reference, red below, grey: fewer than 5 values or no judgement.`,
+      `<b>Seasons:</b> 2025/26 with the same figures and texts as in the athlete feedback; earlier seasons: the key figures only.`])}</div></details></div>`;
 }
 
 // ─── Comp overview: Athletenweg ───
@@ -2124,7 +2138,7 @@ function srTricksHtml(name, R, saison) {
     <div class="sr-disz-zeile">${disz}</div>
     ${liste || '<div class="leer-schmal">Every podium trick is covered by an own well-scored contest trick.</div>'}
     ${mehr}
-    <details class="sr-info"><summary>How to read</summary><div class="sr-fuss">${srEsc(R.methode)} Training: same trick (direction, flips, rotation) in the current season ${SR_JETZT}, competition entries left out; ↑ = only a bigger trick of the same direction. Set as goal adds the trick to Assessment (direction, flips, rotation; add axis and grab there).</div></details>
+    <details class="sr-info"><summary>How to read</summary><div class="sr-fuss">${srListe([srEsc(R.methode), `<b>Training:</b> same trick (direction, flips, rotation) in the current season ${SR_JETZT}, competition entries left out; ↑ = only a bigger trick of the same direction.`, '<b>Set as goal:</b> adds the trick to Assessment (direction, flips, rotation; add axis and grab there).'])}</div></details>
   </div>`;
 }
 
@@ -2226,7 +2240,7 @@ function srSelektionHtml(name, S) {
       <input id="sr-pt-in" type="number" min="0" max="100" step="1" value="${ptWert ?? ''}" onchange="srSaveInput(${srEsc(JSON.stringify(name))}, '${S.kader_saison}', 'powertest', this)">
       <span class="hinweis-winzig" id="sr-info-powertest">${srInfoText(pt)}</span></div>` : ''}
     ${ev ? `<div class="sr-ev"><span class="sr-lab">Selection events (Annex A)</span><div class="sr-fr">${ev}</div></div>` : ''}
-    <details class="sr-info"><summary>How to read</summary><div class="sr-fuss">${srEsc(S.quelle)}. Checked from FIS result lists: ranks at Olympics, Worlds, World Cup, Junior Worlds and the selection events (Annex A). Standings are computed from the races with the FIS points table (official FIS standings decide); during the season they show «on track». Read as: World Cup SS / BA counts slopestyle and big air together; «1× top 3 and 1× top 5» means two different results. Coach judgement, PISTE assessment and Technical Check-up are not in the result lists. Powertest only for the DVLP group.</div></details>
+    <details class="sr-info"><summary>How to read</summary><div class="sr-fuss">${srListe([`<b>Rules:</b> ${srEsc(S.quelle)}.`, '<b>Checked from FIS result lists:</b> ranks at Olympics, Worlds, World Cup, Junior Worlds and the selection events (Annex A).', '<b>Standings</b> are computed from the races with the FIS points table (official FIS standings decide); during the season they show «on track».', '<b>Read as:</b> World Cup SS / BA counts slopestyle and big air together; «1× top 3 and 1× top 5» means two different results.', 'Coach judgement, PISTE assessment and Technical Check-up are not in the result lists. Powertest only for the DVLP group.'])}</div></details>
     <div class="sr-hinweis">Meeting the criteria is not an automatic selection: the selection committee decides (4.1, 4.2).</div>
   </div>`;
 }
@@ -2250,7 +2264,7 @@ function srSelektionVergangenHtml(name, S, saison) {
     <div class="sr-sel-kopf">${srResultateTxt(S, 5, true)}${kader}</div>
     ${srStufenHtml(S, ptWert, name, true)}
     ${ev ? `<div class="sr-ev"><span class="sr-lab">Selection events ${saison} (Annex A)</span><div class="sr-fr">${ev}</div></div>` : ''}
-    <details class="sr-info"><summary>How to read</summary><div class="sr-fuss">${srEsc(S.quelle)}. Checked from the FIS result lists of ${saison}: ranks at Olympics, Worlds, World Cup, Junior Worlds and the selection events of that season (Annex A, Europa Cup incl. Premium). Standings (World Cup, Europa Cup, and the overall ranking of the selection events) are computed with the FIS points table over all ranked athletes; the official standings decide. «Squad ${S.kader_saison}» is the squad the committee selected. Coach judgement, PISTE assessment and Technical Check-up of that season are not in the app.</div></details>
+    <details class="sr-info"><summary>How to read</summary><div class="sr-fuss">${srListe([`<b>Rules:</b> ${srEsc(S.quelle)}.`, `<b>Checked from the FIS result lists of ${saison}:</b> ranks at Olympics, Worlds, World Cup, Junior Worlds and the selection events of that season (Annex A, Europa Cup incl. Premium).`, '<b>Standings</b> (World Cup, Europa Cup, and the overall ranking of the selection events) are computed with the FIS points table over all ranked athletes; the official standings decide.', `«Squad ${S.kader_saison}» is the squad the committee selected.`, 'Coach judgement, PISTE assessment and Technical Check-up of that season are not in the app.'])}</div></details>
     <div class="sr-hinweis">Meeting the criteria is not an automatic selection: the selection committee decides (4.1, 4.2).</div>
   </div>`;
 }
@@ -2276,7 +2290,7 @@ function srTrendHtml(name, saisonen) {
   return `<div class="sr-sek" id="sr-a-trend"><div class="sr-h">Trend <span class="sr-h-sub">World Cup, Worlds, Olympics · each season against its own reference values</span></div>
     <div class="table-wrap"><table class="sr-karriere sr-trend"><thead><tr><th>Season</th><th>Discipline</th><th>Events</th><th>Finals</th><th>Podiums</th><th>Best rank</th><th>Landed / clean</th><th>Best clean run (Ø)</th><th>Highest good rotation</th><th>Best score</th></tr></thead>
     <tbody>${zeilen.join('')}</tbody></table></div>
-    <details class="sr-info"><summary>How to read</summary><div class="sr-fuss">Every season is compared with the reference values of the same season (podium mark or cut, landing rate of the rounds one level up, rotation of the podium or of the cut). Seasons are not pooled, because the podium marks and rotations change from year to year. Green: at or above the reference; red: below; grey: fewer than 5 values. Best clean run (Ø): average rotation of the jumps in the best clean run (Big Air: the two counting jumps of the best round with both landed) against the average podium or cut jump. Highest good rotation: largest single rotation scored 65 or more (trick codes from 2017/18), against the biggest jump of the podium or cut runs where the season data has it, otherwise against the average jump. Big Air: «Best jump» where only one jump was scored.</div></details></div>`;
+    <details class="sr-info"><summary>How to read</summary><div class="sr-fuss">${srListe(['<b>Reference per season:</b> every season is compared with the reference values of the same season (podium mark or cut, landing rate of the rounds one level up, rotation of the podium or of the cut). Seasons are not pooled, because the podium marks and rotations change from year to year.', '<b>Colours:</b> green at or above the reference, red below, grey: fewer than 5 values.', '<b>Best clean run (Ø):</b> average rotation of the jumps in the best clean run (Big Air: the two counting jumps of the best round with both landed) against the average podium or cut jump.', '<b>Highest good rotation:</b> largest single rotation scored 65 or more (trick codes from 2017/18), against the biggest jump of the podium or cut runs where the season data has it, otherwise against the average jump.', '<b>Big Air:</b> «Best jump» where only one jump was scored.'])}</div></details></div>`;
 }
 
 // ─── Comp overview: Karriere (alle Saisons in den Daten) ───
@@ -2318,7 +2332,7 @@ function srKarriereHtml(name, saison, saisonen) {
       <th class="wc">WC starts</th><th class="wc">WC finals</th><th class="wc">WC podiums</th><th class="wc">WC best</th>
       <th class="ec">EC starts</th><th class="ec">EC podiums</th><th class="ec">EC best</th><th class="an">Other FIS best</th></tr></thead>
     <tbody>${zeilen.join('')}</tbody></table></div>
-    <details class="sr-info"><summary>How to read</summary><div class="sr-fuss">WC: FIS result lists and Results Analysis (trick codes from 2017/18); best = best final rank, otherwise best qualification rank. EC and other FIS: FIS result lists (Europa Cup, Nor-Am, ANC since 2015/16, Junior Worlds since 2012/13), rank only.</div></details></div>`;
+    <details class="sr-info"><summary>How to read</summary><div class="sr-fuss">${srListe(['<b>WC:</b> FIS result lists and Results Analysis (trick codes from 2017/18); best = best final rank, otherwise best qualification rank.', '<b>EC and other FIS:</b> FIS result lists (Europa Cup, Nor-Am, ANC since 2015/16, Junior Worlds since 2012/13), rank only.'])}</div></details></div>`;
 }
 
 // ─── Trainerurteil (Selektionsrichtlinien Anhang B) ───
@@ -2387,7 +2401,7 @@ function srUrteilHtml(name, ks) {
       <textarea rows="2" placeholder="What the ratings rest on, e.g. last three sessions, Laax World Cup" oninput="srSaveInput(${srEsc(JSON.stringify(name))}, '${ks}', 'urteil:${runde}:kommentar:${ich}', this)">${srEsc(meinKom?.wert || '')}</textarea>
       <span class="hinweis-winzig" id="sr-info-urteil:${runde}:kommentar:${ich}">${srInfoText(meinKom)}</span></label>
     ${kom ? `<div class="sr-ut-kom">${kom}</div>` : ''}
-    <details class="sr-info"><summary>How to read</summary><div class="sr-fuss">Annex B of the selection rules: several coaches rate each athlete (multi-eye principle), three times per season. The rules give no scale; 1 to 5 with one sentence per level keeps the ratings comparable between coaches (hover a number to see its level). Ø = mean of the coaches who rated in this round. Click your rating again to remove it. The selection committee decides; the ratings are its basis, not a threshold.</div></details>
+    <details class="sr-info"><summary>How to read</summary><div class="sr-fuss">${srListe(['<b>Annex B</b> of the selection rules: several coaches rate each athlete (multi-eye principle), three times per season.', '<b>Scale:</b> the rules give no scale; 1 to 5 with one sentence per level keeps the ratings comparable between coaches (hover a number to see its level).', '<b>Ø</b> = mean of the coaches who rated in this round. Click your rating again to remove it.', 'The selection committee decides; the ratings are its basis, not a threshold.'])}</div></details>
   </div>`;
 }
 
