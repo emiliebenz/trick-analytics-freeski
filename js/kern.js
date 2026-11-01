@@ -1947,36 +1947,10 @@ function srBaender(lab, b, r, wenig) {
   };
   return `<div class="sr-band-kopf">${lab}</div>${SR_BAND.map(([k, l, c]) => zeile(k, l, c)).join('')}`;
 }
-// Freeski-Slopestyle: Rails. Note pro Rail-Sektion (0–10) und Merkmale gegen die Podest-Athlet:innen derselben Saison
-// (alle ihre Läufe); Farbe nur bei Merkmalen, die im ganzen Feld mit einer anderen Rail-Note einhergehen (wie in den Decks)
-function srRailsHtml(r) {
-  const wirk = m => { if (m.wirkung == null) return '<span class="gedaempft">–</span>';
-    const r = Math.round(m.wirkung * 10) / 10;
-    return `<span class="${m.gekoppelt ? '' : 'gedaempft'}">${r > 0 ? '+' : r < 0 ? '−' : ''}${srF(Math.abs(r))}</span>`; };
-  // als Raster statt Tabelle: bleibt auch auf dem Handy eine kleine Tabelle (Tabellen ab 3 Spalten werden dort zu Karten)
-  const merk = (r.merkmale || []).map(m => `<span>${m.lab}</span>
-    <span><b style="color:${m.gekoppelt ? (m.gut ? SR_GUT : SR_SCHLECHT) : 'var(--text)'};">${srPct(m.wert)}</b></span><span>${srPct(m.ref)}</span><span>${wirk(m)}</span>`).join('');
-  const beste = (r.beste || []).map(b => `<div class="sr-fr-z"><span>${srEsc(b.trick)}</span><span><b>${srF(b.score, 2)}</b><span class="gedaempft">/${srF(b.max, b.max % 1 ? 1 : 0)}</span></span><span class="gedaempft">${srEsc(b.event)} ${srEsc(b.phase)}</span></div>`).join('');
-  return `<div class="sr-rails"><div class="sr-ue-sub">Rails <span class="gedaempft">${r.n} clean rail section${r.n === 1 ? '' : 's'}</span></div>
-    ${srBalken('Rail score per section' + (r.wenig ? ` (n = ${r.n})` : ''), r.score, r.ref_score, 10, srF(r.score) + ' of 10', 'Podium athletes ' + srF(r.ref_score), r.wenig, r.gut)}
-    ${merk ? `<div class="sr-rail-tab"><span class="k">Rail feature</span><span class="k">Share of rails</span><span class="k">Podium athletes</span><span class="k" title="Rail section score with minus without the feature, whole field (points of 10)">Effect on score</span>${merk}</div>`
-      : '<div class="sr-ue-fin">Rail features: the rail codes of this season are in an older notation that is not decoded.</div>'}
-    ${beste ? `<div class="sr-ue-sub2">Best rail sections</div><div class="sr-fr sr-rail-beste">${beste}</div>` : ''}
-  </div>`;
-}
-// Slopestyle: Sprünge, gleicher Aufbau wie die Rails (Note pro Jump-Sektion 0–10, Merkmale aus den FIS-Codes, beste Sektionen).
-function srJumpsHtml(j) {
-  const wirk = m => { if (m.wirkung == null) return '<span class="gedaempft">–</span>';
-    const r = Math.round(m.wirkung * 10) / 10;
-    return `<span class="${m.gekoppelt ? '' : 'gedaempft'}">${r > 0 ? '+' : r < 0 ? '−' : ''}${srF(Math.abs(r))}</span>`; };
-  const merk = (j.merkmale || []).map(m => `<span>${m.lab}</span>
-    <span><b style="color:${m.gekoppelt ? (m.gut ? SR_GUT : SR_SCHLECHT) : 'var(--text)'};">${srPct(m.wert)}</b></span><span>${srPct(m.ref)}</span><span>${wirk(m)}</span>`).join('');
-  const beste = (j.beste || []).map(b => `<div class="sr-fr-z"><span>${srEsc(b.trick)}</span><span><b>${srF(b.score, 2)}</b><span class="gedaempft">/${srF(b.max, b.max % 1 ? 1 : 0)}</span></span><span class="gedaempft">${srEsc(b.event)} ${srEsc(b.phase)}</span></div>`).join('');
-  return `<div class="sr-rails"><div class="sr-ue-sub">Jumps <span class="gedaempft">${j.n} clean jump section${j.n === 1 ? '' : 's'}</span></div>
-    ${srBalken('Jump score per section' + (j.wenig ? ` (n = ${j.n})` : ''), j.score, j.ref_score, 10, srF(j.score) + ' of 10', 'Podium athletes ' + srF(j.ref_score), j.wenig, j.gut)}
-    ${merk ? `<div class="sr-rail-tab"><span class="k">Jump feature</span><span class="k">Share of jumps</span><span class="k">Podium athletes</span><span class="k" title="Jump section score with minus without the feature, whole field (points of 10)">Effect on score</span>${merk}</div>` : ''}
-    ${beste ? `<div class="sr-ue-sub2">Best jump sections</div><div class="sr-fr sr-rail-beste">${beste}</div>` : ''}
-  </div>`;
+// Slopestyle: Note pro Jump- und pro Rail-Sektion (0–10, saubere Sektionen über dem Sturzbereich) gegen die Podest-Athlet:innen
+// derselben Saison (alle ihre Läufe). Merkmal-Tabellen und beste Sektionen bewusst weggelassen (Entscheid 1.11.2026), die Daten bleiben im Export.
+function srSektionHtml(lab, s) {
+  return srBalken(lab + (s.wenig ? ` (n = ${s.n})` : ''), s.score, s.ref_score, 10, srF(s.score) + ' of 10', 'Podium athletes ' + srF(s.ref_score), s.wenig, s.gut);
 }
 function srUebersichtHtml(U, saison) {
   if (!U) return '';
@@ -1995,15 +1969,15 @@ function srUebersichtHtml(U, saison) {
     ${d.hoch == null && d.ref_rot == null ? '' : d.ref_rot_max != null
       ? srBalken('Highest good rotation (one jump)', d.hoch, d.ref_rot_max, d.rot_max, d.hoch + '°', `${d.rot_lab} biggest jump Ø ${Math.round(d.ref_rot_max)}°`, false, d.rot_max_gut)
       : srBalken(k === 'SS' && d.rails ? 'Highest good rotation (jumps)' : 'Highest good rotation', d.hoch, d.ref_rot, d.rot_max, d.hoch + '°', `${d.rot_lab} ${d.ref_rot != null ? Math.round(d.ref_rot) + '°' : '–'}`, false, d.rot_gut)}
-    ${d.jumps ? srJumpsHtml(d.jumps) : ''}
-    ${d.rails ? srRailsHtml(d.rails) : ''}
+    ${d.jumps ? srSektionHtml('Jump score per section', d.jumps) : ''}
+    ${d.rails ? srSektionHtml('Rail score per section', d.rails) : ''}
     <div class="sr-ue-fin">${srEsc(d.finals_txt)}</div>
   </div>`).join('');
   const conti = U.conti ? `<div class="sr-ue-conti"><b>${srEsc(U.conti.split(': ')[0])}:</b> ${srEsc(U.conti.split(': ').slice(1).join(': '))}</div>` : '';
   const texte = (U.texte || []).map(t => `<div class="sr-ue-th">${srEsc(t.titel)}</div><ul>${t.punkte.map(p => `<li>${srEsc(p)}</li>`).join('')}</ul>`).join('');
   return `<div class="sr-sek" id="sr-a-overview"><div class="sr-h">Overview ${saison}</div>
     <div class="sr-ue"><div>${bl}${conti}</div>${texte ? `<div class="sr-ue-text">${texte}</div>` : ''}</div>
-    <details class="sr-info"><summary>How to read</summary><div class="sr-fuss">World Cup, Worlds, Olympics ${saison}; reference values ${saison} (podium or cut, the same rounds one level up). Jump / run scores: the score bands of the FIS Judges Handbook, fall 1 to 30, average or below 30 to 65, good 65 to 85, excellent 85 to 100; all scored jumps (Big Air) or runs (slopestyle, halfpipe) of the season against the next level in the same rounds. Slopestyle keeps clean runs (no section in the fall range) as its own line, because a run with one fallen section usually still scores above 30. Rotation, best clean run: the average rotation of the jumps (hits) in the athlete's best clean run, Big Air the two counting jumps of the best round with both landed, against the average jump of the podium runs (or of the last qualifiers), so a run against runs. Highest good rotation: the largest single rotation scored 65 or more (slopestyle: section score), against the biggest jump of the podium runs (or last qualifiers), averaged over the places. Green: at or above the reference; grey bar: fewer than 5 values. 2025/26: the same figures and texts as in the athlete feedback; earlier seasons: the key figures only.${Object.values(U.disz).some(d => d.jumps) ? ' Jumps (slopestyle): every clean jump section (jumps and hips above the fall range, qualification and final), scaled to 0 to 10; podium athletes = all runs of the athletes with a podium in that season, same gender. Features decoded from the FIS jump codes (rotation, flips, switch take-off, axis); the two rotation steps shown are the ones that split the podium athletes\' jumps. Effect on score = average jump score with minus without the feature, whole field; coloured only where that difference is at least 0.3. Amplitude, grab and execution are not in the codes.' : ''}${Object.values(U.disz).some(d => d.rails) ? ' Rails (Freeski slopestyle): every clean rail section (above the fall range, qualification and final), scaled to 0 to 10; podium athletes = all runs of the athletes with a podium in that season, same gender (the same base as for the athlete). Features decoded from the FIS rail codes. Effect on score = average rail score with minus without the feature, whole field; coloured only where that difference is at least 0.3 (green: share at or above the podium athletes where the feature goes with a higher score). A link, not proof: better riders also choose the harder tricks; how a rail is ridden (lock-in, control, style) is not in the codes. Grey bar: fewer than 10 rail sections.' : ''}</div></details></div>`;
+    <details class="sr-info"><summary>How to read</summary><div class="sr-fuss">World Cup, Worlds, Olympics ${saison}; reference values ${saison} (podium or cut, the same rounds one level up). Jump / run scores: the score bands of the FIS Judges Handbook, fall 1 to 30, average or below 30 to 65, good 65 to 85, excellent 85 to 100; all scored jumps (Big Air) or runs (slopestyle, halfpipe) of the season against the next level in the same rounds. Slopestyle keeps clean runs (no section in the fall range) as its own line, because a run with one fallen section usually still scores above 30. Rotation, best clean run: the average rotation of the jumps (hits) in the athlete's best clean run, Big Air the two counting jumps of the best round with both landed, against the average jump of the podium runs (or of the last qualifiers), so a run against runs. Highest good rotation: the largest single rotation scored 65 or more (slopestyle: section score), against the biggest jump of the podium runs (or last qualifiers), averaged over the places. Green: at or above the reference; grey bar: fewer than 5 values. 2025/26: the same figures and texts as in the athlete feedback; earlier seasons: the key figures only.${Object.values(U.disz).some(d => d.jumps || d.rails) ? ' Jump / rail score per section (slopestyle): every clean section (above the fall range, qualification and final) scaled to 0 to 10, against the podium athletes of that season (all their runs, same gender); grey bar: fewer than 10 sections. Rails only in freeski, where the codes name the trick.' : ''}</div></details></div>`;
 }
 
 // ─── Comp overview: Athletenweg ───
