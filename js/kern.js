@@ -1758,7 +1758,7 @@ const srListe = items => `<ul style="margin:4px 0 0 16px;padding:0;">${items.fil
 function srLegende(saison, sektionen) {
   return `<div class="sr-fuss" style="margin:0 0 8px;">${srListe([
     `<b>Bars:</b> the athlete in ${saison}. <b style="color:${SR_GUT};">Green</b> at or above the reference, <b style="color:${SR_SCHLECHT};">red</b> below, <b style="color:var(--muted);">grey</b> fewer than 5 values${sektionen ? ' (sections: fewer than 10)' : ''} or no judgement.`,
-    '<b>Lines:</b> <b>F</b> = the final cut-off (the score or rotation of the last qualifiers), <b>P</b> = the podium of the finals, both from the same season. The athlete is judged against one of them: the podium after reaching a final, otherwise the final cut-off. That line is black and decides the colour of the bar; the second line is grey and only shows how far away the other level is.'])}</div>`;
+    '<b>Markers:</b> <b>F</b> = the final cut-off (the score or rotation of the last qualifiers), <b>P</b> = the podium of the finals, both from the same season. The athlete is judged against one of them: the podium after reaching a final, otherwise the final cut-off. That marker is black and decides the colour of the bar; the other is white and only shows how far away the other level is. When the two are close, they sit side by side.'])}</div>`;
 }
 // Saison wie im Monitoring: ab 1. Mai zählt die neue Saison
 function srSaisonVon(y) { return `${y}/${String((y + 1) % 100).padStart(2, '0')}`; }
@@ -1937,19 +1937,17 @@ function srCompHtml(name, dz) {
 }
 
 // ─── Comp overview: Übersicht ───
-// Striche: P = Podest, F = Cut ins Final; der gewertete Strich schwarz, die andere Stufe grau, je mit Buchstaben (Entscheid 1.11.2026)
-// Strich mit weissem Saum (bleibt auf rot, grün, grau und weiss sichtbar), Buchstabe 11 px fett darüber, zentriert; liegen beide Stufen
-// nahe beieinander, weicht der gewertete Buchstabe nach rechts und der andere nach links aus (seite = 1 / -1). Die Bahn hat oben 16 px
-// Rand, damit die Buchstaben auch im schmalen Layout (Beschriftung über dem Balken) frei stehen.
-const srStrich = (pos, farbe, buchstabe, seite, breit) => `<i style="left:${pos}%;background:${farbe};width:${breit ? 3 : 2}px;margin-left:${breit ? -1.5 : -1}px;box-shadow:0 0 0 1px #fff;"></i>`
-  + (buchstabe ? `<b style="position:absolute;top:-16px;font-size:11px;line-height:12px;font-weight:800;color:${farbe};${seite > 0 ? `left:calc(${pos}% + 4px);` : seite < 0 ? `right:calc(${100 - pos}% + 4px);` : `left:${pos}%;transform:translateX(-50%);`}">${buchstabe}</b>` : '');
+// Stufen als Marker auf dem Balken (Variante A, Entscheid 1.11.2026): P = Podest, F = Final cut-off. Die gewertete Stufe schwarz mit
+// weisser Schrift, die andere weiss mit grauem Rand; beide bleiben auf jedem Untergrund lesbar. Liegen beide näher als 6 % der Breite
+// beieinander, rückt der andere Marker neben den gewerteten (shift in px); die genauen Zahlen stehen rechts neben dem Balken.
+const srStrich = (pos, buchstabe, gewertet, shift) => `<span style="position:absolute;left:calc(${pos}% + ${shift || 0}px);top:50%;transform:translate(-50%,-50%);min-width:17px;height:15px;line-height:13px;padding:0 3px;border-radius:4px;border:1px solid ${gewertet ? '#1d1d1f' : '#6E6E6E'};background:${gewertet ? '#1d1d1f' : '#fff'};color:${gewertet ? '#fff' : '#1d1d1f'};font-size:10px;font-weight:800;text-align:center;box-sizing:border-box;">${buchstabe}</span>`;
 const srBuchstabe = lv => lv ? (/^Podium/i.test(lv) ? 'P' : 'F') : '';
 function srBalken(lab, wert, ref, max, wtxt, rtxt, grau, gut, farbe, klasse, ref2, lv, lv2) {
   const w = !wert ? 0 : Math.max(2, Math.min(100, wert / max * 100)), r = ref == null ? null : Math.min(100, ref / max * 100);
   const r2 = ref2 == null ? null : Math.min(100, ref2 / max * 100);         // zweite Stufe (grau): Cut neben Podest oder umgekehrt
   const col = grau || wert == null ? 'var(--muted)' : gut == null ? 'var(--text)' : gut ? SR_GUT : SR_SCHLECHT;   // gut null = keine Wertung
-  const nah = r != null && r2 != null && Math.abs(r - r2) < 5;             // Stufen nahe beieinander: Buchstaben ausweichen lassen
-  return `<div class="sr-balken${klasse ? ' ' + klasse : ''}"><span>${lab}</span><div class="sr-bahn" style="background:#fff;border:1px solid #6E6E6E;box-sizing:border-box;margin-top:16px;"><div style="width:${w}%;background:${grau || wert == null || gut == null ? SR_GRAU : gut ? SR_GUT : SR_SCHLECHT};"></div>${r2 != null ? srStrich(r2, '#6E6E6E', srBuchstabe(lv2), nah ? -1 : 0, false) : ''}${r != null ? srStrich(r, '#1d1d1f', srBuchstabe(lv), nah ? 1 : 0, true) : ''}</div>
+  const nah = r != null && r2 != null && Math.abs(r - r2) < 6;             // Stufen nahe beieinander: anderen Marker daneben setzen
+  return `<div class="sr-balken${klasse ? ' ' + klasse : ''}"><span>${lab}</span><div class="sr-bahn" style="background:#fff;border:1px solid #6E6E6E;box-sizing:border-box;height:12px;"><div style="width:${w}%;background:${grau || wert == null || gut == null ? SR_GRAU : gut ? SR_GUT : SR_SCHLECHT};"></div>${r2 != null ? srStrich(r2, srBuchstabe(lv2), false, nah ? (r2 < r ? -19 : 19) : 0) : ''}${r != null ? srStrich(r, srBuchstabe(lv), true, 0) : ''}</div>
     <span><b style="color:${col};">${wert == null ? '–' : wtxt}</b> <span class="gedaempft">${rtxt}</span></span></div>`;
 }
 // Punktebänder des FIS Judges Handbook (wie im Coach-Deck): Sturz 1–30, Durchschnitt 30–65, gut 65–85, exzellent 85–100.
@@ -1973,6 +1971,13 @@ function srSektionHtml(lab, s) {
   const txt = `${s.ref_label || 'Podium athletes'} ${srF(s.ref_score)}` + (other != null ? ` · ${cutJudged ? 'Podium' : 'Cut-off'} ${srF(other)}` : '');
   return srBalken(lab + (s.wenig ? ` (n = ${s.n})` : ''), s.score, s.ref_score, 10, srF(s.score) + ' of 10', txt, s.wenig, s.gut, null, null, other, cutJudged ? 'Cut-off' : 'Podium', cutJudged ? 'Podium' : 'Cut-off');
 }
+// Kachel «Best score»: F und P sind Saison-Mediane (F: Punktzahl der letzten Qualifizierten über alle Qualis, P: 3. Platz über alle
+// Finals); das steht als dritte Zeile in der Kachel (Wunsch 1.11.2026). Die gewertete Stufe fett (strong, nicht b: b ist in .sr-kpis die grosse Zahl).
+function srKachelStufen(d) {
+  if (d.ref_cut_score == null && d.ref_pod_score == null) return `<span>${d.ref_score == null ? 'no comparable reference' : d.ref_label + ' ' + (d.ref_score_txt ?? srF(d.ref_score))}</span>`;
+  const L = [['F', d.ref_cut_score_txt ?? srF(d.ref_cut_score), d.ref_label === 'cut'], ['P', d.ref_pod_score_txt ?? srF(d.ref_pod_score), d.ref_label === 'podium']].filter(([, v]) => v && v !== '–');
+  return `<span>${L.map(([l, v, j]) => j ? `<strong style="font-weight:800;color:var(--text);">${l} ${v}</strong>` : `${l} ${v}`).join(' · ')}</span><span>season medians</span>`;
+}
 function srUebersichtHtml(U, saison) {
   if (!U) return '';
   const bl = Object.entries(U.disz).map(([k, d]) => { const podJ = d.rot_lab === 'Podium', oth = (podJ ? d.ref_cut : d.ref_podium) || {}, lv = podJ ? 'Podium' : 'Cut-off', lv2 = podJ ? 'Cut-off' : 'Podium';
@@ -1983,9 +1988,7 @@ function srUebersichtHtml(U, saison) {
       <div><b>${d.finals}</b><span>Finals in ${d.n_events} event${d.n_events === 1 ? '' : 's'}</span></div>
       <div><b style="${d.podeste ? 'color:' + SR_SCHLECHT : ''}">${d.podeste}</b><span>Podium places</span></div>
       <div><b>${srEsc(d.best_rank)}</b><span>${d.best_rank_lab}</span></div>
-      <div><b style="${d.score_gut ? 'color:' + SR_GUT : ''}">${d.best_score_txt ?? srF(d.best_score)}</b><span>${d.best_score_lab}</span><span>${d.ref_cut_score != null || d.ref_pod_score != null
-          ? [['F', d.ref_cut_score_txt ?? srF(d.ref_cut_score), d.ref_label === 'cut'], ['P', d.ref_pod_score_txt ?? srF(d.ref_pod_score), d.ref_label === 'podium']].filter(([, v]) => v && v !== '–').map(([l, v, j]) => j ? `<strong style="font-weight:800;color:var(--text);">${l} ${v}</strong>` : `${l} ${v}`).join(' · ')
-          : d.ref_score == null ? 'no comparable reference' : d.ref_label + ' ' + (d.ref_score_txt ?? srF(d.ref_score))}</span></div>
+      <div><b style="${d.score_gut ? 'color:' + SR_GUT : ''}">${d.best_score_txt ?? srF(d.best_score)}</b><span>${d.best_score_lab}</span>${srKachelStufen(d)}</div>
     </div>
     ${(d.lq == null && d.ref_land == null) || (d.bands && k !== 'SS') ? '' : srBalken(d.land_lab + (d.n_lq < 10 ? ` (n = ${d.n_lq})` : ''), d.lq, d.ref_land, 1, srPct(d.lq), `${lv} ${srPct(d.ref_land)}` + o(oth.land, srPct), d.wenig, d.land_gut, null, null, oth.land, lv, lv2)}
     ${d.bands ? srBaender((k === 'BA' ? 'Jump scores' : 'Run scores') + (d.bands.n < 10 ? ` (n = ${d.bands.n})` : ''), d.bands, d.ref_bands, d.bands.n < 5, lv, oth.bands, lv2) : ''}
@@ -2017,7 +2020,7 @@ function srUebersichtHtml(U, saison) {
       `<b>Highest good rotation:</b> the largest single rotation scored 65 or more (slopestyle: section score), against the biggest jump of the podium runs (or last qualifiers), averaged over the places.`,
       `<b>What rotation says about the final:</b> in Big Air a best clean qualification round below the cut-off rotation went with a final in about one case in five (whole field, 2022/23 to 2025/26), at or above it in about half. In slopestyle rotation separates much less, because rails, composition and execution carry a large part of the run score; a rotation below the cut-off is a weaker signal there.`,
       Object.values(U.disz).some(d => d.jumps || d.rails) ? `<b>Jump / rail score per section (slopestyle):</b> every clean section (above the fall range, qualification and final) scaled to 0 to 10, against the podium athletes of that season (all their runs, same gender). Rails only in freeski, where the codes name the trick. Grey: fewer than 10 sections.` : '',
-      `<b>Colours:</b> bars green at or above the black line, red below it, grey: fewer than 5 values or no judgement (the middle score bands are not judged).`,
+      `<b>Colours:</b> bars green at or above the black marker, red below it, grey: fewer than 5 values or no judgement (the middle score bands are not judged).`,
       `<b>Seasons:</b> 2025/26 with the same figures and texts as in the athlete feedback; earlier seasons: the key figures only.`])}</div></details></div>`;
 }
 
@@ -2036,6 +2039,7 @@ function srWegHtml(W) {
     svg += `<text x="0" y="${y + 4}" class="sr-w-lab">${srEsc(s.label)}${s.anteil != null ? `<tspan class="sr-w-ant"> ${s.anteil}%</tspan>` : ''}</text>`;
     svg += `<rect x="${x(q1 - 0.5)}" y="${y - 6}" width="${x(q3 + 0.5) - x(q1 - 0.5)}" height="12" rx="2" class="sr-w-band"/><rect x="${x(m) - 1.5}" y="${y - 9}" width="3" height="18" class="sr-w-med"/>`;
     if (s.alter != null) svg += `<circle cx="${x(s.alter)}" cy="${y}" r="7.5" fill="${farbe[s.lage] || '#2c2c2e'}"/>`;
+    else if (s.lage === 'closed') svg += `<text x="${x(W.jetzt)}" y="${y + 5}" text-anchor="middle" font-size="15" font-weight="700" fill="#A49A94">×</text>`;   // nicht mehr möglich (Junior Worlds: höchstens 18 im Jahr der Meisterschaft)
     else if (s.lage !== 'skipped') svg += `<circle cx="${x(W.jetzt)}" cy="${y}" r="6" class="sr-w-offen"/>`;
   });
   const stand = W.stand.map(t => `<li><b${t.farbe ? ` class="${t.farbe}"` : ''}>${srEsc(t.b)}</b>${srEsc(t.t)}</li>`).join('');
@@ -2043,7 +2047,7 @@ function srWegHtml(W) {
   return `<div class="sr-sek" id="sr-a-pathway"><div class="sr-h">Pathway <span class="sr-h-sub">age at each stage vs today's podium athletes (${srEsc(W.gruppe)}, n = ${W.ref_n}) · as of ${W.saison}</span></div>
     <div class="sr-weg">
       <div class="sr-weg-bild"><svg viewBox="0 0 ${LW + PW + 10} ${H}" role="img" aria-label="Pathway chart">${svg}</svg>
-        <div class="sr-weg-leg"><span><i style="background:${SR_GUT}"></i>earlier than the middle half</span><span><i style="background:#2c2c2e"></i>inside</span><span><i style="background:${SR_SCHLECHT}"></i>later</span><span><i class="offen"></i>not yet (at today's age)</span><span><i class="band"></i>middle half of today's podium athletes, line: median</span></div></div>
+        <div class="sr-weg-leg"><span><i style="background:${SR_GUT}"></i>earlier than the middle half</span><span><i style="background:#2c2c2e"></i>inside</span><span><i style="background:${SR_SCHLECHT}"></i>later</span><span><i class="offen"></i>not yet (at today's age)</span>${W.stufen.some(s => s.lage === 'closed') ? '<span><b style="color:#A49A94;font-size:14px;line-height:1;margin-right:5px;">×</b>no longer possible (Junior Worlds: at most 18 in the championship year)</span>' : ''}<span><i class="band"></i>middle half of today's podium athletes, line: median</span></div></div>
       <div class="sr-weg-text"><div class="sr-ue-th">Where ${srEsc(W.vorname)} stands</div><ul>${stand}</ul>
         <div class="hinweis">Stages from the ${srEsc(W.quelle)}.</div></div>
     </div></div>`;
