@@ -2266,7 +2266,7 @@ function srStufenHtml(S, ptWert, name, vergangen) {
     const offen = ['met', 'on_track'].includes(s.status) || aktuell;
     const zusTxt = zus.length ? `<div class="sr-zus">Also required: ${zus.map(z => `${srEsc(z.text)} <b style="color:${SR_STATUS[z.status].color};">${ptWert === null ? (vergangen ? 'not in the app' : 'not entered') : ptWert + ' points'}</b>`).join(' · ')}</div>` : '';
     return `<details class="sr-stufe" ${offen ? 'open' : ''}>
-      <summary><span class="sr-stufe-n">${s.name}</span>${aktuell ? `<span class="sr-jetzt">${vergangen ? 'selected ' + S.kader_saison : 'current squad'}</span>` : ''}<b style="color:${st.color};margin-left:auto;">${st.label}</b></summary>
+      <summary><span class="sr-stufe-n">${s.name}</span>${aktuell ? `<span class="sr-jetzt">${vergangen ? 'selected ' + S.kader_saison : 'current squad'}</span>` : ''}${s.status === 'coach' ? `<span class="gedaempft" style="margin-left:auto;font-size:12px;font-weight:400;">by coach judgement</span>` : `<b style="color:${st.color};margin-left:auto;">${st.label}</b>`}</summary>
       <div class="sr-alts"><div class="hinweis-winzig" style="margin-bottom:4px;">One of these${weg ? ` <span class="gedaempft">· ${weg}</span>` : ''}:</div>${s.alt.filter(a => srKriteriumPasst(a.text, D)).map(srAltHtml).join('')}${zusTxt}</div>
     </details>`;
   }).join('');
