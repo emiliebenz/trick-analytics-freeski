@@ -2498,7 +2498,7 @@ function srUrteilHtml(name, ks) {
     return `<div class="sr-ut-zeile">
       <div class="sr-ut-lab"><b>${c.lab}</b><span>${srEsc(c.frage)}</span></div>
       <div class="sr-ut-wahl">${[1, 2, 3, 4, 5].map(v => `<button class="${mein === v ? 'on' : ''}" title="${v}: ${srEsc(c.stufen[v - 1])}" onclick="srSetUrteil(${srEsc(JSON.stringify(name))}, '${ks}', ${runde}, '${c.k}', ${v})">${v}</button>`).join('')}</div>
-      <div class="sr-ut-alle"><span class="sr-ut-text">${mein ? 'You: ' + mein + ' · ' + srEsc(c.stufen[mein - 1]) : '<span class="gedaempft">your rating: click 1 to 5</span>'}</span>${m != null ? `<b>Ø ${srF(m)}</b> <span class="gedaempft">${Object.keys(werte[c.k]).length} coach${Object.keys(werte[c.k]).length === 1 ? '' : 'es'}${andere.length ? ' · ' + andere.map(([e, v]) => `${srWer(e)} ${v}`).join(', ') : ''}</span>` : '<span class="gedaempft">no rating yet</span>'}</div>
+      <div class="sr-ut-alle"><span class="sr-ut-text">${mein ? 'You: ' + mein + ' · ' + srEsc(c.stufen[mein - 1]) + ` <span class="gedaempft">· click another number to change</span> <button type="button" class="btn-secondary" style="padding:2px 8px;font-size:11px;margin-left:4px;" onclick="srSetUrteil(${srEsc(JSON.stringify(name))}, '${ks}', ${runde}, '${c.k}', ${mein})">Remove</button>` : '<span class="gedaempft">your rating: click 1 to 5</span>'}</span>${m != null ? `<b>Ø ${srF(m)}</b> <span class="gedaempft">${Object.keys(werte[c.k]).length} coach${Object.keys(werte[c.k]).length === 1 ? '' : 'es'}${andere.length ? ' · ' + andere.map(([e, v]) => `${srWer(e)} ${v}`).join(', ') : ''}</span>` : '<span class="gedaempft">no rating yet</span>'}</div>
     </div>`;
   }).join('');
   const meinKom = srInput(name, ks, `urteil:${runde}:kommentar:${ich}`);
