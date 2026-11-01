@@ -1974,7 +1974,11 @@ function srUebersichtHtml(U, saison) {
     <div class="sr-ue-fin">${srEsc(d.finals_txt)}</div>
   </div>`).join('');
   const conti = U.conti ? `<div class="sr-ue-conti"><b>${srEsc(U.conti.split(': ')[0])}:</b> ${srEsc(U.conti.split(': ').slice(1).join(': '))}</div>` : '';
-  const texte = (U.texte || []).map(t => `<div class="sr-ue-th">${srEsc(t.titel)}</div><ul>${t.punkte.map(p => `<li>${srEsc(p)}</li>`).join('')}</ul>`).join('');
+  // Fazit statt drei Listen (Entscheid 1.11.2026): je der erste Punkt von Stärke, Lücke und Frage; die Kennzahlen stehen links als Balken.
+  // Saisons ohne geschriebene Texte (nur automatische Kennzahlen, Titel «Results») bekommen keinen Block.
+  const T_ = Object.fromEntries((U.texte || []).map(t => [t.titel, t.punkte || []]));
+  const fazit = T_.Strength ? [['Strength', T_.Strength[0]], ['Gap', (T_.Gap || [])[0]], ['Question', (T_['For the conversation'] || [])[0]]].filter(([, p]) => p) : [];
+  const texte = fazit.length ? `<div class="sr-ue-th">In short</div><ul>${fazit.map(([l, p]) => `<li><b>${l}:</b> ${srEsc(p)}</li>`).join('')}</ul>` : '';
   return `<div class="sr-sek" id="sr-a-overview"><div class="sr-h">Overview ${saison}</div>
     <div class="sr-ue"><div>${bl}${conti}</div>${texte ? `<div class="sr-ue-text">${texte}</div>` : ''}</div>
     <details class="sr-info"><summary>How to read</summary><div class="sr-fuss">World Cup, Worlds, Olympics ${saison}; reference values ${saison} (podium or cut, the same rounds one level up). Jump / run scores: the score bands of the FIS Judges Handbook, fall 1 to 30, average or below 30 to 65, good 65 to 85, excellent 85 to 100; all scored jumps (Big Air) or runs (slopestyle, halfpipe) of the season against the next level in the same rounds. Slopestyle keeps clean runs (no section in the fall range) as its own line, because a run with one fallen section usually still scores above 30. Rotation, best clean run: the average rotation of the jumps (hits) in the athlete's best clean run, Big Air the two counting jumps of the best round with both landed, against the average jump of the podium runs (or of the last qualifiers), so a run against runs. Highest good rotation: the largest single rotation scored 65 or more (slopestyle: section score), against the biggest jump of the podium runs (or last qualifiers), averaged over the places. Green: at or above the reference; grey bar: fewer than 5 values. 2025/26: the same figures and texts as in the athlete feedback; earlier seasons: the key figures only.${Object.values(U.disz).some(d => d.jumps || d.rails) ? ' Jump / rail score per section (slopestyle): every clean section (above the fall range, qualification and final) scaled to 0 to 10, against the podium athletes of that season (all their runs, same gender); grey bar: fewer than 10 sections. Rails only in freeski, where the codes name the trick.' : ''}</div></details></div>`;
@@ -1998,15 +2002,13 @@ function srWegHtml(W) {
     else if (s.lage !== 'skipped') svg += `<circle cx="${x(W.jetzt)}" cy="${y}" r="6" class="sr-w-offen"/>`;
   });
   const stand = W.stand.map(t => `<li><b${t.farbe ? ` class="${t.farbe}"` : ''}>${srEsc(t.b)}</b>${srEsc(t.t)}</li>`).join('');
-  const sig = W.signale.length ? `<ul>${W.signale.map(s => `<li><b>${srEsc(s.label)}:</b> ${s.p}% later reached an elite podium (n = ${s.n}), <b class="${s.signal === 'high share' ? 'gut' : s.signal === 'low share' ? 'gedaempft' : ''}">${s.signal}</b>.</li>`).join('')}</ul>`
-                               : `<div class="hinweis">${srEsc(W.signale_leer)}</div>`;
+  // «What earlier athletes did» (Gruppenquoten je Stufe) bewusst nicht mehr in der Athletenansicht (Entscheid 1.11.2026): Gruppenstatistik, keine Prognose; sie bleibt im Pathway-Kapitel des Coach-Decks.
   return `<div class="sr-sek" id="sr-a-pathway"><div class="sr-h">Pathway <span class="sr-h-sub">age at each stage vs today's podium athletes (${srEsc(W.gruppe)}, n = ${W.ref_n}) · as of ${W.saison}</span></div>
     <div class="sr-weg">
       <div class="sr-weg-bild"><svg viewBox="0 0 ${LW + PW + 10} ${H}" role="img" aria-label="Pathway chart">${svg}</svg>
         <div class="sr-weg-leg"><span><i style="background:${SR_GUT}"></i>earlier than the middle half</span><span><i style="background:#2c2c2e"></i>inside</span><span><i style="background:${SR_SCHLECHT}"></i>later</span><span><i class="offen"></i>not yet (at today's age)</span><span><i class="band"></i>middle half of today's podium athletes, line: median</span></div></div>
       <div class="sr-weg-text"><div class="sr-ue-th">Where ${srEsc(W.vorname)} stands</div><ul>${stand}</ul>
-        <div class="sr-ue-th" style="color:var(--text);">What earlier athletes did</div>${sig}
-        <div class="hinweis">Shares of earlier athletes with the same result (2016/17 to 2020/21). They describe groups, not this athlete. Stages from the ${srEsc(W.quelle)}.</div></div>
+        <div class="hinweis">Stages from the ${srEsc(W.quelle)}.</div></div>
     </div></div>`;
 }
 
