@@ -2183,6 +2183,7 @@ async function srSpeichernFeld(name, saison, feld) {
   if (error) { if (info) info.textContent = 'Not saved: ' + error.message; if (btn) btn.disabled = false; showToast('Not saved: ' + error.message, 'error'); return; }
   const k = srNorm(name), key = saison + '|' + feld;
   (_srData.input[k] = _srData.input[k] || {})[key] = row;
+  _srBearbeiten.delete(key); _srLoeschen.delete(key);
   await srLogSchreiben(name, saison, feld, wert, row.von, row.updated_at);
   const c = document.querySelector('.sr-tabchip i'); if (c && srHatInput(name)) c.remove();
   renderMonitoring();
@@ -2198,13 +2199,38 @@ function srVerlaufHtml(name, saison, feld) {
   const z = L.map(x => `<div style="margin:4px 0 6px;"><span class="gedaempft">${srDatum(x.created_at)} ${String(x.created_at || '').slice(11, 16)} · ${srWer(x.von) || '–'}</span><div style="color:var(--text);white-space:pre-wrap;">${x.wert ? srEsc(x.wert) : '<i class="gedaempft">(cleared)</i>'}</div></div>`).join('');
   return `<details class="sr-info"><summary>History (${L.length})</summary><div class="sr-fuss" style="margin-top:4px;">${z}</div></details>`;
 }
-function srFeldHtml(name, saison, feld, lab, ph) {
-  const r = srInput(name, saison, feld), n = srEsc(JSON.stringify(name));
-  return `<label class="sr-feld"><span>${lab}</span>
-    <textarea id="sr-ta-${feld}" rows="3" placeholder="${srEsc(ph)}" oninput="srFeldGeaendert('${feld}', ${n}, '${saison}')">${srEsc(r?.wert || '')}</textarea>
-    <span style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><button type="button" id="sr-btn-${feld}" class="btn-secondary" style="padding:4px 12px;font-size:12px;" disabled onclick="srSpeichernFeld(${n}, '${saison}', '${feld}')">Save</button><span class="hinweis-winzig" id="sr-info-${feld}">${srInfoText(r)}</span></span>
-    ${srVerlaufHtml(name, saison, feld)}</label>`;
+// Textfeld mit Ansicht, Bearbeiten und Löschen (Entscheid 1.11.2026): gespeicherter Text als Block mit Coach und Zeit,
+// «Edit» öffnet das Feld, «Delete» löscht in zwei Klicks (Eintrag wird leer gespeichert und bleibt im Verlauf als «cleared»).
+const _srBearbeiten = new Set(), _srLoeschen = new Set();
+function srFeldBearbeiten(key, an) { if (an) _srBearbeiten.add(key); else _srBearbeiten.delete(key); _srLoeschen.delete(key); renderMonitoring(); }
+function srFeldLoeschenFrage(key, an) { if (an) _srLoeschen.add(key); else _srLoeschen.delete(key); renderMonitoring(); }
+async function srFeldLoeschen(name, saison, feld) {
+  const key = saison + '|' + feld; _srLoeschen.delete(key); _srBearbeiten.delete(key);
+  const row = {athlet: name, saison, feld, wert: '', von: AUTH_USER?.email || null, updated_at: new Date().toISOString()};
+  const {error} = await db.from('season_review_input').upsert(row, {onConflict: 'athlet,saison,feld'});
+  if (error) { showToast('Not deleted: ' + error.message, 'error'); return; }
+  const k = srNorm(name); (_srData.input[k] = _srData.input[k] || {})[key] = row;
+  await srLogSchreiben(name, saison, feld, '', row.von, row.updated_at);
+  renderMonitoring();
 }
+function srTextFeldHtml(name, saison, feld, lab, ph, rows) {
+  const r = srInput(name, saison, feld), n = srEsc(JSON.stringify(name)), key = saison + '|' + feld, kj = srEsc(JSON.stringify(key));
+  const hat = !!(r && (r.wert || '').trim()), edit = !hat || _srBearbeiten.has(key);
+  const knopf = (txt, onclick, extra = '') => `<button type="button" class="btn-secondary" style="padding:4px 12px;font-size:12px;" ${extra} onclick="${onclick}">${txt}</button>`;
+  let kern;
+  if (edit) {
+    kern = `<textarea id="sr-ta-${feld}" rows="${rows || 3}" placeholder="${srEsc(ph)}" oninput="srFeldGeaendert('${feld}', ${n}, '${saison}')">${srEsc(r?.wert || '')}</textarea>
+    <span style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><button type="button" id="sr-btn-${feld}" class="btn-secondary" style="padding:4px 12px;font-size:12px;" disabled onclick="srSpeichernFeld(${n}, '${saison}', '${feld}')">Save</button>${hat ? knopf('Cancel', `srFeldBearbeiten(${kj}, false)`) : ''}<span class="hinweis-winzig" id="sr-info-${feld}">${srInfoText(r)}</span></span>`;
+  } else {
+    const frage = _srLoeschen.has(key);
+    kern = `<div style="white-space:pre-wrap;font-size:14px;line-height:1.45;padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:#fff;">${srEsc(r.wert)}</div>
+    <span style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><span class="hinweis-winzig" id="sr-info-${feld}">${srInfoText(r)}</span>${knopf('Edit', `srFeldBearbeiten(${kj}, true)`)}${frage
+      ? `<span class="hinweis-winzig" style="color:${SR_SCHLECHT};">Delete this entry?</span>${knopf('Yes, delete', `srFeldLoeschen(${n}, '${saison}', '${feld}')`)}${knopf('No', `srFeldLoeschenFrage(${kj}, false)`)}`
+      : knopf('Delete', `srFeldLoeschenFrage(${kj}, true)`)}</span>`;
+  }
+  return `<label class="sr-feld"><span>${lab}</span>${kern}${srVerlaufHtml(name, saison, feld)}</label>`;
+}
+function srFeldHtml(name, saison, feld, lab, ph) { return srTextFeldHtml(name, saison, feld, lab, ph, 3); }
 // Ziel und Plan gelten für die laufende Saison (in der Vorsaison als Fazit); «was die Daten verpassen» für die ausgewertete Saison
 function srInputHtml(name, saison, R) {
   const felder = [];
@@ -2482,9 +2508,7 @@ function srUrteilHtml(name, ks) {
     <summary class="sr-ut-kopf" style="cursor:pointer;"><b>Coach judgement (Annex B)</b><span class="gedaempft">each coach rates on their own, three times per season · click to show or hide</span></summary>
     <div class="sr-ut-kopf"><span class="sr-ut-runden">${[1, 2, 3].map(r => `<button class="${r === runde ? 'on' : ''}" onclick="srSetRunde(${r})">Round ${r}</button>`).join('')}</span><span class="gedaempft">ratings save on click, the comment with the button; everything is kept in the history with name and time</span></div>
     ${zeilen}
-    <label class="sr-feld" style="margin-top:8px;"><span>Your comment (round ${runde})</span>
-      <textarea id="sr-ta-${feldK}" rows="2" placeholder="What the ratings rest on, e.g. last three sessions, Laax World Cup" oninput="srFeldGeaendert('${feldK}', ${n}, '${ks}')">${srEsc(meinKom?.wert || '')}</textarea>
-      <span style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><button type="button" id="sr-btn-${feldK}" class="btn-secondary" style="padding:4px 12px;font-size:12px;" disabled onclick="srSpeichernFeld(${n}, '${ks}', '${feldK}')">Save</button><span class="hinweis-winzig" id="sr-info-${feldK}">${srInfoText(meinKom)}</span></span></label>
+    <div style="margin-top:8px;">${srTextFeldHtml(name, ks, feldK, `Your comment (round ${runde})`, 'What the ratings rest on, e.g. last three sessions, Laax World Cup', 2)}</div>
     ${kom ? `<div class="sr-ut-kom">${kom}</div>` : ''}
     ${srVerlaufUrteilHtml(name, ks, runde)}
     <details class="sr-info"><summary>How to read</summary><div class="sr-fuss">${srListe(['<b>Annex B</b> of the selection rules: several coaches rate each athlete (multi-eye principle), three times per season.', '<b>Scale:</b> the rules give no scale; 1 to 5 with one sentence per level keeps the ratings comparable between coaches (hover a number to see its level).', '<b>Ø</b> = mean of the coaches who rated in this round. Click your rating again to remove it.', '<b>Who:</b> every rating and comment is stored under the login e-mail of the coach; the history shows who entered what and when.', 'The selection committee decides; the ratings are its basis, not a threshold.'])}</div></details>
