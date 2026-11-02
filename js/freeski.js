@@ -594,7 +594,9 @@ async function rebuildReportFromTimestamps(id, silent=false) {
       trick: e.trickaufbau || '—', result,
       takeoff: parseSubRating(e.kommentar,'Takeoff'), grab: parseSubRating(e.kommentar,'Grab'), trick_r: parseSubRating(e.kommentar,'Trick'), land: parseSubRating(e.kommentar,'Landing'),
       time: e.created_at ? new Date(e.created_at).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit',timeZone:'Europe/Zurich'}) : null,
-      comment: ((e.kommentar||'').split(' | ')[1] || '').trim() || undefined,
+      // Kommentar ohne QoE-Teil und ohne Run-Markierung (die steht in run/runPos)
+      comment: (e.kommentar||'').split(' | ').slice(1).filter(x => x.trim() && !/^Run \d+ · /.test(x) && !/^(Takeoff|Grab|Trick|Landing):/.test(x)).join(' | ').trim() || undefined,
+      ...(r => r ? {run: r.run, runPos: r.pos} : {})(sbAttRun({comment: e.kommentar})),
       dbId: e.id
     });
   });
@@ -608,7 +610,8 @@ async function rebuildReportFromTimestamps(id, silent=false) {
     const trickIds = ents.map(e=>e.dbId).filter(Boolean);
     const attempts = ents.map(e => ({trick: e.trick, result: e.result,
       takeoff: e.takeoff||null, grab: e.grab||null, trick_r: e.trick_r||null, land: e.land||null,
-      time: e.time||null, dbId: e.dbId||null, comment: e.comment}));
+      time: e.time||null, dbId: e.dbId||null, comment: e.comment,
+      ...(e.run ? {run: e.run, runPos: e.runPos} : {})}));
     const exs = existingScores[shortName(name)] || {};
     return {athlet: shortName(name), totalAtt, totalLand, qualityPct, tricks: trickList, note, trickIds, attempts,
       quali_scores: exs.q ?? null, final_scores: exs.f ?? null, contest_rank: exs.r ?? null};
@@ -1605,7 +1608,8 @@ async function saveSessionReport(duration, location, conditions, comments, athle
     const trickIds = ents.map(e=>e.dbId).filter(Boolean);
     const attempts = ents.map(e => ({trick: e.trick || '—', result: e.result,
       takeoff: e.takeoff||null, grab: e.grab||null, trick_r: e.trick_r||null, land: e.land||null,
-      time: e.time||null, dbId: e.dbId||null, comment: e.comment || undefined}));
+      time: e.time||null, dbId: e.dbId||null, comment: e.comment || undefined,
+      ...(e.run ? {run: e.run, runPos: e.runPos} : {})}));
     const cs = (contestScores || {})[shortName(name)] || {};
     return {athlet: shortName(name), totalAtt, totalLand, qualityPct, tricks: trickList, note, trickIds, attempts,
       quali_scores: cs.quali && cs.quali.length ? cs.quali : null,
@@ -4541,6 +4545,9 @@ function fsReportInnerHtml(report) {
         <div class="hinweis">${attempts.length} attempts · ${groups.length} trick${groups.length!==1?'s':''} · ${athLandedPct}% landed · Ø QoE <b class="haupttext">${athQoe}%</b>${a.quali_scores && a.quali_scores.length ? ' · Quali <b class="warnung">' + a.quali_scores.join(' / ') + '</b>' : ''}${a.final_scores && a.final_scores.length ? ' · Final <b class="warnung">' + a.final_scores.join(' / ') + '</b>' : ''}${a.contest_rank ? ' · Rank <b class="warnung">' + a.contest_rank + '</b>' : ''}</div>
       </div>
       ${a.note ? `<div style="font-size:12px;color:#C96A1F;background:rgba(201,106,31,0.08);border-left:3px solid #C96A1F;border-radius:8px;padding:8px 10px;margin-bottom:10px;">📝 <b>Coach note:</b> ${a.note}</div>` : ''}
+      ${sbRunsSectionHtml(attempts, x => { const q = qoeOfLogEntry(x), ic = x.result==='miss' ? '✗' : x.result==='perfect' ? '⭐' : '✓', c = x.result==='miss' ? '#e2001a' : x.result==='perfect' ? '#148FA0' : '#3E8E5A';
+          return `<span style="color:${c};font-weight:700;white-space:nowrap;">${ic} QoE ${q}%</span>`; },
+        x => x.result !== 'miss')}
       ${cards}
     </div>`;
   }).join('');

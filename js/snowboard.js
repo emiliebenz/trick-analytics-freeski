@@ -387,7 +387,7 @@ async function rebuildReportFromTimestamps(id, silent=false) {
       kpis: e.kpis||null, fail: e.fail_grund||null,
       sterne: typeof e.sterne==='number' ? e.sterne : null,
       time: e.created_at ? new Date(e.created_at).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) : null,
-      comment: e.kommentar||''});
+      comment: e.kommentar||'', ...(r => r ? {run: r.run, runPos: r.pos} : {})(sbAttRun({comment: e.kommentar}))});
   });
 
   const existingNotes = {};
@@ -407,7 +407,8 @@ async function rebuildReportFromTimestamps(id, silent=false) {
       outcome: e.result==='miss'?'failed':e.result==='perfect'?'stomped':'landed',
       sterne: e.sterne, kpis: e.kpis, fail: e.fail, time: e.time,
       dbId: e.dbId || null,
-      comment: e.comment || undefined}));
+      comment: e.comment || undefined,
+      ...(e.run ? {run: e.run, runPos: e.runPos} : {})}));
     const exs = existingScores[shortName(name)] || {};
     return {athlet: shortName(name), totalAtt, totalLand, tricks: trickList, note, trickIds, attempts,
       quali_scores: exs.q ?? null, final_scores: exs.f ?? null, contest_rank: exs.r ?? null};
@@ -1816,7 +1817,7 @@ async function saveSessionReport(duration, location, conditions, comments, athle
     athleteEntries[e.name].push({trick: e.trick||'—', result: e.result, dbId: e.dbId,
       kpis: e.kpis||null, fail: e.failGrund||null,
       sterne: typeof e.sterne==='number' ? e.sterne : null,
-      time: e.time||null, comment: e.comment||''});
+      time: e.time||null, comment: e.comment||'', run: e.run||null, runPos: e.runPos||null});
   });
   const trickData = Object.entries(athleteEntries).map(([name, entries]) => {
     const trickList = buildFsTrickBlocks(entries);
@@ -1828,7 +1829,8 @@ async function saveSessionReport(duration, location, conditions, comments, athle
       outcome: e.result==='miss'?'failed':e.result==='perfect'?'stomped':'landed',
       sterne: e.sterne, kpis: e.kpis, fail: e.fail, time: e.time,
       dbId: e.dbId || null,
-      comment: e.comment || undefined}));
+      comment: e.comment || undefined,
+      ...(e.run ? {run: e.run, runPos: e.runPos} : {})}));
     const cs = (contestScores || {})[shortName(name)] || {};
     return {athlet: shortName(name), totalAtt, totalLand, tricks: trickList, note, trickIds, attempts,
       quali_scores: cs.quali && cs.quali.length ? cs.quali : null,
@@ -2351,6 +2353,10 @@ function sbReportInnerHtml(report) {
         <div class="hinweis">${attempts.length} attempts · ${groups.length} trick${groups.length!==1?'s':''} · Ø stomp rate <b class="haupttext">${rate}%</b>${a.quali_scores && a.quali_scores.length ? ' · Quali <b class="warnung">' + a.quali_scores.join(' / ') + '</b>' : ''}${a.final_scores && a.final_scores.length ? ' · Final <b class="warnung">' + a.final_scores.join(' / ') + '</b>' : ''}${a.contest_rank ? ' · Rank <b class="warnung">' + a.contest_rank + '</b>' : ''}</div>
       </div>
       ${a.note ? `<div style="font-size:12px;color:#C96A1F;background:rgba(201,106,31,0.08);border-left:3px solid #C96A1F;border-radius:8px;padding:8px 10px;margin-bottom:10px;">📝 <b>Coach note:</b> ${a.note}</div>` : ''}
+      ${sbRunsSectionHtml(attempts, x => x.outcome === 'failed'
+        ? `<span style="color:#e2001a;font-weight:600;white-space:nowrap;">✗${x.fail ? ' ' + sbFailLabel(x.fail) : ''}</span>`
+        : `<span style="color:${x.outcome==='stomped'?'#148FA0':'#3E8E5A'};font-weight:700;white-space:nowrap;">${x.outcome==='stomped'?'⭐':'✓'}${typeof x.sterne==='number' ? ' ' + x.sterne + '/5' : ''}</span>`,
+        x => x.outcome !== 'failed')}
       ${cards}
     </div>`;
   }).join('');

@@ -1652,6 +1652,51 @@ function sbRunNoteInput(name, i, val) {
   sbRunState(name).elements[i].note = val;   // ohne Re-Render, damit das Tippen flüssig bleibt
 }
 
+// ── Session Report: Runs (Slopestyle/Halfpipe) als eigener Block pro Athlet:in ──
+// Run-Nummer und Position: aus dem Versuch (neu) oder aus dem Kommentar «Run n · pos/len» (ältere Reports)
+function sbAttRun(a) {
+  if (a && a.run) return {run: +a.run, pos: +(a.runPos || 0)};
+  const m = String((a && a.comment) || '').match(/Run (\d+) · (\d+)\/\d+/);
+  return m ? {run: +m[1], pos: +m[2]} : null;
+}
+function sbRunGroups(attempts) {
+  const map = new Map();
+  (attempts || []).forEach((a, idx) => {
+    const r = sbAttRun(a);
+    if (!r) return;
+    if (!map.has(r.run)) map.set(r.run, []);
+    map.get(r.run).push({a, pos: r.pos || idx + 1});
+  });
+  return [...map.entries()].map(([run, l]) => ({run, atts: l.sort((x, y) => x.pos - y.pos).map(x => x.a)}));
+}
+// badgeFn(a) → Resultat-Badge; isLanded(a) → true/false
+function sbRunsSectionHtml(attempts, badgeFn, isLanded) {
+  const runs = sbRunGroups(attempts);
+  if (!runs.length) return '';
+  const full = runs.filter(r => r.atts.every(isLanded)).length;
+  return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px;">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+      <div style="font-size:14px;font-weight:700;color:var(--text);">Runs</div>
+      <div class="hinweis">${runs.length} run${runs.length!==1?'s':''} · <b class="haupttext">${full}</b> fully landed</div>
+    </div>
+    ${runs.map(r => {
+      const nL = r.atts.filter(isLanded).length;
+      return `<div style="border-top:1px solid var(--border);padding:8px 0;">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;font-size:12px;">
+          <span style="background:rgba(142,91,184,0.15);border:1px solid #8E5BB8;color:#8E5BB8;border-radius:999px;padding:2px 10px;font-weight:700;">Run ${r.run}</span>
+          <span style="color:${nL===r.atts.length?'#3E8E5A':'var(--muted)'};font-weight:600;">${nL}/${r.atts.length} landed</span>
+          ${r.atts[0].time ? `<span style="color:var(--muted);margin-left:auto;">${String(r.atts[0].time).slice(0,5)}</span>` : ''}
+        </div>
+        ${r.atts.map((a, i) => `<div style="display:flex;align-items:center;gap:8px;font-size:12px;padding:2px 0;">
+          <span style="color:var(--muted);font-weight:700;min-width:18px;">${i+1}.</span>
+          <span style="flex:1;min-width:0;color:var(--text);">${a.trick || '—'}</span>
+          ${badgeFn(a)}
+        </div>`).join('')}
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
 // ✎ im Run-Setup: Element bearbeiten (Trick bzw. Rail-Art + Trick, Kommentar, Position im Run)
 function sbRunEditPanelHtml(name, i, el, trickOptions) {
   const r = sbRunState(name);

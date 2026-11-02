@@ -4361,8 +4361,28 @@ function renderReport(root, s){
       return `<div class="card"><h2>${esc(a?.name)} <span class="chip">${a?.level || '–'}</span><span class="rt">${mine.length} att. · Ø ${avg(mine.map(qa)) ?? '–'}% · ${landedPct(mine) ?? '–'}% landed</span></h2>
         ${s.results?.[id] ? (r => `<div class="rule" style="margin:0 0 12px">🏆 ${r.quali?.some(x => x != null) ? 'Quali ' + r.quali.filter(x => x != null).join(' / ') : ''}${r.final?.some(x => x != null) ? ' · Final ' + r.final.filter(x => x != null).join(' / ') : ''}${r.rank ? ` · <b>Rank ${r.rank}</b>` : ''}</div>`)(s.results[id]) : ''}
         ${s.athlete_notes?.[id] ? `<div class="rule" style="margin:0 0 12px">📝 ${esc(s.athlete_notes[id])}</div>` : ''}
+        ${repRunsHtml(mine)}
         ${mine.length ? Object.values(groups).map(l => trickBlock(l)).join('') : '<div class="empty">No attempts.</div>'}</div>`;
     }).join('')}`;
+}
+// Runs (Slopestyle/Halfpipe) im Report: jeder Run als Block, Elemente in Fahrreihenfolge
+function repRunsHtml(list){
+  const runs = new Map();
+  list.filter(a => a.run_no).forEach(a => { if (!runs.has(a.run_no)) runs.set(a.run_no, []); runs.get(a.run_no).push(a); });
+  if (!runs.size) return '';
+  const all = [...runs.entries()].map(([n, l]) => ({n, l: l.slice().sort((a, b) => a.created_at.localeCompare(b.created_at))}));
+  const full = all.filter(r => r.l.every(a => !a.fell)).length;
+  return `<div class="run-report" style="border:1px solid var(--line);border-radius:12px;padding:12px;margin:0 0 14px">
+    <div class="row" style="margin-bottom:6px"><b style="color:var(--char)">Runs</b><span class="grow"></span><span class="muted small">${all.length} run${all.length!==1?'s':''} · <b>${full}</b> fully landed</span></div>
+    ${all.map(r => { const nL = r.l.filter(a => !a.fell).length;
+      return `<div style="border-top:1px solid var(--line);padding:8px 0">
+        <div class="row" style="gap:8px;margin-bottom:4px"><span class="chip dark">Run ${r.n}</span><span class="small" style="color:${nL===r.l.length?'var(--green, #3E8E5A)':'var(--muted)'};font-weight:700">${nL}/${r.l.length} landed</span><span class="grow"></span><span class="muted small">${new Date(r.l[0].created_at).toLocaleTimeString('de-CH', {hour:'2-digit', minute:'2-digit'})}</span></div>
+        ${r.l.map((a, i) => { const oc = outcomeOf(a), mx = a.max || maxFor(a.discipline);
+          const res = oc==='failed' ? `<span class="chip red">✗${parseTags(a.note).length ? ' ' + esc(parseTags(a.note).join(', ')) : ''}</span>`
+            : `<span class="chip green">${oc==='stomped' ? '⭐' : '✓'}${a.crit ? ` ${a.score}/${mx}` : ''}</span>`;
+          return `<div class="row" style="gap:8px;flex-wrap:nowrap;padding:2px 0"><b class="muted small" style="min-width:18px">${i + 1}.</b><span class="grow small" style="min-width:0;color:var(--char)">${esc(a.label)}</span>${res}</div>`; }).join('')}
+      </div>`; }).join('')}
+  </div>`;
 }
 async function deleteReport(id){
   const n = sessAttempts(id).length;
