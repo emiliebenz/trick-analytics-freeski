@@ -668,8 +668,32 @@ header h1 .dot{color:#E2001A}
 .sr-team > b { color: var(--text); text-transform: uppercase; letter-spacing: .5px; }
 .sr-chip-open { font-size: 12px; color: #C96A1F; text-align: center; margin-top: 6px; font-weight: 600; }
 
+/* Übersicht (2.11.2026): Verteilung über die Punktebänder und Zonen-Balken mit den Spalten Athlete | Final | Podium */
+.sr-zk { display: grid; grid-template-columns: 200px minmax(0, 1fr) 64px 64px 64px; gap: 10px; align-items: end; font-size: 11px; color: var(--muted); margin: 12px 0 2px; }
+.sr-zk > span:first-child { font-size: 12px; font-weight: 700; color: var(--text); }
+.sr-zk > span:nth-child(n+3) { text-align: right; }
+.sr-zk > span.j { font-weight: 700; color: var(--text); }
+.sr-zr { display: grid; grid-template-columns: 200px minmax(0, 1fr) 64px 64px 64px; gap: 10px; align-items: center; font-size: 12px; margin: 6px 0; }
+.sr-zr > b { text-align: right; }
+.sr-zr > span:nth-child(n+4) { text-align: right; color: var(--muted); }
+.sr-zb { position: relative; height: 14px; background: #fff; border: 1px solid #6E6E6E; border-radius: 3px; box-sizing: border-box; }
+.sr-zb > .z { position: absolute; top: 0; bottom: 0; background: #DDD7D3; }
+.sr-zb > .t { position: absolute; top: -2px; height: 16px; width: 2px; margin-left: -1px; background: #1d1d1f; }
+.sr-zb > .w { position: absolute; left: 0; top: 3px; height: 6px; border-radius: 3px; }
+.sr-vt { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 10px; align-items: center; font-size: 12px; margin: 4px 0; }
+.sr-vt > span { color: var(--muted); }
+.sr-vt > span.a { color: var(--text); font-weight: 700; }
+.sr-vs { display: flex; height: 18px; border-radius: 3px; overflow: hidden; border: 1px solid #D5CFCB; }
+.sr-vs > div { font-size: 10.5px; font-weight: 700; line-height: 18px; text-align: center; overflow: hidden; white-space: nowrap; }
+.sr-vl { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 11px; color: var(--muted); margin: 4px 0 0 210px; }
+.sr-vl i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+
 @media (max-width: 768px) {
   .sr-ue, .sr-weg, .sr-felder { grid-template-columns: 1fr; }
+  .sr-zk, .sr-zr { grid-template-columns: minmax(0, 1fr) 54px 54px 54px; gap: 8px; }
+  .sr-zk > span:first-child, .sr-zr > span:first-child { grid-column: 1 / -1; }
+  .sr-vt { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .sr-vl { margin-left: 0; }
   .sr-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .sr-balken { grid-template-columns: 1fr; gap: 3px; }
   .sr-zeile { grid-template-columns: 1fr; gap: 0; }
