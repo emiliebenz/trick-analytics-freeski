@@ -932,7 +932,7 @@ const I18N = {
   'No fail pattern':['Kein Fail-Muster','Pas de schéma d’échec','Nessuno schema di errore'],
   'Skills-Check at each athlete\'s own level':['Skills-Check auf der eigenen Stufe jeder Athlet:in','Skills-Check au niveau propre de chaque athlète','Skills-Check al livello di ogni atleta'],
   'Total = Jumps, Rails and Halfpipe, ⅓ each':['Total = Jumps, Rails und Halfpipe, je ⅓','Total = Jumps, Rails et Halfpipe, ⅓ chacun','Totale = Jumps, Rails e Halfpipe, ⅓ ciascuno'],
-  'From T4: focus possible (Halfpipe only, or Jumps & Rails only)':['Ab T4: Fokus möglich (nur Halfpipe oder nur Jumps & Rails)','Dès T4 : focus possible (seulement Halfpipe ou seulement Jumps & Rails)','Da T4: focus possibile (solo Halfpipe o solo Jumps & Rails)'],
+  'Focus possible: Halfpipe only, or Jumps & Rails only':['Fokus möglich: nur Halfpipe oder nur Jumps & Rails','Focus possible : seulement Halfpipe ou seulement Jumps & Rails','Focus possibile: solo Halfpipe o solo Jumps & Rails'],
   'Click a row to open the Skills-Check':['Zeile anklicken öffnet den Skills-Check','Clique sur une ligne pour ouvrir le Skills-Check','Clicca una riga per aprire lo Skills-Check'],
   'Submitted tricks, oldest first':['Eingereichte Tricks, älteste zuerst','Tricks soumis, les plus anciens d’abord','Trick inviati, prima i più vecchi'],
   '1 point per criterion: Take-off, Trick, Grab, Landing (max. 4)':['1 Punkt pro Kriterium: Take-off, Trick, Grab, Landing (max. 4)','1 point par critère : Take-off, Trick, Grab, Landing (max. 4)','1 punto per criterio: Take-off, Trick, Grab, Landing (max. 4)'],
@@ -1205,7 +1205,7 @@ function setLang(l){
   location.reload();   // sauber neu aufbauen (Session läuft in der DB weiter)
 }
 
-const DEMO_KEY = 'nw-demo-v8';
+const DEMO_KEY = 'nw-demo-v9';
 
 /* ══════════════════════════════════════════════════════════════════════
    TRICK-VOKABULAR
@@ -1255,7 +1255,7 @@ const RAIL_OUT = ['to normal','to switch','270 out','450 out','630 out','810 out
 const HP_BASICS = SB ? ['Drop in','Switch drop in','Riding on the edges','Straight air','Straight air over coping','Ollie to fakie','Slash']
                      : ['Drop in','Switch drop in','Riding on the edges','Straight air','Straight air over coping','Waltz','Banana','Slash'];
 const HP_AXES = ['Upright','Cork','Flat Spin','Flair','Bio/Misty','Rodeo'];
-const LEVELS = ['T1','T2','T3','T4'];
+const LEVELS = ['T4'];   // seit 2.11.2026 nur noch T4 (Emilie); Katalog T1–T3 bleibt im Code, wird aber nicht mehr verwendet
 const DISCS = ['Jump','Rail','Halfpipe'];
 const DISC_LABEL = {Jump:'Jumps', Rail:'Rails', Halfpipe:'Halfpipe'};
 
@@ -1676,8 +1676,8 @@ function demoSeed(){
   const g1 = 'g-a', g2 = 'g-b';
   const P = (id, name, role, group_id, gender, level) => ({id, name, email:`${id}@demo.ch`, role, group_id, gender, level});
   const profiles = [
-    P('u-lena','Lena Muster','athlete',g1,'W','T2'), P('u-noah','Noah Beispiel','athlete',g1,'M','T1'),
-    P('u-luca','Luca Demo','athlete',g1,'M','T2'), P('u-mia','Mia Test','athlete',g2,'W','T3'),
+    P('u-lena','Lena Muster','athlete',g1,'W','T4'), P('u-noah','Noah Beispiel','athlete',g1,'M','T4'),
+    P('u-luca','Luca Demo','athlete',g1,'M','T4'), P('u-mia','Mia Test','athlete',g2,'W','T4'),
     {...P('u-elia','Elia Probe','athlete',g2,'M','T4'), focus:'hp'},
     P('u-coach-a','Coach Gruppe A','coach',g1,null,null), P('u-coach-b','Coach Gruppe B','coach',g2,null,null),
     P('u-dvlp','DVLP Demo','dvlp',null,null,null),
@@ -2968,8 +2968,7 @@ function renderSkills(){
   root.innerHTML = `${seasonBanner(ath)}
     <div class="row" style="margin-bottom:18px">
       ${staff ? `${groupFilterSelect()}${athleteSelect('pickAthlete')}` : ''}
-      ${staff ? `<div class="seg">${LEVELS.map(l => `<button class="${level===l?'on':''}" onclick="ST.level='${l}';renderSkills()">${l}${l===ath.level?' ●':''}</button>`).join('')}</div>
-      <span class="muted small">${ath.gender==='W'?'Women':'Men'} · own level ${ath.level}</span>`
+      ${staff ? `<span class="muted small">${ath.gender==='W'?'Women':'Men'} · ${esc(level)}</span>`
       : `<div><div style="font-size:var(--fs-page);font-weight:800;color:var(--char)">Your Skills-Check ${ath.level}</div><div class="muted small">${ath.gender==='W'?'Women':'Men'} · ${esc(groupName(ath.group_id))}</div></div>`}
     </div>
     <div class="kpis">
@@ -3107,7 +3106,6 @@ function renderTeam(){
       <td>${dv ? `<input type="text" class="name-in" value="${esc(a.name)}" onchange="setProfile('${a.id}','name',this.value.trim())" title="Edit name">` : `<div class="name-ro">${esc(a.name)}</div>`}<div class="tiny muted">${a.birthdate ? a.birthdate.slice(0,4) + ' · ' : ''}${a.user_id || DEMO ? '<span style="color:var(--green)">✓ login</span>' : 'no login yet'}${dv ? ' · ' + esc(groupName(a.group_id)) : ''}</div>
         ${dv && !DEMO ? `<input type="email" class="name-in mail-in" value="${esc(a.email||'')}" placeholder="+ e-mail for login" onchange="setProfile('${a.id}','email',this.value.trim().toLowerCase())" ${a.user_id?'disabled title="Linked to a login"':''}>` : ''}</td>
       <td class="c-sel" data-l="Sex">${dv ? `<select onchange="setProfile('${a.id}','gender',this.value)"><option value="">–</option>${opts([['W','W'],['M','M']], a.gender)}</select>` : `<b>${esc(a.gender || '–')}</b>`}</td>
-      <td class="c-sel" data-l="Level">${dv ? `<select onchange="setProfile('${a.id}','level',this.value)"><option value="">–</option>${opts(LEVELS, a.level)}</select>` : `<b>${esc(a.level || '–')}</b>`}</td>
       <td class="c-sel c-focus" data-l="Focus">${a.level==='T4' ? `<select onchange="setProfile('${a.id}','focus',this.value)">${opts([['','All'],['park','Jumps & Rails'],['hp','Halfpipe']], a.focus||'')}</select>` : '<span class="tiny muted">all (T1–T3)</span>'}</td>
       ${dv ? `<td class="c-sel c-group" data-l="Group"><select onchange="setProfile('${a.id}','group_id',this.value)"><option value="">–</option>${ST.groups.map(g => `<option value="${g.id}" ${a.group_id===g.id?'selected':''}>${esc(g.name)}</option>`).join('')}</select></td>` : ''}
       <td class="num c-d" data-l="Jumps">${cell('Jump')}</td><td class="num c-d" data-l="Rails">${cell('Rail')}</td><td class="num c-d" data-l="HP">${cell('Halfpipe')}</td>
@@ -3118,13 +3116,12 @@ function renderTeam(){
   root.innerHTML = `
     <div class="row team-filters" style="margin-bottom:18px;flex-wrap:wrap;gap:8px">${dv ? groupFilterSelect() : ''}
       <select onchange="setTeamFilter('sex',this.value)">${opts([['','All sexes'],['W','Women only'],['M','Men only']], TF.sex)}</select>
-      <select onchange="setTeamFilter('level',this.value)">${opts([['','All levels'], ...LEVELS.map(l => [l, l])], TF.level)}</select>
       <select onchange="setTeamFilter('sort',this.value)">${opts([['name','Sort: name A–Z'],['total_desc','Total: highest first'],['total_asc','Total: lowest first'],['jump','Jumps: highest first'],['rail','Rails: highest first'],['hp','Halfpipe: highest first']], TF.sort)}</select>
       ${filtered || TF.sort!=='name' ? `<button class="btn ghost sm" onclick="ST.teamFilter=null;renderTeam()">Reset filters</button>` : ''}
       <span class="grow"></span><button class="btn ghost" onclick="teamSkillsPdf()">📄 PDF</button><button class="btn red" onclick="openAddAthlete()">+ Add athlete</button></div>
     <div class="card"><h2>${dv ? 'All athletes' : esc(groupName(myGid()))} <span class="muted" style="letter-spacing:0;font-weight:600">${filtered ? `${aths.length} / ${all.length}` : aths.length}</span></h2>
-      <ul class="hints"><li>Skills-Check at each athlete's own level</li><li>Total = Jumps, Rails and Halfpipe, ⅓ each</li><li>From T4: focus possible (Halfpipe only, or Jumps & Rails only)</li><li>Click a row to open the Skills-Check</li></ul>
-      <div class="scroll-x"><table class="tbl team-tbl"><thead><tr><th>Athlete</th><th>Sex</th><th>Level</th><th>Focus</th>${dv?'<th>Group</th>':''}<th class="num">Jumps</th><th class="num">Rails</th><th class="num">HP</th><th class="num">Total</th><th></th></tr></thead>
+      <ul class="hints"><li>Skills-Check T4</li><li>Total = Jumps, Rails and Halfpipe, ⅓ each</li><li>Focus possible: Halfpipe only, or Jumps & Rails only</li><li>Click a row to open the Skills-Check</li></ul>
+      <div class="scroll-x"><table class="tbl team-tbl"><thead><tr><th>Athlete</th><th>Sex</th><th>Focus</th>${dv?'<th>Group</th>':''}<th class="num">Jumps</th><th class="num">Rails</th><th class="num">HP</th><th class="num">Total</th><th></th></tr></thead>
       <tbody>${rows || `<tr><td colspan="10" class="empty">${filtered ? 'No athletes match the filter.' : 'No athletes.'}</td></tr>`}</tbody></table></div></div>
     ${dv && !DEMO && !isPreview() ? loginsCard() : ''}
     ${dv ? `<div class="card"><h2>Coaches & staff</h2><div class="scroll-x"><table class="tbl staff-tbl"><thead><tr><th>Name</th><th>Role</th><th>Group</th><th>Extra athletes</th></tr></thead><tbody>
@@ -3245,7 +3242,7 @@ async function renderSelection(){
   if (!HAS_SC){ root.innerHTML = `<div class="card"><h2>Selection</h2><div class="empty">The Snowboard ranking needs the Snowboard Skills-Check. It will be available as soon as the requirements are defined.</div></div>`; return; }
   if (!isAdmin()){ root.innerHTML = '<div class="card"><div class="empty">Admins only.</div></div>'; return; }
   if (!ST.sel || ST.sel.rev !== ST._rev){ root.innerHTML = '<div class="card"><div class="empty">Loading…</div></div>'; await loadSelectionSnapshot(); ST.sel.rev = ST._rev; }
-  const F = ST.selF || (ST.selF = {level:'T3', sex:'W'});
+  const F = ST.selF || (ST.selF = {level:'T4', sex:'W'});
   const dl = selectionDeadline(), frozen = ST.sel.frozen;
   const days = Math.ceil((dl.getTime() - Date.now()) / 86400000);
   const atts = ST.attempts.filter(a => !frozen || a.created_at <= dl.toISOString());
@@ -3264,7 +3261,6 @@ async function renderSelection(){
       : `<b>Deadline ${fmtDate(dl.toISOString())}</b><span>${days} days left · live status, freezes automatically at the deadline</span>`}</div>
     <div class="row team-filters" style="margin:14px 0 16px;gap:8px">
       <select onchange="ST.selF.sex=this.value;renderSelection()">${opts([['W','Women'],['M','Men']], F.sex)}</select>
-      <select onchange="ST.selF.level=this.value;renderSelection()">${opts(LEVELS.map(l => [l, l]), F.level)}</select>
       <span class="grow"></span><button class="btn ghost" onclick="selectionPdf()">📄 PDF</button></div>
     <div class="card"><h2>Ranking ${F.level} ${F.sex==='W' ? 'Women' : 'Men'} <span class="muted" style="letter-spacing:0;font-weight:600">${rows.length}</span></h2>
       <ul class="hints"><li>Ranking by Skills-Check total, tie-break: stomp rate from sessions</li><li>Only tricks rated with video count</li><li>Stomp rate is shown from 5 attempts</li></ul>
@@ -3352,7 +3348,6 @@ function openAddAthlete(){
     <div class="grid">
       <label class="f">Name<input type="text" id="aa-name" placeholder="First Last"></label>
       <label class="f">Sex<select id="aa-sex"><option value="">–</option><option>W</option><option>M</option></select></label>
-      <label class="f">Level<select id="aa-level"><option value="">–</option>${opts(LEVELS, '')}</select></label>
       <label class="f">Year of birth<input type="number" id="aa-year" min="1990" max="2030" placeholder="e.g. 2011"></label>
       ${dv ? `<label class="f">Group<select id="aa-group"><option value="">–</option>${ST.groups.map(g => `<option value="${g.id}" ${ST.groupFilter===g.id?'selected':''}>${esc(g.name)}</option>`).join('')}</select></label>` : ''}
       ${dv ? '<label class="f">E-mail (optional)<input type="email" id="aa-mail"></label>' : ''}
@@ -3363,7 +3358,7 @@ function openAddAthlete(){
 async function addAthlete(){
   const name = $('#aa-name').value.trim(); if (!name){ toast('Please enter a name', true); return; }
   const y = +$('#aa-year').value;
-  const row = {name, role:'athlete', gender:$('#aa-sex').value || null, level:$('#aa-level').value || null,
+  const row = {name, role:'athlete', gender:$('#aa-sex').value || null, level:'T4',
     birthdate: y ? `${y}-01-01` : null,
     group_id: ST.me.role==='dvlp' ? ($('#aa-group').value || null) : myGid(),
     email: ST.me.role==='dvlp' ? ($('#aa-mail').value.trim().toLowerCase() || null) : null, ...(SB ? {sport:'snowboard'} : {})};
