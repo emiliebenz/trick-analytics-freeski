@@ -688,6 +688,7 @@ let LANG = (() => {
 })();
 document.documentElement.lang = LANG;
 const I18N = {
+  'created':['erstellt am','créé le','creato il'],
   'Please run database update 15 and redeploy the function «create-accounts» first.':['Bitte zuerst Datenbank-Update 15 ausführen und die Function «create-accounts» neu deployen.','Exécute d’abord la mise à jour 15 de la base et redéploie la fonction «create-accounts».','Esegui prima l’aggiornamento 15 del database e ridistribuisci la funzione «create-accounts».'],
   'E-mail or username':['E-Mail oder Benutzername','E-mail ou nom d’utilisateur','E-mail o nome utente'],
   'Logging in with a username: ask your coach or an admin for a new start password.':['Login mit Benutzername: Frag deinen Coach oder einen Admin nach einem neuen Startpasswort.','Connexion avec nom d’utilisateur : demande un nouveau mot de passe de départ à ton coach ou à un admin.','Accesso con nome utente: chiedi al tuo coach o a un admin una nuova password iniziale.'],
@@ -3382,7 +3383,7 @@ function accountsPdf(){
     <table class="tbl"><thead><tr><th>Name</th><th>Role</th><th>Sport</th><th>Login</th><th>Start password</th></tr></thead><tbody>
     ${by[club].sort((a,b) => (a.role > b.role ? -1 : a.role < b.role ? 1 : a.name.localeCompare(b.name))).map(a => `<tr><td>${esc(a.name)}</td><td>${a.role==='coach' ? 'Coach' : 'Athlete ' + esc(a.level||'')}</td><td>${a.sport==='snowboard' ? 'Snowboard' : 'Freeski'}</td><td><b>${esc(a.login || a.email)}</b></td><td><b>${esc(a.password)}</b></td></tr>`).join('')}
     </tbody></table></div>`).join('');
-  openPrintWindow('Start passwords', APP_TITLE + ' · one page per club', html);
+  openPrintWindow('Start passwords', 'Trick Collector · <span>one page per club</span>', html, 'Trick Collector');
 }
 function accountsCsv(){
   const gname = id => (ST.allGroups||[]).find(g => g.id===id)?.name || '';
@@ -4565,21 +4566,21 @@ let _h2p;
 function loadHtml2Pdf(){
   return _h2p ||= new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = 'https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.2/dist/html2pdf.bundle.min.js'; sc.onload = () => res(window.html2pdf); sc.onerror = () => { _h2p = null; rej(new Error('PDF library could not be loaded')); }; document.head.appendChild(sc); });
 }
-async function openPrintWindow(title, sub, html){
+async function openPrintWindow(title, sub, html, app = APP_TITLE){
   toast('Creating PDF…');
   const logo = document.querySelector('.brand > svg')?.outerHTML || '';
   const box = document.createElement('div');
   box.className = 'pdf-doc';
   box.innerHTML = `<div class="pdf-head"><div><h1>${esc(title)}<span class="dot">.</span></h1><div class="sub">${sub}</div></div><div>${logo}</div></div>
-    ${html}<div class="pdf-foot">${APP_TITLE} · Swiss-Ski · created ${fmtDate(nowIso())}</div>`;
+    ${html}<div class="pdf-foot">${esc(app)} · Swiss-Ski · <span>created</span> ${fmtDate(nowIso())}</div>`;
   i18nNode(box);   // übersetzen + Icons, bevor html2pdf den Inhalt kopiert (Container ist nicht im DOM)
   // html2canvas rechnet mit der Scroll-Position: kurz nach oben, danach zurück
   const sx = scrollX, sy = scrollY; window.scrollTo(0, 0);
   try {
     const h2p = await loadHtml2Pdf();
     const file = title.replace(/[^\wÀ-ÿ\- ]+/g, '').trim().replace(/\s+/g, '_') + '.pdf';
-    await h2p().set({margin:[10, 10, 12, 10], filename:file, image:{type:'jpeg', quality:0.95},
-      html2canvas:{scale:2, useCORS:true, backgroundColor:'#ffffff', ...(innerWidth < 760 ? {windowWidth:760} : {})},   // Breite 718 px = A4 minus Rand; windowWidth nur auf schmalen Bildschirmen (Desktop-Layout)
+    await h2p().set({margin:[10, 10, 12, 10], filename:file, image:{type:'png'},
+      html2canvas:{scale:innerWidth < 760 ? 2 : 3, useCORS:true, backgroundColor:'#ffffff', ...(innerWidth < 760 ? {windowWidth:760} : {})},   // Breite 718 px = A4 minus Rand; windowWidth nur auf schmalen Bildschirmen (Desktop-Layout)
       jsPDF:{unit:'mm', format:'a4', orientation:'portrait'}, pagebreak:{mode:['css'], avoid:['tr','.trick-block','.kpi','.pdf-head','.legend']}}).from(box).save();
     toast('PDF saved');
   } catch (err){ console.error(err); toast('Could not create PDF: ' + (err.message||err), true); }
