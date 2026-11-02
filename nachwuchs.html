@@ -3752,7 +3752,7 @@ function lineChart(series, xlabels, o={}){
    Jeder Versuch wird sofort gespeichert; die laufende Session liegt in der
    DB (ended_at leer) und wird nach Reload / auf anderem Gerät fortgesetzt.
    ══════════════════════════════════════════════════════════════════════ */
-const sxFresh = (o={}) => ({setup:null, athleteId:null, pick:null, crit:null, form:null, cands:[], editAth:false, mode:null, fails:new Set(), comment:'', reasons:[], grab:'', runs:{}, runNote:null, ...o});
+const sxFresh = (o={}) => ({setup:null, athleteId:null, pick:null, crit:null, form:null, cands:[], editAth:false, mode:null, fails:new Set(), comment:'', reasons:[], grab:'', runs:{}, runNote:null, runDetail:null, ...o});
 let SX = sxFresh();
 // Bewertung wie Snowboard: FAILED (Gründe, Mehrfachauswahl) oder LANDED (erfüllte Kriterien als ⭐; alle = Stomped).
 // Fail-Gründe werden wie im Snowboard als «Tags: …» vorne in der Notiz gespeichert.
@@ -3938,7 +3938,20 @@ function renderSessionActive(root, s){
           </div>` : ''}
       </div>` : ''}
     <div class="card"><h2>Session log <span class="muted" style="letter-spacing:0;font-weight:600">${atts.filter(a => a.athlete_id===SX.athleteId).length} · ${esc(ath?.name)}</span></h2>
-      <div class="list">${atts.filter(a => a.athlete_id===SX.athleteId).slice(0, 30).map(a => attemptRow(a, {noName:true})).join('') || '<div class="empty">No attempts yet.</div>'}</div></div>`;
+      <div class="list">${logGroupsHtml(atts.filter(a => a.athlete_id===SX.athleteId).slice(0, 30)) || '<div class="empty">No attempts yet.</div>'}</div></div>`;
+}
+// Session-Log: Elemente eines Runs als eigener Block, in Fahrreihenfolge
+function logGroupsHtml(list){
+  const items = [];
+  list.forEach(a => { const l = items[items.length - 1]; if (a.run_no && l && l.run===a.run_no) l.atts.push(a); else items.push({run:a.run_no || null, atts:[a]}); });
+  return items.map(it => {
+    if (!it.run) return attemptRow(it.atts[0], {noName:true});
+    const rows = it.atts.slice().sort((a, b) => a.created_at.localeCompare(b.created_at));
+    const nL = rows.filter(a => !a.fell).length;
+    return `<div class="run-group" style="border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin-bottom:8px">
+      <div class="row" style="gap:8px;margin-bottom:4px"><span class="chip dark">Run ${it.run}</span><span class="muted small">${nL}/${rows.length} landed</span><span class="grow"></span><span class="muted small">${new Date(rows[0].created_at).toLocaleTimeString('de-CH', {hour:'2-digit', minute:'2-digit'})}</span></div>
+      ${rows.map(a => attemptRow(a, {noName:true})).join('')}</div>`;
+  }).join('');
 }
 function sxAth(id){ SX.athleteId = id; SX.pick = null; SX.crit = null; SX.form = null; SX.mode = null; SX.fails = new Set(); SX.grab = ''; renderSession(); }
 function sxPick(i){
@@ -3974,10 +3987,30 @@ function runAddRail(){
   r.els.push({disc:'Rail', trick:{railType:r.rail.type, text:txt, free:true}, label:`Rail ${r.rail.type}: ${txt}`, rate:null, tags:[], note:''});
   r.rail.text = ''; runSave(); renderSession();
 }
-function runRate(i, v){ const e = runState().els[i]; e.rate = e.rate===v ? null : v; runSave(); renderSession(); }
+// Wie im normalen Log: ✓ öffnet die Kriterien-Sterne (alle = automatisch Stomped), ★ setzt alle, ✗ öffnet die Fail-Gründe
+function runRate(i, v){
+  const e = runState().els[i], set = critSetFor(e.disc), prev = e.rate;
+  if (prev===v){ e.rate = null; e.crit = null; e.tags = []; SX.runDetail = null; }
+  else {
+    e.rate = v;
+    if (v==='failed') e.crit = null;
+    else { e.tags = []; if (v==='stomped' || prev!=='landed' || !e.crit) e.crit = Object.fromEntries(set.map(c => [c.k, v==='stomped'])); }
+    SX.runDetail = i; SX.runNote = null;
+  }
+  runSave(); renderSession();
+}
+function runCrit(i, k){
+  const e = runState().els[i];
+  e.crit ||= Object.fromEntries(critSetFor(e.disc).map(c => [c.k, false]));
+  e.crit[k] = !e.crit[k];
+  e.rate = Object.values(e.crit).every(Boolean) ? 'stomped' : 'landed';
+  runSave(); renderSession();
+}
+function runOpenDetail(i){ SX.runDetail = SX.runDetail===i ? null : i; SX.runNote = null; renderSession(); }
+function runFailOther(i){ const t = (prompt('New fail reason:') || '').trim(); if (!t) return; const e = runState().els[i]; if (!e.tags.includes(t)) e.tags = [...e.tags, t]; runSave(); renderSession(); }
 function runRemove(i){ runState().els.splice(i, 1); runSave(); renderSession(); }
 function runToggleTag(i, t){ const e = runState().els[i]; e.tags = e.tags.includes(t) ? e.tags.filter(x => x!==t) : [...e.tags, t]; runSave(); renderSession(); }
-function runOpenNote(i){ SX.runNote = SX.runNote===i ? null : i; renderSession(); }
+function runOpenNote(i){ SX.runNote = SX.runNote===i ? null : i; SX.runDetail = null; renderSession(); }
 function runRailType(t){ runState().rail.type = t; runSave(); renderSession(); }
 function runRailNew(){ const t = (prompt('New rail type:') || '').trim(); if (t){ runState().rail.type = t; runSave(); renderSession(); } }
 function runCardHtml(s){
@@ -3991,14 +4024,26 @@ function runCardHtml(s){
     ${!hp ? `<div class="disclose" style="margin-top:12px"><b style="color:var(--char)">+ Rail</b>
       <div class="failchips">${[...RAIL_TYPES, ...customRails].map(t => `<button class="failchip ${r.rail.type===t?'on':''}" onclick="runRailType(${esc(JSON.stringify(t))})">${esc(t)}</button>`).join('')}<button class="failchip add" onclick="runRailNew()">+ New</button></div>
       <div class="row" style="flex-wrap:nowrap"><input type="text" id="run-rail-text" list="run-rail-list" value="${esc(r.rail.text)}" oninput="runState().rail.text=this.value" placeholder="Rail trick, e.g. Lip 270 on 270 out"><datalist id="run-rail-list">${railSugg.map(x => `<option value="${esc(x)}">`).join('')}</datalist><button class="btn red sm" onclick="runAddRail()">Add</button></div></div>` : ''}
-    <div class="list" style="margin-top:10px">${r.els.map((e, i) => `<div class="run-el">
-        <div class="row" style="flex-wrap:nowrap;gap:8px"><b class="run-no">${i + 1}</b><span class="chip">${tag(e)}</span><span class="grow" style="font-weight:600;color:var(--char)">${esc(e.label)}</span>
-          <button class="rbtn f ${e.rate==='failed'?'on':''}" onclick="runRate(${i},'failed')">✗</button><button class="rbtn l ${e.rate==='landed'?'on':''}" onclick="runRate(${i},'landed')">✓</button><button class="rbtn s ${e.rate==='stomped'?'on':''}" onclick="runRate(${i},'stomped')">★</button>
-          <button class="icon-btn" onclick="runOpenNote(${i})" title="Tags & note">✎</button><button class="icon-btn del" onclick="runRemove(${i})" title="Remove">✕</button></div>
-        ${e.tags.length || e.note ? `<div class="tiny" style="margin:4px 0 0 30px">${e.tags.map(t => `<span class="chip gold">${esc(t)}</span>`).join(' ')} ${esc(e.note)}</div>` : ''}
-        ${SX.runNote===i ? `<div class="disclose" style="margin-top:8px"><div class="failchips">${SX.reasons.map(t => `<button class="failchip ${e.tags.includes(t)?'on':''}" onclick="runToggleTag(${i}, ${esc(JSON.stringify(t))})">${esc(t)}</button>`).join('')}</div>
+    <div class="list" style="margin-top:10px">${r.els.map((e, i) => { const set = critSetFor(e.disc), sc = e.crit ? Object.values(e.crit).filter(Boolean).length : 0;
+        const open = SX.runDetail===i && SX.runNote!==i && e.rate;
+        const sum = !e.rate ? '' : e.rate==='failed'
+          ? (e.tags.length ? e.tags.map(t => `<span class="chip red" style="cursor:pointer" onclick="runOpenDetail(${i})">${esc(t)}</span>`).join(' ') : `<span class="chip" style="cursor:pointer" onclick="runOpenDetail(${i})">+ Reason</span>`)
+          : `<span class="chip green" style="cursor:pointer" onclick="runOpenDetail(${i})">${stars(sc, set.length)} ${sc}/${set.length}</span>`;
+        return `<div class="run-el">
+        <div class="row" style="gap:8px"><b class="run-no">${i + 1}</b><span class="chip">${tag(e)}</span><span class="grow" style="font-weight:600;color:var(--char);flex:1 1 100px;min-width:0">${esc(e.label)}</span>
+          <span class="row" style="flex-wrap:nowrap;gap:8px;margin-left:auto"><button class="rbtn f ${e.rate==='failed'?'on':''}" onclick="runRate(${i},'failed')">✗</button><button class="rbtn l ${e.rate==='landed'?'on':''}" onclick="runRate(${i},'landed')">✓</button><button class="rbtn s ${e.rate==='stomped'?'on':''}" onclick="runRate(${i},'stomped')">★</button>
+          <button class="icon-btn" onclick="runOpenNote(${i})" title="Note">✎</button><button class="icon-btn del" onclick="runRemove(${i})" title="Remove">✕</button></span></div>
+        ${!open && (sum || e.note) ? `<div class="tiny" style="margin:4px 0 0 30px">${sum} ${esc(e.note)}</div>` : ''}
+        ${open && e.rate!=='failed' ? `<div class="disclose" style="margin-top:8px"><div class="row"><b style="color:var(--char)">Criteria met</b><span class="grow"></span><b style="color:var(--char)">${sc}/${set.length}</b></div>
+          <div class="critstars">${set.map(c => `<button class="critstar ${e.crit?.[c.k]?'on':''}" onclick="runCrit(${i},'${c.k}')"><span class="st">⭐</span><span class="nm">${esc(c.name)}</span></button>`).join('')}</div>
+          <div class="tiny muted" style="margin-top:8px">${set.length}/${set.length} = automatically Stomped</div>
+          <div class="btnrow"><button class="btn ghost sm" onclick="runOpenDetail(${i})">Done</button></div></div>` : ''}
+        ${open && e.rate==='failed' ? `<div class="disclose" style="margin-top:8px"><b style="color:var(--char)">Select reason(s)</b>
+          <div class="failchips">${SX.reasons.map(t => `<button class="failchip ${e.tags.includes(t)?'on':''}" onclick="runToggleTag(${i}, ${esc(JSON.stringify(t))})">${esc(t)}</button>`).join('')}<button class="failchip add" onclick="runFailOther(${i})">＋ Other…</button></div>
+          <div class="btnrow"><button class="btn ghost sm" onclick="runOpenDetail(${i})">Done</button></div></div>` : ''}
+        ${SX.runNote===i ? `<div class="disclose" style="margin-top:8px">
           <input type="text" value="${esc(e.note)}" placeholder="Note (optional)" oninput="runState().els[${i}].note=this.value;runSave()"><div class="btnrow"><button class="btn ghost sm" onclick="runOpenNote(${i})">Done</button></div></div>` : ''}
-      </div>`).join('') || '<div class="empty">No elements yet.</div>'}</div>
+      </div>`; }).join('') || '<div class="empty">No elements yet.</div>'}</div>
     <div class="btnrow"><button class="btn big red" style="width:100%" ${r.els.length && rated===r.els.length ? '' : 'disabled'} onclick="runSaveAll()">Save Run #${r.n} (${rated}/${r.els.length} rated)</button></div>
   </div>`;
 }
@@ -4006,13 +4051,16 @@ async function runSaveAll(){
   const s = activeSession(), r = runState(), N = r.els.length;
   try {
     for (const [i, e] of r.els.entries()){
-      const note = [e.tags.length ? 'Tags: ' + e.tags.join(', ') : '', `Run ${r.n} · ${i + 1}/${N}`, e.note].filter(Boolean).join(' | ');
-      const a = {id:uid(), session_id:s.id, athlete_id:SX.athleteId, discipline:e.disc, trick:e.trick, label:e.label, crit:null, score:null,
-        max:maxFor(e.disc), fell:e.rate==='failed', outcome:e.rate, run_no:r.n, note, entry_id:null, created_at:new Date(Date.now() + i).toISOString(), created_by:ST.me.id};
+      const fell = e.rate==='failed', set = critSetFor(e.disc);
+      const crit = Object.fromEntries(set.map(c => [c.k, !fell && !!e.crit?.[c.k]]));
+      const score = Object.values(crit).filter(Boolean).length;
+      const note = [fell && e.tags.length ? 'Tags: ' + e.tags.join(', ') : '', `Run ${r.n} · ${i + 1}/${N}`, e.note].filter(Boolean).join(' | ');
+      const a = {id:uid(), session_id:s.id, athlete_id:SX.athleteId, discipline:e.disc, trick:e.trick, label:e.label, crit, score,
+        max:set.length, fell, outcome: fell ? 'failed' : score===set.length ? 'stomped' : 'landed', run_no:r.n, note, entry_id:null, created_at:new Date(Date.now() + i).toISOString(), created_by:ST.me.id};
       upsertIn(ST.attempts, await Store.saveAttempt(ST.me, a));
     }
     logSound(); toast(`Run #${r.n} saved`);
-    r.n++; r.els.forEach(e => { e.rate = null; e.tags = []; e.note = ''; });   // Layout bleibt für den nächsten Run
+    r.n++; r.els.forEach(e => { e.rate = null; e.crit = null; e.tags = []; e.note = ''; }); SX.runDetail = null;   // Layout bleibt für den nächsten Run
     runSave(); renderSession();
   } catch (err){ console.error(err); toast('Could not save run: ' + (err.message||err), true); }
 }

@@ -1374,12 +1374,6 @@ function sbRunNoteToggle(name, i) {
   renderLiveSession();
 }
 
-function sbRunRate(name, i, val) {
-  const r = sbRunState(name);
-  r.ratings[i] = r.ratings[i] === val ? null : val;
-  renderLiveSession();
-}
-
 function sbRunRemoveEl(name, i) {
   const r = sbRunState(name);
   r.elements.splice(i, 1);
@@ -1652,80 +1646,6 @@ function sbRunAddRailCommit(name) {
   r.ratings.push(null);
   r.addMode = '';
   renderLiveSession();
-}
-
-function sbRunCardHtml(name, d, trickOptions) {
-  const r = sbRunState(name);
-  const sid = name.replace(/\s/g,'_');
-  const elRows = r.elements.map((el, i) => {
-    const rate = r.ratings[i] || null;
-    const btn = (val, icon, col) => `<button onclick="sbRunRate('${name}',${i},'${val}')" style="padding:8px 12px;border-radius:8px;border:2px solid ${rate===val?col:'var(--border)'};background:${rate===val?col+'22':'var(--surface2)'};color:${rate===val?col:'var(--muted)'};font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent;">${icon}</button>`;
-    const hasNote = (el.tags && el.tags.length) || el.note;
-    const noteLine = hasNote ? `<div style="margin:-2px 0 6px 62px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
-        ${(el.tags||[]).map(t => `<span style="font-size:12px;color:#C96A1F;border:1px solid #f59e0b55;border-radius:999px;padding:2px 8px;">${t}</span>`).join('')}
-        ${el.note ? `<span class="hinweis">${el.note}</span>` : ''}
-      </div>` : '';
-    const notePanel = r.noteOpen === i ? `<div style="margin:0 0 8px 30px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px;">
-        <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:6px;">Tags</div>
-        <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;">
-          ${sbAllFailReasons().map(t => { const on = (el.tags||[]).includes(t); return `<button onclick="sbRunTagToggle('${name}',${i},'${t.replace(/'/g,"\\'")}')" style="padding:5px 10px;border-radius:999px;border:1.5px solid ${on?'#C96A1F':'var(--border)'};background:${on?'rgba(201,106,31,0.15)':'none'};color:${on?'#C96A1F':'var(--muted)'};font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;">${t}</button>`; }).join('')}
-        </div>
-        <div style="display:flex;gap:8px;">
-          <input value="${(el.note||'').replace(/"/g,'&quot;')}" oninput="sbRunNoteInput('${name}',${i},this.value)" placeholder="Comment (optional)" style="flex:1;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:12px;font-family:inherit;">
-          <button onclick="sbRunNoteToggle('${name}',null)" style="padding:8px 14px;border-radius:8px;border:1px solid #148FA0;background:rgba(20,143,160,0.15);color:#148FA0;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;">Done</button>
-        </div>
-      </div>` : '';
-    return `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--border);">
-      <span style="width:20px;height:20px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--muted);flex-shrink:0;">${i+1}</span>
-      <span style="flex-shrink:0;font-size:12px;font-weight:700;letter-spacing:.5px;color:${el.kind==='rail'?'#8E5BB8':'#148FA0'};border:1px solid ${el.kind==='rail'?'#8E5BB8':'#148FA0'};border-radius:4px;padding:2px 5px;">${el.kind==='rail'?'RAIL':(sessType && sessType.startsWith('Halfpipe')?'HIT':'JUMP')}</span>
-      <span style="flex:1;font-size:12px;font-weight:600;color:var(--text);line-height:1.3;">${el.label}</span>
-      ${btn('failed','✗','#e2001a')}${btn('landed','✓','#3E8E5A')}${btn('stomped','★','#148FA0')}
-      <button onclick="sbRunNoteToggle('${name}',${i})" title="Tags / comment" style="background:none;border:1px solid ${hasNote || r.noteOpen === i ?'#C96A1F':'var(--border)'};border-radius:8px;color:${hasNote || r.noteOpen === i ?'#C96A1F':'var(--muted)'};cursor:pointer;font-size:14px;padding:6px 9px;">✎</button>
-      <button onclick="sbRunRemoveEl('${name}',${i})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:2px 4px;">✕</button>
-    </div>${noteLine}${notePanel}`;
-  }).join('');
-
-  let addPanel = '';
-  if (r.addMode === 'jump') {
-    addPanel = `<div style="margin-top:10px;">
-      <select onchange="sbRunAddJump('${name}', this.value)" style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #148FA0;background:var(--surface2);color:var(--text);font-size:14px;font-family:inherit;">
-        <option value="">— select ${sessType && sessType.startsWith('Halfpipe') ? 'hit' : 'jump'} trick —</option>
-        ${trickOptions}
-      </select>
-    </div>`;
-  } else if (r.addMode === 'rail') {
-    addPanel = `<div style="margin-top:10px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;">
-      <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:8px;">Rail type</div>
-      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
-        ${sbAllRailTypes().map(t => `<button onclick="sbRunSetRailType('${name}','${t.replace(/'/g,"\\'")}')" style="padding:6px 12px;border-radius:999px;border:1.5px solid ${r.railType===t?'#148FA0':'var(--border)'};background:${r.railType===t?'rgba(20,143,160,0.18)':'none'};color:${r.railType===t?'#148FA0':'var(--muted)'};font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;">${t}</button>`).join('')}
-        <button onclick="sbRunNewRailType('${name}')" style="padding:6px 12px;border-radius:999px;border:1.5px dashed #148FA0;background:none;color:#148FA0;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;">+ New</button>
-      </div>
-      <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:6px;">Trick (free text, with suggestions)</div>
-      <div style="display:flex;gap:8px;">
-        <input id="run-rail-trick-${sid}" list="run-rail-suggest" placeholder="e.g. Front 270 on" style="flex:1;padding:9px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:14px;font-family:inherit;">
-        <datalist id="run-rail-suggest">${sbAllRailTricks().map(s => `<option value="${s}">`).join('')}</datalist>
-        <button onclick="sbRunAddRailCommit('${name}')" style="padding:9px 16px;border-radius:8px;border:1px solid #148FA0;background:rgba(20,143,160,0.15);color:#148FA0;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;">Add</button>
-      </div>
-    </div>`;
-  }
-
-  const rated = r.ratings.filter(Boolean).length;
-  return `<div class="card" style="padding:24px;" id="sess-col-${sid}">
-    <div style="font-size:28px;font-weight:800;color:#148FA0;margin-bottom:4px;text-align:center;">${shortName(name)}</div>
-    <div style="text-align:center;margin-bottom:14px;">
-      <span style="background:rgba(142,91,184,0.15);border:1px solid #8E5BB8;color:#8E5BB8;border-radius:999px;padding:4px 14px;font-size:12px;font-weight:700;">${sessType && sessType.startsWith('Halfpipe') ? 'HALFPIPE' : 'SLOPESTYLE'} RUN #${r.no}</span>
-
-    </div>
-    <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:4px;">Run setup — ${r.elements.length}/${sbRunMaxEl()} ${sessType && sessType.startsWith('Halfpipe') ? 'hits' : 'elements'}</div>
-    ${elRows || '<div style="color:var(--muted);font-size:12px;padding:10px 0;">No elements yet — build the run below.</div>'}
-    <div style="display:flex;gap:8px;margin-top:10px;">
-      <button onclick="sbRunToggleAdd('${name}','jump')" style="flex:1;padding:11px;border-radius:10px;border:2px ${r.addMode==='jump'?'solid #148FA0':'dashed var(--border)'};background:${r.addMode==='jump'?'rgba(20,143,160,0.12)':'none'};color:${r.addMode==='jump'?'#148FA0':'var(--muted)'};font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;">${sessType && sessType.startsWith('Halfpipe') ? '+ Hit' : '+ Jump'}</button>
-      ${sessType && sessType.startsWith('Halfpipe') ? '' : `<button onclick="sbRunToggleAdd('${name}','rail')" style="flex:1;padding:11px;border-radius:10px;border:2px ${r.addMode==='rail'?'solid #148FA0':'dashed var(--border)'};background:${r.addMode==='rail'?'rgba(20,143,160,0.12)':'none'};color:${r.addMode==='rail'?'#148FA0':'var(--muted)'};font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;">+ Rail</button>`}
-    </div>
-    ${addPanel}
-    <button onclick="sbRunSave('${name}')" ${r.elements.length && rated === r.elements.length ? '' : 'disabled'} style="width:100%;margin-top:14px;padding:14px;border-radius:10px;border:none;background:${r.elements.length && rated === r.elements.length ? '#3E8E5A' : 'var(--surface2)'};color:${r.elements.length && rated === r.elements.length ? '#ffffff' : 'var(--muted)'};font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;">Save Run #${r.no} (${rated}/${r.elements.length} rated)</button>
-    <div style="font-size:12px;color:var(--muted);margin-top:8px;line-height:1.5;">Each element is saved as one attempt (tagged «Run ${r.no} · position»).${sessType && sessType.startsWith('Halfpipe') ? '' : ` New rail tricks are added to the athlete's Assessment automatically as Goal.`}</div>
-  </div>`;
 }
 
 function sbRunNoteInput(name, i, val) {

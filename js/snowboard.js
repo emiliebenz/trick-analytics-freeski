@@ -1150,6 +1150,164 @@ async function sbLoadRailData() {
 }
 
 
+// Run-Bewertung wie im normalen Log: ✓ öffnet die KPI-Sterne (5/5 = automatisch Stomped),
+// ★ setzt alle 5 KPIs, ✗ öffnet die Fail-Gründe
+const sbRunKpiCount = el => SB_KPIS.filter(([k]) => el.kpis && el.kpis[k]).length;
+function sbRunRate(name, i, val) {
+  const r = sbRunState(name);
+  const el = r.elements[i];
+  const prev = r.ratings[i];
+  if (prev === val) {
+    r.ratings[i] = null; el.kpis = {}; el.tags = [];
+    r.detailOpen = null;
+  } else {
+    r.ratings[i] = val;
+    if (val === 'failed') el.kpis = {};
+    else {
+      el.tags = [];
+      if (val === 'stomped') el.kpis = Object.fromEntries(SB_KPIS.map(([k]) => [k, true]));
+      else if (prev !== 'landed') el.kpis = {};
+    }
+    r.detailOpen = i; r.noteOpen = null;
+  }
+  renderLiveSession();
+}
+function sbRunKpiToggle(name, i, key) {
+  const r = sbRunState(name);
+  const el = r.elements[i];
+  el.kpis = el.kpis || {};
+  el.kpis[key] = !el.kpis[key];
+  r.ratings[i] = sbRunKpiCount(el) === 5 ? 'stomped' : 'landed';
+  renderLiveSession();
+}
+function sbRunDetailOpen(name, i) {
+  const r = sbRunState(name);
+  r.detailOpen = r.detailOpen === i ? null : i;
+  r.noteOpen = null;
+  renderLiveSession();
+}
+function sbRunDetailClose(name) {
+  sbRunState(name).detailOpen = null;
+  renderLiveSession();
+}
+function sbRunCustomFail(name, i) {
+  const v = (window.prompt('New fail reason:') || '').trim();
+  if (!v) return;
+  if (!sbAllFailReasons().includes(v)) SB_CUSTOM_FAILS.push(v);
+  const el = sbRunState(name).elements[i];
+  el.tags = el.tags || [];
+  if (!el.tags.includes(v)) el.tags.push(v);
+  renderLiveSession();
+}
+
+function sbRunCardHtml(name, d, trickOptions) {
+  const r = sbRunState(name);
+  const sid = name.replace(/\s/g,'_');
+  const isHp = sessType && sessType.startsWith('Halfpipe');
+  const esc = s => s.replace(/'/g, "\\'");
+  const elRows = r.elements.map((el, i) => {
+    const rate = r.ratings[i] || null;
+    const btn = (val, icon, col) => `<button onclick="sbRunRate('${name}',${i},'${val}')" style="padding:8px 10px;border-radius:8px;border:2px solid ${rate===val?col:'var(--border)'};background:${rate===val?col+'22':'var(--surface2)'};color:${rate===val?col:'var(--muted)'};font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;flex-shrink:0;-webkit-tap-highlight-color:transparent;">${icon}</button>`;
+    const nK = sbRunKpiCount(el);
+    const detailOpen = r.detailOpen === i && r.noteOpen !== i && rate;
+    // Zusammenfassung unter der Zeile (antippen öffnet die Auswahl wieder)
+    let summary = '';
+    if (rate && rate !== 'failed') {
+      const met = SB_KPIS.filter(([k]) => el.kpis && el.kpis[k]).map(([, l]) => l);
+      summary = `<span onclick="sbRunDetailOpen('${name}',${i})" style="cursor:pointer;font-size:12px;font-weight:700;color:${nK===5?'#148FA0':'#3E8E5A'};border:1px solid ${nK===5?'#148FA0':'#3E8E5A'}55;border-radius:999px;padding:2px 8px;">${nK}/5★${met.length && nK < 5 ? ' · ' + met.join(', ') : ''}</span>`;
+    } else if (rate === 'failed') {
+      summary = (el.tags && el.tags.length)
+        ? el.tags.map(t => `<span onclick="sbRunDetailOpen('${name}',${i})" style="cursor:pointer;font-size:12px;color:#e2001a;border:1px solid #e2001a55;border-radius:999px;padding:2px 8px;">${t}</span>`).join('')
+        : `<span onclick="sbRunDetailOpen('${name}',${i})" style="cursor:pointer;font-size:12px;color:var(--muted);border:1px dashed var(--border);border-radius:999px;padding:2px 8px;">+ Reason</span>`;
+    }
+    const sumLine = (!detailOpen && (summary || el.note)) ? `<div style="margin:-2px 0 6px 30px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+        ${summary}${el.note ? `<span class="hinweis">${el.note}</span>` : ''}
+      </div>` : '';
+    let detailPanel = '';
+    if (detailOpen && rate !== 'failed') {
+      detailPanel = `<div style="margin:0 0 8px 30px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <span style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600;">KPI's met</span>
+          <span style="font-size:14px;font-weight:800;color:${nK===5?'#148FA0':'#3E8E5A'};">${nK}/5${nK===5?' · Stomped':''}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:4px;text-align:center;">
+          ${SB_KPIS.map(([k, label]) => { const on = !!(el.kpis && el.kpis[k]); return `<button onclick="sbRunKpiToggle('${name}',${i},'${k}')" style="background:none;border:none;cursor:pointer;padding:4px 0;-webkit-tap-highlight-color:transparent;">
+            <div style="font-size:24px;line-height:1;filter:${on?'none':'grayscale(1) opacity(.35)'};">⭐</div>
+            <div style="font-size:12px;margin-top:4px;color:${on?'#148FA0':'var(--muted)'};font-weight:${on?'700':'500'};line-height:1.2;">${label}</div>
+          </button>`; }).join('')}
+        </div>
+        <button onclick="sbRunDetailClose('${name}')" style="width:100%;margin-top:8px;padding:9px;border-radius:8px;border:1px solid #148FA0;background:rgba(20,143,160,0.15);color:#148FA0;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;">Done</button>
+      </div>`;
+    } else if (detailOpen) {
+      detailPanel = `<div style="margin:0 0 8px 30px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px;">
+        <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:6px;">Select reason(s)</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+          ${sbAllFailReasons().map(t => { const on = (el.tags||[]).includes(t); return `<button onclick="sbRunTagToggle('${name}',${i},'${esc(t)}')" style="padding:7px 10px;border-radius:8px;border:1.5px solid ${on?'#e2001a':'var(--border)'};background:${on?'rgba(226,0,26,0.12)':'var(--surface)'};color:${on?'#e2001a':'var(--text)'};font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent;">${t}</button>`; }).join('')}
+          <button onclick="sbRunCustomFail('${name}',${i})" style="padding:7px 10px;border-radius:8px;border:1.5px dashed #148FA0;background:none;color:#148FA0;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;">＋ Other…</button>
+        </div>
+        <button onclick="sbRunDetailClose('${name}')" style="width:100%;margin-top:8px;padding:9px;border-radius:8px;border:1px solid #e2001a;background:rgba(226,0,26,0.1);color:#e2001a;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;">Done</button>
+      </div>`;
+    }
+    const notePanel = r.noteOpen === i ? `<div style="margin:0 0 8px 30px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px;">
+        <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:6px;">Comment</div>
+        <div style="display:flex;gap:8px;">
+          <input value="${(el.note||'').replace(/"/g,'&quot;')}" oninput="sbRunNoteInput('${name}',${i},this.value)" placeholder="Comment (optional)" style="flex:1;min-width:0;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:12px;font-family:inherit;">
+          <button onclick="sbRunNoteToggle('${name}',null)" style="padding:8px 14px;border-radius:8px;border:1px solid #148FA0;background:rgba(20,143,160,0.15);color:#148FA0;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;">Done</button>
+        </div>
+      </div>` : '';
+    return `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:8px 0;border-top:1px solid var(--border);">
+      <span style="width:20px;height:20px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--muted);flex-shrink:0;">${i+1}</span>
+      <span style="flex-shrink:0;font-size:12px;font-weight:700;letter-spacing:.5px;color:${el.kind==='rail'?'#8E5BB8':'#148FA0'};border:1px solid ${el.kind==='rail'?'#8E5BB8':'#148FA0'};border-radius:4px;padding:2px 5px;">${el.kind==='rail'?'RAIL':(isHp?'HIT':'JUMP')}</span>
+      <span style="flex:1 1 100px;min-width:0;overflow-wrap:break-word;font-size:12px;font-weight:600;color:var(--text);line-height:1.3;">${el.label}</span>
+      <span style="display:flex;align-items:center;gap:6px;margin-left:auto;">${btn('failed','✗','#e2001a')}${btn('landed','✓','#3E8E5A')}${btn('stomped','★','#148FA0')}
+      <button onclick="sbRunState('${name}').detailOpen=null;sbRunNoteToggle('${name}',${i})" title="Comment" style="background:none;border:1px solid ${el.note || r.noteOpen === i ?'#C96A1F':'var(--border)'};border-radius:8px;color:${el.note || r.noteOpen === i ?'#C96A1F':'var(--muted)'};cursor:pointer;font-size:14px;padding:6px 8px;flex-shrink:0;">✎</button>
+      <button onclick="sbRunRemoveEl('${name}',${i})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:2px 2px;flex-shrink:0;">✕</button></span>
+    </div>${sumLine}${detailPanel}${notePanel}`;
+  }).join('');
+
+  let addPanel = '';
+  if (r.addMode === 'jump') {
+    addPanel = `<div style="margin-top:10px;">
+      <select onchange="sbRunAddJump('${name}', this.value)" style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #148FA0;background:var(--surface2);color:var(--text);font-size:14px;font-family:inherit;">
+        <option value="">— select ${sessType && sessType.startsWith('Halfpipe') ? 'hit' : 'jump'} trick —</option>
+        ${trickOptions}
+      </select>
+    </div>`;
+  } else if (r.addMode === 'rail') {
+    addPanel = `<div style="margin-top:10px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;">
+      <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:8px;">Rail type</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
+        ${sbAllRailTypes().map(t => `<button onclick="sbRunSetRailType('${name}','${t.replace(/'/g,"\\'")}')" style="padding:6px 12px;border-radius:999px;border:1.5px solid ${r.railType===t?'#148FA0':'var(--border)'};background:${r.railType===t?'rgba(20,143,160,0.18)':'none'};color:${r.railType===t?'#148FA0':'var(--muted)'};font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;">${t}</button>`).join('')}
+        <button onclick="sbRunNewRailType('${name}')" style="padding:6px 12px;border-radius:999px;border:1.5px dashed #148FA0;background:none;color:#148FA0;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;">+ New</button>
+      </div>
+      <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:6px;">Trick (free text, with suggestions)</div>
+      <div style="display:flex;gap:8px;">
+        <input id="run-rail-trick-${sid}" list="run-rail-suggest" placeholder="e.g. Front 270 on" style="flex:1;padding:9px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:14px;font-family:inherit;">
+        <datalist id="run-rail-suggest">${sbAllRailTricks().map(s => `<option value="${s}">`).join('')}</datalist>
+        <button onclick="sbRunAddRailCommit('${name}')" style="padding:9px 16px;border-radius:8px;border:1px solid #148FA0;background:rgba(20,143,160,0.15);color:#148FA0;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;">Add</button>
+      </div>
+    </div>`;
+  }
+
+  const rated = r.ratings.filter(Boolean).length;
+  return `<div class="card" style="padding:24px 16px;" id="sess-col-${sid}">
+    <div style="font-size:28px;font-weight:800;color:#148FA0;margin-bottom:4px;text-align:center;">${shortName(name)}</div>
+    <div style="text-align:center;margin-bottom:14px;">
+      <span style="background:rgba(142,91,184,0.15);border:1px solid #8E5BB8;color:#8E5BB8;border-radius:999px;padding:4px 14px;font-size:12px;font-weight:700;">${sessType && sessType.startsWith('Halfpipe') ? 'HALFPIPE' : 'SLOPESTYLE'} RUN #${r.no}</span>
+
+    </div>
+    <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:4px;">Run setup — ${r.elements.length}/${sbRunMaxEl()} ${sessType && sessType.startsWith('Halfpipe') ? 'hits' : 'elements'}</div>
+    ${elRows || '<div style="color:var(--muted);font-size:12px;padding:10px 0;">No elements yet — build the run below.</div>'}
+    <div style="display:flex;gap:8px;margin-top:10px;">
+      <button onclick="sbRunToggleAdd('${name}','jump')" style="flex:1;padding:11px;border-radius:10px;border:2px ${r.addMode==='jump'?'solid #148FA0':'dashed var(--border)'};background:${r.addMode==='jump'?'rgba(20,143,160,0.12)':'none'};color:${r.addMode==='jump'?'#148FA0':'var(--muted)'};font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;">${sessType && sessType.startsWith('Halfpipe') ? '+ Hit' : '+ Jump'}</button>
+      ${sessType && sessType.startsWith('Halfpipe') ? '' : `<button onclick="sbRunToggleAdd('${name}','rail')" style="flex:1;padding:11px;border-radius:10px;border:2px ${r.addMode==='rail'?'solid #148FA0':'dashed var(--border)'};background:${r.addMode==='rail'?'rgba(20,143,160,0.12)':'none'};color:${r.addMode==='rail'?'#148FA0':'var(--muted)'};font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;">+ Rail</button>`}
+    </div>
+    ${addPanel}
+    <button onclick="sbRunSave('${name}')" ${r.elements.length && rated === r.elements.length ? '' : 'disabled'} style="width:100%;margin-top:14px;padding:14px;border-radius:10px;border:none;background:${r.elements.length && rated === r.elements.length ? '#3E8E5A' : 'var(--surface2)'};color:${r.elements.length && rated === r.elements.length ? '#ffffff' : 'var(--muted)'};font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;">Save Run #${r.no} (${rated}/${r.elements.length} rated)</button>
+    <div style="font-size:12px;color:var(--muted);margin-top:8px;line-height:1.5;">Each element is saved as one attempt (tagged «Run ${r.no} · position»).${sessType && sessType.startsWith('Halfpipe') ? '' : ` New rail tricks are added to the athlete's Assessment automatically as Goal.`}</div>
+  </div>`;
+}
+
 function sbRunTagToggle(name, i, tag) {
   const el = sbRunState(name).elements[i];
   el.tags = el.tags || [];
@@ -1166,13 +1324,14 @@ function sbRunSave(name) {
     const rate = r.ratings[i];
     const gesamt = rate === 'failed' ? 3 : rate === 'landed' ? 7 : 10;
     const outcome = rate === 'stomped' ? 'stomped' : rate;
-    const sterne = rate === 'failed' ? 0 : rate === 'landed' ? 3 : 5;
-    const tags = el.tags || [];
+    const sterne = rate === 'failed' ? 0 : sbRunKpiCount(el);
+    const kpis = rate === 'failed' ? null : Object.fromEntries(SB_KPIS.map(([k]) => [k, !!(el.kpis && el.kpis[k])]));
+    const tags = rate === 'failed' ? (el.tags || []) : [];
     const extra = [];
     if (tags.length > 1) extra.push('Tags: ' + tags.slice(1).join(', '));
     if (el.note) extra.push(el.note);
     const logEntry = {name, trick: el.label, result: rate === 'failed' ? 'miss' : rate === 'stomped' ? 'perfect' : 'landed',
-      kpis: null, failGrund: tags[0] || null, sterne,
+      kpis, failGrund: tags[0] || null, sterne,
       comment: extra.join(' | '),
       time: new Date().toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit', second:'2-digit'}),
       run: runNo, runPos: i + 1, runLen: N};
@@ -1184,7 +1343,7 @@ function sbRunSave(name) {
       disziplin: el.kind === 'rail' ? 'Rail' : 'Jump', trickaufbau: el.label,
       gelandet: rate === 'failed' ? 'No' : 'Yes', gesamt, ausfuehrung: gesamt, landung: gesamt, setup: gesamt,
       kommentar: [`Run ${runNo} · ${i+1}/${N}`].concat(extra).join(' | ')};
-    const fullIns = {...baseIns, outcome, sterne, fail_grund: tags[0] || null, kpis: null};
+    const fullIns = {...baseIns, outcome, sterne, fail_grund: tags[0] || null, kpis};
     saveTrickAttempt(logEntry, fullIns, baseIns);
   });
   sbRunEnsureAssessment(name, r.elements.filter(e => e.kind === 'rail'));
@@ -1192,8 +1351,8 @@ function sbRunSave(name) {
   sbMonRows = null;
   r.no++;
   r.ratings = r.ratings.map(() => null);
-  r.elements.forEach(el => { el.tags = []; el.note = ''; });
-  r.noteOpen = null;
+  r.elements.forEach(el => { el.tags = []; el.note = ''; el.kpis = {}; });
+  r.noteOpen = null; r.detailOpen = null;
   renderLiveSession();
   renderSessionLog();
   saveSessionState();
@@ -1474,7 +1633,8 @@ async function saveSbLogEdit(idx, mode) {
     const gesamt = newResult==='miss'?3:newResult==='landed'?7:10;
     const outcome = newResult==='miss'?'failed':newResult==='perfect'?'stomped':'landed';
     const baseUpd = { gesamt, ausfuehrung:gesamt, landung:gesamt, setup:gesamt,
-      gelandet:newResult==='miss'?'No':'Yes', kommentar: newComment||null };
+      gelandet:newResult==='miss'?'No':'Yes',
+      kommentar: (e.run ? [`Run ${e.run} · ${e.runPos}/${e.runLen}`].concat(newComment ? [newComment] : []).join(' | ') : newComment) || null };
     if (trickChanged) baseUpd.trickaufbau = newTrick;
     const fullUpd = {...baseUpd, outcome, kpis:newKpis, fail_grund:newFail, sterne:newSterne};
     if (!e.dbId) outboxPatch(e.lid, fullUpd, baseUpd);   // noch nicht gesendet (offline)
@@ -1500,7 +1660,7 @@ function renderSessionLog() {
   const filtered = sessActiveSbAthlete
     ? sessLog.map((e,i)=>({...e,_i:i})).filter(e=>e.name===sessActiveSbAthlete)
     : sessLog.map((e,i)=>({...e,_i:i}));
-  el.innerHTML = filtered.slice(0,30).map(e=>{ const i=e._i;
+  const rowHtml = (e, inRun) => { const i=e._i;
     const icon = e.result==='miss'?'✗':e.result==='landed'?'✓':'⭐';
     const c = e.result==='miss'?'#e2001a':e.result==='landed'?'#3E8E5A':'#148FA0';
     const isEditing = sessEditIdx === i;
@@ -1536,15 +1696,37 @@ function renderSessionLog() {
     return `<div style="border-radius:8px;${isEditing?'background:rgba(20,143,160,0.08);border:1px solid #39c3d433;':''}">
       <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;${isEditing?'':'background:var(--surface2);border-radius:8px;'}font-size:12px;">
         <span style="color:${c};font-weight:800;font-size:16px;min-width:16px;">${icon}</span>
-        <span style="color:#148FA0;font-weight:600;min-width:60px;">${shortName(e.name)}</span>
+        ${inRun ? `<span style="color:var(--muted);font-weight:700;min-width:22px;">${e.runPos}.</span>` : `<span style="color:#148FA0;font-weight:600;min-width:60px;">${shortName(e.name)}</span>`}
         <span style="flex:1;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${normSbTrick(e.trick||'—')}${e.comment?` <span class="gedaempft-10">— ${e.comment}</span>`:''}</span>
         ${e.result!=='miss' && typeof e.sterne==='number' ? `<span style="color:${e.sterne===5?'#148FA0':'#3E8E5A'};font-size:12px;font-weight:700;white-space:nowrap;">${e.sterne}/5★</span>` : ''}
         ${e.result==='miss' && e.failGrund ? `<span style="color:#e2001a;font-size:12px;white-space:nowrap;background:rgba(226,0,26,0.08);border-radius:4px;padding:2px 6px;">${sbFailLabel(e.failGrund)}</span>` : ''}
-        <span class="gedaempft-11">${e.time}</span>
+        ${inRun ? '' : `<span class="gedaempft-11">${e.time}</span>`}
         <button onclick="editLogEntry(${i})" title="Edit" style="background:none;border:1px solid ${isEditing?'#148FA0':'var(--border)'};border-radius:6px;color:${isEditing?'#148FA0':'var(--muted)'};cursor:pointer;padding:2px 7px;font-size:12px;flex-shrink:0;">✏️</button>
         <button onclick="deleteLogEntry(${i})" style="background:none;border:1px solid #e2001a33;border-radius:6px;color:#e2001a;cursor:pointer;font-size:14px;padding:2px 6px;flex-shrink:0;">🗑</button>
       </div>
       ${editRow}
+    </div>`;
+  };
+  // Runs als eigene Blöcke: Elemente eines Runs zusammen, in Fahrreihenfolge
+  const items = [];
+  filtered.forEach(e => {
+    const last = items[items.length - 1];
+    if (e.run && last && last.run === e.run && last.name === e.name) last.entries.push(e);
+    else items.push({run: e.run || null, name: e.name, entries: [e]});
+  });
+  let shown = 0;
+  el.innerHTML = items.filter(it => (shown += it.entries.length) - it.entries.length < 30).map(it => {
+    if (!it.run) return rowHtml(it.entries[0], false);
+    const rows = it.entries.slice().sort((a, b) => (a.runPos || 0) - (b.runPos || 0));
+    const nL = rows.filter(e => e.result !== 'miss').length;
+    return `<div style="border:1px solid var(--border);border-radius:10px;padding:6px;display:flex;flex-direction:column;gap:4px;">
+      <div style="display:flex;align-items:center;gap:8px;padding:2px 6px;font-size:12px;flex-wrap:wrap;">
+        <span style="background:rgba(142,91,184,0.15);border:1px solid #8E5BB8;color:#8E5BB8;border-radius:999px;padding:2px 10px;font-weight:700;">Run ${it.run}</span>
+        <span style="color:#148FA0;font-weight:600;">${shortName(it.name)}</span>
+        <span style="color:var(--muted);">${nL}/${rows.length} landed</span>
+        <span class="gedaempft-11" style="margin-left:auto;">${rows[0].time}</span>
+      </div>
+      ${rows.map(e => rowHtml(e, true)).join('')}
     </div>`;
   }).join('');
 }
@@ -4941,5 +5123,5 @@ function init() {
   sbLoadCustomFails();   // team-weite Custom-Fail-Tags nachladen
   sbLoadRailData();      // team-weite Rail-Arten und -Tricks nachladen
 }
-return { fragments, init, showPage, sbCustomFailPrompt, toggleSbFail, commitFailedMulti, sbRunToggleAdd, sbRunSetRailType, sbRunNewRailType, sbRunAddJump, sbRunAddRailCommit, sbRunRemoveEl, sbRunRate, sbRunNoteToggle, sbRunTagToggle, sbRunNoteInput, sbRunSave, updateFwdSwBtn, updateSbDisciplines, toggleDisziplin, trickDesc, loadDB, generateAthleteReport, renderSessionReports, rebuildReportFromTimestamps, deleteSessionReport, openTeamPdfReport, saveSessionState, clearSessionStorage, restoreSessionState, toggleSessionAthlete, normSbTrick, tricksForDir, baseLabel, parseGrabsFromLabel, showGrabPicker, toggleDoubleGrab, doubleGrabClick, addTrickWithGrab, renderSessionTrickSelection, toggleSessGrab, renderSessSelected, toggleSessAssessmentTrick, removeSessTrick, toggleSessTrick, selectSessAthlete, sbSetTrick, sbSelectGrab, renderLiveSession, sessSetTrick, logAttempt, logAttemptStart, renderSbDisclosure, toggleSbKpi, commitLandedAttempt, commitFailedAttempt, sbAttemptNo, toggleSbEditKpi, setSbEditFail, saveSbLogEdit, deleteLogEntry, editLogEntry, renderSessionLog, clearSessionSelection, addAthleteToSession, resetSession, cancelSession, endSession, buildFsTrickBlocks, saveSessionReport, loadLastSessionReport, openReportPrint, openSessionReportView, sbReportInnerHtml, sbRVShowDetail, sbRVPrintPdf, loadReportsTab, renderReportsList, sbOpenReportInline, sbRepSetTyp, sbRepSetRange, sbRepApplyCustom, sbRepDeleteCurrent, sbRVEditStart, sbRVEditKpiToggle, sbRVEditFailSet, sbRVEditCancel, sbRVEditDelete, sbRVEditSave, sbMonSetTyp, sbMonApplyCustom, sbMonRealityCheck, sbMonTeamPdf, sbMonAthletePdf, sbMonTimeSel, sbMonOpenTrickReport, sbMonToggleHistory, sbMonSaveComment, viewSessionReportByDate, loadStandort, renderSbDirRadar, renderStandort, sbSave, cycleGrabStatus, loadEntwicklung, openSbEdit, saveSbEdit, extractQuality, trickDir, sortFsTricksByDir, initTrickAnalytics, buildSessionList, setStatsMode, setTypeFilter, parseDateInput, setDateRange, clearDateRange, renderTrickAnalytics, renderRawEntries, syncTrickNameLocally, editRawEntry, cancelRawEdit, saveRawEdit, deleteRawEntry, showPerfTip, hidePerfTip, setPerfFilter, onPfSeasonChange, setPerfDateRange, clearPerfDateRange, getSeasonRange, updateSeasonLabels, renderSessionPerformance, realityCheck, applyRealityCheckSelected, drawSessionDirRadar, loadMonitoring, renderMonitoring, sbMonSetRange, sbMonOpenAthlete, sbMonOpenTrick, sbMonBack, renderMonAthlete, renderMonTeam, renderMonTrick, srParse, srStats }
+return { fragments, init, showPage, sbCustomFailPrompt, toggleSbFail, commitFailedMulti, sbRunToggleAdd, sbRunSetRailType, sbRunNewRailType, sbRunAddJump, sbRunAddRailCommit, sbRunRemoveEl, sbRunRate, sbRunKpiToggle, sbRunDetailOpen, sbRunDetailClose, sbRunCustomFail, sbRunNoteToggle, sbRunTagToggle, sbRunNoteInput, sbRunSave, updateFwdSwBtn, updateSbDisciplines, toggleDisziplin, trickDesc, loadDB, generateAthleteReport, renderSessionReports, rebuildReportFromTimestamps, deleteSessionReport, openTeamPdfReport, saveSessionState, clearSessionStorage, restoreSessionState, toggleSessionAthlete, normSbTrick, tricksForDir, baseLabel, parseGrabsFromLabel, showGrabPicker, toggleDoubleGrab, doubleGrabClick, addTrickWithGrab, renderSessionTrickSelection, toggleSessGrab, renderSessSelected, toggleSessAssessmentTrick, removeSessTrick, toggleSessTrick, selectSessAthlete, sbSetTrick, sbSelectGrab, renderLiveSession, sessSetTrick, logAttempt, logAttemptStart, renderSbDisclosure, toggleSbKpi, commitLandedAttempt, commitFailedAttempt, sbAttemptNo, toggleSbEditKpi, setSbEditFail, saveSbLogEdit, deleteLogEntry, editLogEntry, renderSessionLog, clearSessionSelection, addAthleteToSession, resetSession, cancelSession, endSession, buildFsTrickBlocks, saveSessionReport, loadLastSessionReport, openReportPrint, openSessionReportView, sbReportInnerHtml, sbRVShowDetail, sbRVPrintPdf, loadReportsTab, renderReportsList, sbOpenReportInline, sbRepSetTyp, sbRepSetRange, sbRepApplyCustom, sbRepDeleteCurrent, sbRVEditStart, sbRVEditKpiToggle, sbRVEditFailSet, sbRVEditCancel, sbRVEditDelete, sbRVEditSave, sbMonSetTyp, sbMonApplyCustom, sbMonRealityCheck, sbMonTeamPdf, sbMonAthletePdf, sbMonTimeSel, sbMonOpenTrickReport, sbMonToggleHistory, sbMonSaveComment, viewSessionReportByDate, loadStandort, renderSbDirRadar, renderStandort, sbSave, cycleGrabStatus, loadEntwicklung, openSbEdit, saveSbEdit, extractQuality, trickDir, sortFsTricksByDir, initTrickAnalytics, buildSessionList, setStatsMode, setTypeFilter, parseDateInput, setDateRange, clearDateRange, renderTrickAnalytics, renderRawEntries, syncTrickNameLocally, editRawEntry, cancelRawEdit, saveRawEdit, deleteRawEntry, showPerfTip, hidePerfTip, setPerfFilter, onPfSeasonChange, setPerfDateRange, clearPerfDateRange, getSeasonRange, updateSeasonLabels, renderSessionPerformance, realityCheck, applyRealityCheckSelected, drawSessionDirRadar, loadMonitoring, renderMonitoring, sbMonSetRange, sbMonOpenAthlete, sbMonOpenTrick, sbMonBack, renderMonAthlete, renderMonTeam, renderMonTrick, srParse, srStats }
 })();
