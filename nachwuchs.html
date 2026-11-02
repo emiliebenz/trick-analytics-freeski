@@ -218,6 +218,7 @@ textarea{min-height:64px;resize:vertical}
 .grabchips{display:flex;flex-wrap:wrap;gap:8px;padding:4px 0}
 .gchip{border:1px solid var(--line);background:#fff;border-radius:8px;padding:7px 11px;font-size:var(--fs-meta);font-weight:600;color:var(--char);cursor:pointer}
 .gchip.on{background:var(--green);border-color:var(--green);color:#fff}
+.gpair{display:inline-flex;align-items:stretch}.gpair .gchip:first-child{border-radius:8px 0 0 8px}.gpair .gchip.glead{border-left:none;border-radius:0 8px 8px 0;padding:7px 9px;font-weight:800}
 .sb-form-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
 .btn-mastered,.btn-goal{color:#fff;border:none;border-radius:8px;padding:14px;font-size:var(--fs-item);font-weight:800;letter-spacing:.5px;cursor:pointer}
 .btn-mastered{background:linear-gradient(135deg,#2c6a42,#3E8E5A)}
@@ -669,6 +670,7 @@ let LANG = (() => {
 })();
 document.documentElement.lang = LANG;
 const I18N = {
+  'L = Lead grab':['L = Lead-Grab','L = grab Lead','L = grab Lead'],
   // Navigation & Kopf
   'Log out':['Abmelden','Déconnexion','Esci'], 'Notifications':['Mitteilungen','Notifications','Notifiche'], 'Switch user':['Person wechseln','Changer de personne','Cambia persona'],
   'Assess':['Assess','Assess','Assess'], 'Team':['Team','Équipe','Team'],
@@ -1234,6 +1236,9 @@ const SB_JUMP_GRABS = ['Canadian Bacon','Chicken Salad','Crail','Double Japan','
 const SB_HP_GRABS = ['Bloody Dracula','Canadian Bacon','Chicken Salad','Cookie Monster','Crail','Crooked Cop','Cross Rocket','Double Tail','Dracula Method','Drunk Driver','Freshfish','Frontside','Indy','Japan','Lien','Melon','Method','Nose','Nuclear','Nuclear Method','Reach Around','Roast Beef','Rocket Air','Rusty Trombone','Sad Air','Seat Belt','Slob','Spaghetti','Stalefish','Stelmasky','Stink Bug','Suitcase','Swiss Cheese','Tai Pan','Tail','Truck Driver','Tuck Knee','Weddle (Mute)'];
 const GRABS = SB ? [...new Set([...SB_HP_GRABS, ...SB_JUMP_GRABS])].sort() : FS_GRABS;
 const grabsFor = disc => !SB ? FS_GRABS : disc==='Halfpipe' ? SB_HP_GRABS : disc==='Jump' ? SB_JUMP_GRABS : GRABS;
+// Freeski: jeder Grab auch als «Lead»-Variante (wie Elite-App assessGrabList)
+const grabOptsFor = disc => SB ? grabsFor(disc) : [...FS_GRABS, ...FS_GRABS.map(g => 'Lead ' + g)];
+const baseGrab = g => (g || '').replace(/^Lead /, '');
 const BOTH_HANDS = ['Double Japan','Double Tail','Double Nose','Truckdriver','Truck Driver'];
 const TAKEOFFS = SB ? ["N'Ollie",'Nosebutter','Noseslide','Tailbutter','Tailslide','Hardway'] : ['Carved','Blender','Hand-Drag','Inside Edge','Nosebutter','Tailbutter',"N'Ollie"];
 const CREATIVE = ['Nosebutter','Tailbutter',"N'Ollie"];
@@ -1306,8 +1311,8 @@ function jumpCatalog(g){
   const RANK = ['strongest direction', '2nd direction', '3rd direction', 'weakest direction'];
   const rotDir = (lv, deg, dirs, doc) => dirs.map(d => slot(`${P}${lv}-${deg}-${d}`, `${DIRN[d]} ${deg}`, t => t.dir===d && +t.rot===deg, {doc, sub:DIRN[d]}));
   const grabs = lv => { const doc = 'Grabs: Japan, Mute, Tail, Safety, Nose and a grab with both hands';
-    return [...['Japan','Mute','Tail','Safety','Nose'].map(x => slot(`${P}${lv}-g-${x}`, `Grab: ${x}`, t => t.grab===x, {doc, sub:x})),
-      slot(`${P}${lv}-g-both`, 'Grab with both hands', t => BOTH_HANDS.includes(t.grab), {doc, sub:'Both hands'})]; };
+    return [...['Japan','Mute','Tail','Safety','Nose'].map(x => slot(`${P}${lv}-g-${x}`, `Grab: ${x}`, t => baseGrab(t.grab)===x, {doc, sub:x})),
+      slot(`${P}${lv}-g-both`, 'Grab with both hands', t => BOTH_HANDS.includes(baseGrab(t.grab)), {doc, sub:'Both hands'})]; };
   // Rangierte Drehrichtungen: specs = [Text, Prüfung, doc, sub]
   const ranked = (lv, specs, grp='rk') => specs.map((x,i) => slot(`${P}${lv}-${grp}${i}`, x[0], x[1], {grp:`${P}${lv}${grp}`, key:'dir', doc:x[2], sub:x[3]}));
   const flip = lv => slot(`${P}${lv}-flip`, 'At least one flip', isFlip);
@@ -2265,7 +2270,10 @@ function formFields(disc, F, fn='formSet'){
     f.push(`<div class="form-group"><label>Direction</label><select onchange="if(this.value){${fn}('${swKey}', this.value[0]==='S' ? '${swOn}' : '${swOff}', true);${fn}('${sideKey}', this.value.slice(-1))}">${opts(ph([['L', SIDE.L], ['R', SIDE.R], ['SL', 'Switch ' + SIDE.L], ['SR', 'Switch ' + SIDE.R]], cur), cur)}</select></div>`);
   };
   const grabBlock = () => f.push(`<div class="form-group full"><label>Grab <span class="lbl-hint">(click to select · click again = no grab)</span></label>
-    <div class="grabchips">${[...new Set([...grabsFor(disc), ...(F.grab ? [F.grab] : [])])].map(g => `<button type="button" class="gchip ${F.grab===g?'on':''}" onclick="${fn}('grab', F_GRAB(${esc(JSON.stringify(g))}, ${esc(JSON.stringify(F.grab||''))}))">${esc(g)}</button>`).join('')}</div></div>`);
+    <div class="grabchips">${[...new Set([...grabsFor(disc), ...(F.grab && !grabOptsFor(disc).includes(F.grab) ? [F.grab] : [])])].map(g => {
+      const chip = (v, txt, cls='') => `<button type="button" class="gchip ${cls} ${F.grab===v?'on':''}" onclick="${fn}('grab', F_GRAB(${esc(JSON.stringify(v))}, ${esc(JSON.stringify(F.grab||''))}))"${cls ? ` title="${esc(v)}"` : ''}>${esc(txt)}</button>`;
+      return SB || !FS_GRABS.includes(g) ? chip(g, g) : `<span class="gpair">${chip(g, g)}${chip('Lead ' + g, 'L', 'glead')}</span>`;
+    }).join('')}</div>${!SB ? '<div class="tiny muted">L = Lead grab</div>' : ''}</div>`);
   if (disc==='Jump'){
     f.push('<div class="section-divider">Jump</div>');
     const noRot = NOROT.includes(F.axis);
@@ -3618,7 +3626,7 @@ function renderSessionActive(root, s){
   const grabOpts = pk && hasGrab(pk) ? sxGrabOptions(pk) : [];
   const grabBlock = pk && hasGrab(pk) ? `<div class="sub-h" style="margin-top:14px">Grab <span class="lbl-hint" style="text-transform:none;letter-spacing:0;font-weight:400">(2nd tap on another grab = double grab)</span></div>
       <div class="grabchips"><button class="gchip ${!SX.grab?'on':''}" onclick="sxGrabTap('')">No Grab</button>${grabOpts.map(([g, src]) => `<button class="gchip ${SX.grab===g || (SX.grab||'').split(' to ').includes(g) ?'on':''}" onclick="sxGrabTap(${esc(JSON.stringify(g))})">${src==='goal'?'🎯 ':''}${esc(g)}</button>`).join('')}
-        <select class="gsel" onchange="sxGrabOther(this.value)"><option value="">+ Other grab…</option>${opts(grabsFor(pk.disc), '')}</select></div>
+        <select class="gsel" onchange="sxGrabOther(this.value)"><option value="">+ Other grab…</option>${opts(grabOptsFor(pk.disc), '')}</select></div>
       ${SX.grab ? `<div class="tiny muted" style="margin-top:4px">Selected: <b>${esc(SX.grab)}</b></div>` : ''}` : '';
   root.innerHTML = `
     <div class="card sess-head">
@@ -3832,7 +3840,7 @@ function renderEditAttempt(){
   const reasons = [...new Set([...failReasonList(), ...EA.fails])];
   modal(`<h3>Edit attempt</h3><div class="muted small">${esc(prof(a.athlete_id)?.name)} · ${fmtDate(sessDate(a))} · ${new Date(a.created_at).toLocaleTimeString('de-CH', {hour:'2-digit', minute:'2-digit'})}</div>
     <div style="font-weight:800;color:var(--char);font-size:var(--fs-body);margin:10px 0">${esc(grabbable ? trickLabel(a.discipline, {...a.trick, grab:EA.grab}) : a.label)}</div>
-    ${grabbable ? `<div class="form-group" style="margin-bottom:12px"><label>Grab</label><select onchange="EA.grab=this.value;renderEditAttempt()"><option value="">No grab</option>${opts([...new Set([...(EA.grab ? [EA.grab] : []), ...grabsFor(a.discipline)])], EA.grab)}</select></div>` : ''}
+    ${grabbable ? `<div class="form-group" style="margin-bottom:12px"><label>Grab</label><select onchange="EA.grab=this.value;renderEditAttempt()"><option value="">No grab</option>${opts([...new Set([...(EA.grab ? [EA.grab] : []), ...grabOptsFor(a.discipline)])], EA.grab)}</select></div>` : ''}
     <div class="bigbtns" style="${EA.hasCrit ? '' : 'grid-template-columns:1fr 1fr 1fr'}">
       <button class="bigbtn fail ${EA.oc==='failed'?'on':''}" onclick="EA.oc='failed';renderEditAttempt()">✗<br>FAILED</button>
       <button class="bigbtn land ${EA.oc!=='failed' && (EA.hasCrit || EA.oc==='landed')?'on':''}" onclick="EA.oc='landed';renderEditAttempt()">✓<br>LANDED</button>

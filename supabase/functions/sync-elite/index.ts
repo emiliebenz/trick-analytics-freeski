@@ -41,12 +41,12 @@ const AXES = ["Upright Spins", "Upright", "Bio/Misty", "Flat Spin", "Infinity Ax
 const TAKEOFFS = ["Inside Edge", "Hand-Drag", "Carved", "Blender", "Nosebutter", "Tailbutter", "N'Ollie", "Noseslide", "Tailslide", "Hardway"];
 const FLIPS: Record<string, number> = { Single: 1, Double: 2, Triple: 3, Quad: 4 };
 const TYPES = ["Landing Bag", "Big Air Training", "Big Air Competition", "Slopestyle Training", "Slopestyle Competition", "Halfpipe Training", "Halfpipe Competition"];
-const GRAB_FIX: Record<string, string> = { "Weddle (Mute)": "Mute", "Truck Driver": "Truckdriver" };
 
 // Vergleich unabhängig von der Reihenfolge der Felder (jsonb sortiert sie um)
 const same = (o: Row) => JSON.stringify(Object.keys(o ?? {}).sort().map((k) => [k, o[k]]));
 const clean = (v: any) => (v === null || v === undefined || v === "" || v === "None" ? null : String(v).trim());
-const grabName = (g: string | null) => (g ? GRAB_FIX[g] ?? g : "");
+// Grab-Namen unverändert aus der Elite-App übernehmen (Youth hat seit 2.11.2026 dieselben Listen, FS und SB getrennt)
+const grabName = (g: string | null) => g ?? "";
 
 // Trick-Objekt wie in der Youth-App (Jump)
 function jumpTrick(sport: string, f: { dir?: string | null; flips?: string | number | null; axis?: string | null; rot?: string | number | null; takeoff?: string | null; grab?: string | null; bringback?: string | null }) {
