@@ -5003,19 +5003,13 @@ function sbRunCardHtml(name, d, trickOptions) {
         <button onclick="sbRunDetailClose('${name}')" style="width:100%;margin-top:8px;padding:9px;border-radius:8px;border:1px solid #148FA0;background:rgba(20,143,160,0.15);color:#148FA0;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;">Done</button>
       </div>`;
     }
-    const notePanel = r.noteOpen === i ? `<div style="margin:0 0 8px 30px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px;">
-        <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:6px;">Comment</div>
-        <div style="display:flex;gap:8px;">
-          <input value="${(el.note||'').replace(/"/g,'&quot;')}" oninput="sbRunNoteInput('${name}',${i},this.value)" placeholder="Comment (optional)" style="flex:1;min-width:0;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:12px;font-family:inherit;">
-          <button onclick="sbRunNoteToggle('${name}',null)" style="padding:8px 14px;border-radius:8px;border:1px solid #148FA0;background:rgba(20,143,160,0.15);color:#148FA0;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;">Done</button>
-        </div>
-      </div>` : '';
+    const notePanel = r.noteOpen === i ? sbRunEditPanelHtml(name, i, el, trickOptions) : '';
     return `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:8px 0;border-top:1px solid var(--border);">
       <span style="width:20px;height:20px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--muted);flex-shrink:0;">${i+1}</span>
       <span style="flex-shrink:0;font-size:12px;font-weight:700;letter-spacing:.5px;color:${el.kind==='rail'?'#8E5BB8':'#148FA0'};border:1px solid ${el.kind==='rail'?'#8E5BB8':'#148FA0'};border-radius:4px;padding:2px 5px;">${el.kind==='rail'?'RAIL':(isHp?'HIT':'JUMP')}</span>
       <span style="flex:1 1 100px;min-width:0;overflow-wrap:break-word;font-size:12px;font-weight:600;color:var(--text);line-height:1.3;">${el.label}</span>
       <span style="display:flex;align-items:center;gap:6px;margin-left:auto;">${btn('failed','✗','#e2001a')}${btn('landed','✓','#3E8E5A')}${btn('stomped','★','#148FA0')}
-      <button onclick="sbRunState('${name}').detailOpen=null;sbRunNoteToggle('${name}',${i})" title="Comment" style="background:none;border:1px solid ${el.note || r.noteOpen === i ?'#C96A1F':'var(--border)'};border-radius:8px;color:${el.note || r.noteOpen === i ?'#C96A1F':'var(--muted)'};cursor:pointer;font-size:14px;padding:6px 8px;flex-shrink:0;">✎</button>
+      <button onclick="sbRunState('${name}').detailOpen=null;sbRunNoteToggle('${name}',${i})" title="Edit" style="background:none;border:1px solid ${el.note || r.noteOpen === i ?'#C96A1F':'var(--border)'};border-radius:8px;color:${el.note || r.noteOpen === i ?'#C96A1F':'var(--muted)'};cursor:pointer;font-size:14px;padding:6px 8px;flex-shrink:0;">✎</button>
       <button onclick="sbRunRemoveEl('${name}',${i})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:2px 2px;flex-shrink:0;">✕</button></span>
     </div>${sumLine}${detailPanel}${notePanel}`;
   }).join('');

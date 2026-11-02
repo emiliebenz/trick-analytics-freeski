@@ -1652,6 +1652,74 @@ function sbRunNoteInput(name, i, val) {
   sbRunState(name).elements[i].note = val;   // ohne Re-Render, damit das Tippen flüssig bleibt
 }
 
+// ✎ im Run-Setup: Element bearbeiten (Trick bzw. Rail-Art + Trick, Kommentar, Position im Run)
+function sbRunEditPanelHtml(name, i, el, trickOptions) {
+  const r = sbRunState(name);
+  const id = 'run-edit-' + name.replace(/\s/g,'_') + '-' + i;
+  const q = s => String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+  const lblStyle = 'font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin:0 0 6px;';
+  const field = 'width:100%;padding:9px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:14px;font-family:inherit;';
+  let trickField;
+  if (el.kind === 'rail') {
+    const trick = el.label.split(' — ').slice(1).join(' — ');
+    const types = [...new Set(sbAllRailTypes().concat(el.railType ? [el.railType] : []))];
+    trickField = `<div style="${lblStyle}">Rail type</div>
+      <select id="${id}-type" style="${field}margin-bottom:10px;">${types.map(t => `<option value="${q(t)}" ${t===el.railType?'selected':''}>${t}</option>`).join('')}</select>
+      <div style="${lblStyle}">Trick</div>
+      <input id="${id}-trick" list="${id}-list" value="${q(trick)}" style="${field}margin-bottom:10px;">
+      <datalist id="${id}-list">${sbAllRailTricks().map(s => `<option value="${q(s)}">`).join('')}</datalist>`;
+  } else {
+    const cur = `value="${q(el.label)}"`;
+    const opts = trickOptions.includes(cur) ? trickOptions.replace(cur, cur + ' selected') : `<option ${cur} selected>${el.label}</option>` + trickOptions;
+    trickField = `<div style="${lblStyle}">Trick</div>
+      <select id="${id}-trick" style="${field}margin-bottom:10px;">${opts}</select>`;
+  }
+  const mv = (dir, txt, off) => `<button ${off ? 'disabled' : ''} onclick="sbRunMove('${name}',${i},${dir})" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:${off?'var(--border)':'var(--text)'};font-family:inherit;font-size:12px;font-weight:700;cursor:${off?'default':'pointer'};">${txt}</button>`;
+  return `<div style="margin:0 0 8px 30px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px;">
+    <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:8px;">Edit element ${i+1}</div>
+    ${trickField}
+    <div style="${lblStyle}">Comment</div>
+    <input value="${q(el.note||'')}" oninput="sbRunNoteInput('${name}',${i},this.value)" placeholder="Comment (optional)" style="${field}margin-bottom:10px;">
+    <div style="${lblStyle}">Position in run</div>
+    <div style="display:flex;gap:8px;margin-bottom:10px;">${mv(-1, '↑ Earlier', i === 0)}${mv(1, '↓ Later', i === r.elements.length - 1)}</div>
+    <div style="display:flex;gap:8px;">
+      <button onclick="sbRunEditApply('${name}',${i})" style="flex:1;padding:10px;border-radius:8px;border:none;background:#148FA0;color:#faf7f6;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;">Save</button>
+      <button onclick="sbRunNoteToggle('${name}',null)" style="padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:none;color:var(--muted);font-family:inherit;font-size:14px;cursor:pointer;">Close</button>
+    </div>
+  </div>`;
+}
+
+function sbRunEditApply(name, i) {
+  const r = sbRunState(name);
+  const el = r.elements[i];
+  const id = 'run-edit-' + name.replace(/\s/g,'_') + '-' + i;
+  if (el.kind === 'rail') {
+    const type = document.getElementById(id + '-type')?.value || el.railType;
+    const trick = sbCanonRailTrick(document.getElementById(id + '-trick')?.value || '');
+    if (!trick) { showToast('Enter the rail trick', 'error'); return; }
+    if (!SB_RAIL_TRICKS.includes(trick)) SB_RAIL_TRICKS.push(trick);
+    el.railType = type;
+    el.label = `Rail ${type} — ${trick}`;
+  } else {
+    const v = document.getElementById(id + '-trick')?.value;
+    if (v) el.label = v;
+  }
+  r.noteOpen = null;
+  renderLiveSession();
+  saveSessionState();
+}
+
+function sbRunMove(name, i, dir) {
+  const r = sbRunState(name);
+  const j = i + dir;
+  if (j < 0 || j >= r.elements.length) return;
+  [r.elements[i], r.elements[j]] = [r.elements[j], r.elements[i]];
+  [r.ratings[i], r.ratings[j]] = [r.ratings[j], r.ratings[i]];
+  r.noteOpen = j; r.detailOpen = null;
+  renderLiveSession();
+  saveSessionState();
+}
+
 function updateSeasonLabels() {
   const now = new Date();
   const yr = now.getFullYear();
