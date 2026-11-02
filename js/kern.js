@@ -2519,7 +2519,7 @@ function srVerlaufUrteilHtml(name, ks, runde) {
   }).join('');
   return `<details class="sr-info"><summary>History round ${runde} (${L.length})</summary><div class="sr-fuss" style="margin-top:4px;">${z}</div></details>`;
 }
-let _srUrteilOffen = true;
+let _srUrteilOffen = false;        // standardmässig zugeklappt (Wunsch 2.11.2026), Pfeil im Titel
 function srUrteilHtml(name, ks) {
   if (!srIch()) return '';
   const runde = _srRunde || srRundeStandard(name, ks), {werte, kommentare} = srUrteile(name, ks, runde), ich = srIch();
@@ -2535,8 +2535,8 @@ function srUrteilHtml(name, ks) {
   const meinKom = srInput(name, ks, `urteil:${runde}:kommentar:${ich}`);
   const kom = Object.entries(kommentare).filter(([e]) => e !== ich).map(([e, t]) => `<div><b>${srWer(e)}:</b> ${srEsc(t)}</div>`).join('');
   const feldK = `urteil:${runde}:kommentar:${ich}`, n = srEsc(JSON.stringify(name));
-  return `<details class="sr-urteil" ${_srUrteilOffen ? 'open' : ''} ontoggle="_srUrteilOffen = this.open">
-    <summary class="sr-ut-kopf" style="cursor:pointer;"><b>Coach judgement (Annex B)</b><span class="gedaempft">each coach rates on their own, three times per season · click to show or hide</span></summary>
+  return `<details class="sr-urteil" ${_srUrteilOffen ? 'open' : ''} ontoggle="_srUrteilOffen = this.open; const p = this.querySelector('.sr-pfeil'); if (p) p.textContent = this.open ? '▾' : '▸';">
+    <summary class="sr-ut-kopf" style="cursor:pointer;"><b><span class="sr-pfeil" style="display:inline-block;width:14px;color:var(--muted);">${_srUrteilOffen ? '▾' : '▸'}</span>Coach judgement (Annex B)</b><span class="gedaempft">each coach rates on their own, three times per season</span></summary>
     <div class="sr-ut-kopf"><span class="sr-ut-runden">${[1, 2, 3].map(r => `<button class="${r === runde ? 'on' : ''}" onclick="srSetRunde(${r})">Round ${r}</button>`).join('')}</span><span class="gedaempft">ratings save on click, the comment with the button; everything is kept in the history with name and time</span></div>
     ${zeilen}
     <div style="margin-top:8px;">${srTextFeldHtml(name, ks, feldK, `Your comment (round ${runde})`, 'What the ratings rest on, e.g. last three sessions, Laax World Cup', 2)}</div>
