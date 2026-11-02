@@ -45,7 +45,10 @@ Deno.serve(async (req) => {
     if (me?.role !== "dvlp") return json({ error: "admins only" }, 403);
 
     const body = await req.json().catch(() => ({}));
-    const roles = Array.isArray(body.roles) && body.roles.length ? body.roles.filter((r: string) => ["athlete", "coach"].includes(r)) : ["athlete", "coach"];
+    // Admins (dvlp) nur einzeln über ids (Passwort einer bestimmten Person), nie in der Sammel-Aktion
+    const single = Array.isArray(body.ids) && body.ids.length > 0;
+    const allowed = single ? ["athlete", "coach", "dvlp"] : ["athlete", "coach"];
+    const roles = Array.isArray(body.roles) && body.roles.length ? body.roles.filter((r: string) => allowed.includes(r)) : ["athlete", "coach"];
 
     // Neue Startpasswörter für Konten, die sich noch nie eingeloggt haben (Startpasswort noch nicht geändert)
     if (body.reset) {
