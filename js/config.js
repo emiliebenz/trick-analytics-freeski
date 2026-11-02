@@ -234,12 +234,12 @@ const SPORT_CONFIGS = {
   {name:'Neo Zingg',squad:'DVLP'},
 ],
     squads: [
-  {key:'GK', label:'TG SS&BA Greg & Kai', short:'TG 1', color:'#148FA0'},
+  {key:'GK', label:'TG SS&BA Greg, Kai & Cameron', short:'TG 1', color:'#148FA0'},
   {key:'X',  label:'TG SS&BA Xeno',       short:'TG 2', color:'#C96A1F'},
   {key:'HP', label:'TG Halfpipe',   short:'TG HP',   color:'#8E5BB8'},
   {key:'DVLP', label:'TG DVLP Dominic', short:'TG DVLP', color:'#3E8E5A'},
 ],
-    athleteOptgroups: `<optgroup label="TG SS&BA Greg & Kai">
+    athleteOptgroups: `<optgroup label="TG SS&BA Greg, Kai & Cameron">
             <option>Adrien Vaudaux</option>
             <option>Andri Ragettli</option>
             <option>Fadri Rhyner</option>
