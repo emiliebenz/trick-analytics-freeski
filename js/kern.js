@@ -19,6 +19,110 @@ const { createClient } = supabase;
 
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
 
+// ═══════════════ OFFLINE-SPEICHER (Session-Versuche ohne Netz) ═══════════════
+// Schlägt das Speichern eines Versuchs wegen fehlendem Netz fehl, kommt er in eine Warteschlange
+// (localStorage) und wird automatisch nachgesendet. Der Log-Eintrag bekommt solange eine lokale ID (lid).
+// rows[1] = Zeile ohne neue Spalten (Schema-Fallback wie bisher).
+const OUTBOX_KEY = CFG.sessionKey + '_outbox';
+const SCHEMA_ERR = /column|kpis|outcome|fail_grund|sterne|schema/i;
+const isNetErr = err => !navigator.onLine || /failed to fetch|load failed|networkerror|network request|fetch|timeout/i.test((err && err.message) || String(err || ''));
+let trickOutbox = [];
+try { trickOutbox = JSON.parse(localStorage.getItem(OUTBOX_KEY) || '[]'); } catch (e) { trickOutbox = []; }
+function saveOutbox() {
+  try { localStorage.setItem(OUTBOX_KEY, JSON.stringify(trickOutbox)); } catch (e) {}
+  renderOutboxBadge();
+}
+function renderOutboxBadge() {
+  if (!document.body) return;
+  let el = document.getElementById('outbox-badge');
+  if (!trickOutbox.length) { if (el) el.remove(); return; }
+  if (!el) {
+    el = document.createElement('button');
+    el.id = 'outbox-badge'; el.type = 'button';
+    el.style.cssText = 'position:fixed;left:12px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:9000;background:#C96A1F;color:#fff;border:none;border-radius:16px;padding:8px 14px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.2)';
+    el.onclick = () => flushOutbox(true);
+    document.body.appendChild(el);
+  }
+  const n = trickOutbox.length;
+  el.textContent = `${n} attempt${n === 1 ? '' : 's'} not sent yet · tap to send`;
+}
+async function insertTrickRow(rows) {
+  let res;
+  try { res = await db.from('tricks').insert(rows[0]).select('id'); } catch (e) { res = {error: e}; }
+  if (res.error && rows[1] && SCHEMA_ERR.test(res.error.message || '')) {
+    try { res = await db.from('tricks').insert(rows[1]).select('id'); res.legacy = true; } catch (e) { res = {error: e}; }
+  }
+  return res;
+}
+// Versuch speichern: gespeichert → logEntry.dbId, ohne Netz → Warteschlange + logEntry.lid
+async function saveTrickAttempt(logEntry, row, fallbackRow) {
+  const rows = fallbackRow ? [row, fallbackRow] : [row];
+  // Wartet schon etwas, neuen Versuch direkt anhängen (Reihenfolge bleibt erhalten)
+  const res = trickOutbox.length ? {error: new Error('queued')} : await insertTrickRow(rows);
+  if (!res.error) {
+    const id = res.data && res.data[0] && res.data[0].id;
+    if (id) { logEntry.dbId = id; if (res.legacy) logEntry.legacySaved = true; saveSessionState(); }
+    return;
+  }
+  if (trickOutbox.length || isNetErr(res.error)) {
+    const first = !trickOutbox.length;
+    logEntry.lid = 'o' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    trickOutbox.push({lid: logEntry.lid, rows, tries: 0});
+    saveOutbox(); saveSessionState();
+    if (first) showToast('No connection: attempts are saved on this device and sent later', 'error');
+    return;
+  }
+  console.error('Save error:', res.error);
+  showToast('Error saving attempt: ' + res.error.message, 'error');
+}
+// Wartenden Versuch nachträglich ändern (Edit im Log, bevor er gesendet ist)
+function outboxPatch(lid, upd, baseUpd) {
+  const it = trickOutbox.find(x => x.lid === lid);
+  if (!it) return;
+  it.rows[0] = {...it.rows[0], ...upd};
+  if (it.rows[1]) it.rows[1] = {...it.rows[1], ...(baseUpd || upd)};
+  saveOutbox();
+}
+function outboxDrop(lids) {
+  trickOutbox = trickOutbox.filter(x => !lids.includes(x.lid));
+  saveOutbox();
+}
+let outboxBusy = false;
+async function flushOutbox(manual) {
+  if (outboxBusy || !trickOutbox.length) return;
+  if (!navigator.onLine) { if (manual) showToast('Still no connection', 'error'); return; }
+  outboxBusy = true;
+  let sent = 0;
+  try {
+    const { data: { session } } = await db.auth.getSession();
+    if (!session) return;   // erst nach dem Login senden (RLS)
+    while (trickOutbox.length) {
+      const it = trickOutbox[0];
+      const res = await insertTrickRow(it.rows);
+      if (res.error && isNetErr(res.error)) break;
+      if (res.error) {
+        // Anderer Fehler (z.B. Rechte): später nochmals, nach 5 Versuchen verwerfen
+        it.tries = (it.tries || 0) + 1;
+        console.error('Outbox:', res.error, it);
+        if (it.tries < 5) { saveOutbox(); break; }
+        showToast('An offline attempt could not be saved: ' + res.error.message, 'error');
+      } else {
+        sent++;
+        const id = res.data && res.data[0] && res.data[0].id;
+        const e = sessLog.find(x => x.lid === it.lid);
+        if (e && id) { e.dbId = id; delete e.lid; if (res.legacy) e.legacySaved = true; saveSessionState(); }
+      }
+      trickOutbox.shift();
+      saveOutbox();
+    }
+  } catch (e) { console.error('Outbox:', e); }
+  finally { outboxBusy = false; }
+  if (sent && !trickOutbox.length) showToast(`${sent} offline attempt${sent === 1 ? '' : 's'} sent`, 'success');
+}
+window.addEventListener('online', () => flushOutbox());
+window.addEventListener('load', () => { renderOutboxBadge(); setTimeout(flushOutbox, 3000); });
+setInterval(flushOutbox, 30000);
+
 // ═══════════════ AUTH (Coach-Login) + Gruppen-Filter ═══════════════
 const AUTH_ENABLED = true;
 let AUTH_USER = null;
@@ -691,6 +795,12 @@ function setSrCondition(val, btn) {
 }
 
 async function submitSessionReport(duration) {
+  // Erst alle offline gespeicherten Versuche senden, sonst fehlen sie im Report
+  await flushOutbox();
+  if (trickOutbox.length) {
+    showToast(`${trickOutbox.length} attempts are not sent yet. Connect to the internet and save the report again.`, 'error');
+    return;
+  }
   const durVal = parseInt(document.getElementById('sr-duration')?.value, 10);
   if (Number.isFinite(durVal) && durVal > 0) duration = durVal;
   const location = (document.getElementById('sr-location')?.value||'').trim();

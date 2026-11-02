@@ -1185,14 +1185,7 @@ function sbRunSave(name) {
       gelandet: rate === 'failed' ? 'No' : 'Yes', gesamt, ausfuehrung: gesamt, landung: gesamt, setup: gesamt,
       kommentar: [`Run ${runNo} · ${i+1}/${N}`].concat(extra).join(' | ')};
     const fullIns = {...baseIns, outcome, sterne, fail_grund: tags[0] || null, kpis: null};
-    db.from('tricks').insert(fullIns).select('id').then(async res => {
-      let {data, error} = res;
-      if (error && /column|outcome|sterne|fail_grund|kpis|schema/i.test(error.message || '')) {
-        ({data, error} = await db.from('tricks').insert(baseIns).select('id'));
-      }
-      if (error) { console.error(error); showToast('Error saving element: ' + error.message, 'error'); return; }
-      if (data && data[0]) { logEntry.dbId = data[0].id; saveSessionState(); }
-    });
+    saveTrickAttempt(logEntry, fullIns, baseIns);
   });
   sbRunEnsureAssessment(name, r.elements.filter(e => e.kind === 'rail'));
   sessPlayLogSound('landed');
@@ -1398,18 +1391,8 @@ async function logAttempt(name, result, detail) {
     kpis: detail.kpis || null,
     fail_grund: detail.failGrund || null,
     sterne: typeof detail.sterne === 'number' ? detail.sterne : null};
-  db.from('tricks').insert(fullRow).select().then(({data,error})=>{
-    if (error && /column|kpis|outcome|fail_grund|sterne|schema/i.test(error.message||'')) {
-      // Fallback: DB columns not yet added — save legacy fields so no attempt is lost
-      console.warn('New columns missing, saving legacy row:', error.message);
-      return db.from('tricks').insert(baseRow).select().then(({data,error})=>{
-        if(error) console.error('Save error:',error);
-        else if(data&&data[0]) { logEntry.dbId=data[0].id; logEntry.legacySaved=true; saveSessionState(); }
-      });
-    }
-    if(error) console.error('Save error:',error);
-    else if(data&&data[0]) { logEntry.dbId=data[0].id; saveSessionState(); }
-  });
+  // Fallback baseRow: DB-Spalten noch nicht da; ohne Netz → Offline-Speicher (kern.js)
+  saveTrickAttempt(logEntry, fullRow, baseRow);
 }
 
 function deleteLogEntry(idx) {
@@ -1426,6 +1409,7 @@ function deleteLogEntry(idx) {
   renderSessionLog();
   saveSessionState();
   if (e.dbId) db.from('tricks').delete().eq('id', e.dbId).then(()=>{});
+  else if (e.lid) outboxDrop([e.lid]);
 }
 
 function editLogEntry(idx) {
@@ -1486,18 +1470,21 @@ async function saveSbLogEdit(idx, mode) {
   e.kpis = newKpis;
   e.failGrund = newFail;
   e.sterne = newSterne;
-  if (e.dbId) {
+  if (e.dbId || e.lid) {
     const gesamt = newResult==='miss'?3:newResult==='landed'?7:10;
     const outcome = newResult==='miss'?'failed':newResult==='perfect'?'stomped':'landed';
     const baseUpd = { gesamt, ausfuehrung:gesamt, landung:gesamt, setup:gesamt,
       gelandet:newResult==='miss'?'No':'Yes', kommentar: newComment||null };
     if (trickChanged) baseUpd.trickaufbau = newTrick;
     const fullUpd = {...baseUpd, outcome, kpis:newKpis, fail_grund:newFail, sterne:newSterne};
-    const {error} = await db.from('tricks').update(fullUpd).eq('id', e.dbId);
-    if (error && /column|kpis|outcome|fail_grund|sterne|schema/i.test(error.message||'')) {
-      await db.from('tricks').update(baseUpd).eq('id', e.dbId);
+    if (!e.dbId) outboxPatch(e.lid, fullUpd, baseUpd);   // noch nicht gesendet (offline)
+    else {
+      const {error} = await db.from('tricks').update(fullUpd).eq('id', e.dbId);
+      if (error && /column|kpis|outcome|fail_grund|sterne|schema/i.test(error.message||'')) {
+        await db.from('tricks').update(baseUpd).eq('id', e.dbId);
+      }
+      if (trickChanged) syncTrickNameLocally(e.dbId, newTrick);
     }
-    if (trickChanged) syncTrickNameLocally(e.dbId, newTrick);
   }
   sessEditIdx = -1;
   renderLiveSession();
@@ -1617,6 +1604,7 @@ async function cancelSession() {
   if (ids.length > 0) {
     await db.from('tricks').delete().in('id', ids);
   }
+  outboxDrop(sessLog.filter(e => e.lid).map(e => e.lid));
   sessLog = [];
   resetSession();
   showToast('Session cancelled — all data deleted', 'error');

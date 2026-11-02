@@ -1238,16 +1238,13 @@ async function autoLogAttempt(name) {
   const kommentarParts = [[r.takeoff&&`Takeoff:${r.takeoff}`, r.grab&&`Grab:${r.grab}`, r.trick&&`Trick:${r.trick}`, r.land&&`Landing:${r.land}`].filter(Boolean).join(' ')];
   if (comment) kommentarParts.push(comment);
   const trickInfo=sessAthleteData[name].tricks.find(t=>t.trick_label===d.currentTrick)||{};
-  db.from('tricks').insert({
+  saveTrickAttempt(logEntry, {
     athlet:name, datum:sessCurrentDate(),
     typ:sessType||'Training', disziplin:trickInfo.disziplin||null,
     trickaufbau:trickWithGrab, gelandet:(r.land ? r.land!=='miss' : result!=='miss')?'Yes':'No',
     grab: selectedGrab || null,
     gesamt, ausfuehrung:gesamt, landung:gesamt, setup:gesamt,
     kommentar: kommentarParts.join(' | ')
-  }).select('id').then(({data,error})=>{
-    if(error){console.error(error);return;}
-    if(data&&data[0]) { logEntry.dbId = data[0].id; saveSessionState(); }
   });
 }
 
@@ -1304,14 +1301,11 @@ async function logAttempt(name, result) {
   // Save to DB (non-blocking)
   const gesamt = result==='miss'?3:result==='landed'?7:10;
   const trickInfo = sessAthleteData[name].tricks.find(t=>t.trick_label===d.currentTrick)||{};
-  db.from('tricks').insert({
+  saveTrickAttempt(logEntry, {
     athlet:name, datum:sessCurrentDate(),
     typ:sessType||'Training', disziplin:trickInfo.disziplin||null,
     trickaufbau:d.currentTrick, gelandet:result==='miss'?'No':'Yes',
     gesamt, ausfuehrung:gesamt, landung:gesamt, setup:gesamt,
-  }).select().then(({data,error})=>{
-    if(error) console.error('Save error:',error);
-    else if(data&&data[0]) { logEntry.dbId=data[0].id; saveSessionState(); }
   });
 }
 
@@ -1367,6 +1361,7 @@ async function deleteLogEntry(idx) {
   const e = sessLog[idx];
   if (!e) return;
   if (e.dbId) await db.from('tricks').delete().eq('id', e.dbId);
+  else if (e.lid) outboxDrop([e.lid]);
   if (sessAthleteData[e.name]) {
     sessAthleteData[e.name].stats.attempts = Math.max(0, sessAthleteData[e.name].stats.attempts - 1);
     if (e.result==='landed'||e.result==='perfect') sessAthleteData[e.name].stats.landed = Math.max(0, sessAthleteData[e.name].stats.landed - 1);
@@ -1427,7 +1422,7 @@ async function saveFsLogEdit(idx) {
   e.takeoff = r.takeoff||null; e.grab = r.grab||null; e.trick_r = r.trick||null; e.land = r.land||null;
   if (trickChanged) { e.trick = newTrick; e.selectedGrab = newGrab; }
   e.comment = newComment;
-  if (e.dbId) {
+  if (e.dbId || e.lid) {
     const gesamt = r.land==='miss'?3:avg>=2.7?10:7;
     const kommentarParts = [[r.takeoff&&`Takeoff:${r.takeoff}`, r.grab&&`Grab:${r.grab}`, r.trick&&`Trick:${r.trick}`, r.land&&`Landing:${r.land}`].filter(Boolean).join(' ')];
     if (newComment) kommentarParts.push(newComment);
@@ -1437,8 +1432,11 @@ async function saveFsLogEdit(idx) {
       kommentar: kommentarParts.join(' | ')
     };
     if (trickChanged) { upd.trickaufbau = newTrick; upd.grab = newGrab || null; }
-    await db.from('tricks').update(upd).eq('id', e.dbId);
-    if (trickChanged) syncTrickNameLocally(e.dbId, newTrick);
+    if (!e.dbId) outboxPatch(e.lid, upd);   // noch nicht gesendet (offline)
+    else {
+      await db.from('tricks').update(upd).eq('id', e.dbId);
+      if (trickChanged) syncTrickNameLocally(e.dbId, newTrick);
+    }
   }
   sessEditIdx = -1;
   renderLiveSession();
@@ -1498,6 +1496,7 @@ async function cancelSession() {
   if (!confirmed) return;
   const ids = sessLog.filter(e => e.dbId).map(e => e.dbId);
   if (ids.length > 0) await db.from('tricks').delete().in('id', ids);
+  outboxDrop(sessLog.filter(e => e.lid).map(e => e.lid));
   sessLog = [];
   resetSession();
   showToast('Session cancelled — all data deleted', 'error');
@@ -4915,13 +4914,10 @@ function sbRunSave(name) {
     d.stats.attempts++;
     if (rate !== 'failed') d.stats.landed++;
     if (rate === 'stomped') d.stats.perfect++;
-    db.from('tricks').insert({athlet: name, datum: sessCurrentDate(), typ: sessType || 'Training',
+    saveTrickAttempt(logEntry, {athlet: name, datum: sessCurrentDate(), typ: sessType || 'Training',
       disziplin: el.kind === 'rail' ? 'Rail' : 'Jump', trickaufbau: el.label, grab: null,
       gelandet: rate === 'failed' ? 'No' : 'Yes', gesamt, ausfuehrung: gesamt, landung: gesamt, setup: gesamt,
       kommentar: [`Run ${runNo} · ${i+1}/${N}`].concat(extra).join(' | ')
-    }).select('id').then(({data, error}) => {
-      if (error) { console.error(error); showToast('Error saving element: ' + error.message, 'error'); return; }
-      if (data && data[0]) { logEntry.dbId = data[0].id; saveSessionState(); }
     });
   });
   sbRunEnsureAssessment(name, r.elements.filter(e => e.kind === 'rail'));
