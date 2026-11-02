@@ -2810,11 +2810,17 @@ function asList(items, emptyMsg){
 }
 // Spinnennetz (Emilie 2.11.2026): Ringe = Stufen (T1 innen, T4 aussen), Sektoren = Bereiche des Skills-Checks,
 // Punkte = jede Vorgabe der Stufe. Gefüllt = aus dem Assessment gelernt, Fläche = wie weit die Athlet:in pro Bereich ist.
+// Bereiche im Netz. Rails (Emilie 2.11.2026): pro Vorgabe nach Trick, nicht nach Abschnitt (die Abschnitte heissen
+// auf jeder Stufe anders). Spin on UND Spin out im selben Trick (inkl. Pretzel) = eigener Bereich.
+const RAIL_ORDER = ['Slides', 'Spin on', 'Spin on & out', 'Spin out', 'Swaps'];
+const railCat = text => /pretzel|\d+\s+on\s+\d+\s+out/i.test(text) ? 'Spin on & out'
+  : /swap|fed\b|britney/i.test(text) ? 'Swaps'
+  : /\d+\s+out|spin\/flip out|flip\/cork out|spin out/i.test(text) ? 'Spin out'
+  : /\d+\s+(on|in)\b/i.test(text) ? 'Spin on' : 'Slides';
 const RADAR_CAT = {
   Jump: t => t,
   Halfpipe: t => t==='Focus' ? 'Amplitude' : t,
-  Rail: t => /swap/i.test(t) ? 'Swaps' : /pretzel/i.test(t) ? 'Pretzel' : /^out$/i.test(t) ? 'Out' : /on – out/i.test(t) ? 'On – Out'
-    : /slide|switch on/i.test(t) ? 'Slides' : /^on$/i.test(t) ? 'On' : 'New',
+  Rail: (t, text) => railCat(text),
 };
 const RADAR_COL = {done:'#3E8E5A', partial:'#8CC59E', pending:'#8CC59E', goal:'#C96A1F', open:'#D9D3D0'};
 function radarSvg(ath, disc){
@@ -2825,11 +2831,12 @@ function radarSvg(ath, disc){
   const cats = [], by = {};
   evs.forEach((ev, li) => ev.def.sections.forEach(sec => sec.slots.forEach(sl => {
     const o = ev.out[sl.id]; if (!o || !o.applicable) return;
-    const c = RADAR_CAT[disc](sec.title);
+    const c = RADAR_CAT[disc](sec.title, sl.text);
     if (!by[c]){ by[c] = [[], [], [], []]; cats.push(c); }
     by[c][li].push({text:sl.text, state:o.state});
   })));
   if (cats.length < 2) return '';
+  if (disc==='Rail') cats.sort((a, b) => RAIL_ORDER.indexOf(a) - RAIL_ORDER.indexOf(b));
   const learnedSt = st => st==='done' || st==='partial' || st==='pending';
   const W = 440, C = W / 2, R0 = 26, R = 168, rr = i => R0 + (R - R0) * i / 4;   // Ring i: von rr(i) bis rr(i+1)
   const span = 2 * Math.PI / cats.length, top = -Math.PI / 2, gap = .012;
