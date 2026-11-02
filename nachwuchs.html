@@ -181,9 +181,10 @@ textarea{min-height:64px;resize:vertical}
 .modal h3{margin:0 0 4px;font-size:var(--fs-page);font-weight:800;color:var(--char)}
 .modal video{width:100%;max-height:60vh;background:#111;border-radius:10px;margin:12px 0}
 /* Spinnennetz im Assessment */
-.radars{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;margin-top:8px}
+.radars{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:24px;margin-top:8px}
+@media (max-width:768px){.radars{grid-template-columns:1fr}}
 .radar{text-align:center}
-.radar svg{width:100%;max-width:560px;height:auto}
+.radar svg{width:100%;max-width:520px;height:auto}
 .radar h4{margin:0 0 4px;font-size:var(--fs-label);letter-spacing:.08em;text-transform:uppercase;color:var(--char)}
 .radar-legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:var(--fs-label);color:var(--muted);margin-top:10px}
 .radar-legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
@@ -688,6 +689,12 @@ let LANG = (() => {
 })();
 document.documentElement.lang = LANG;
 const I18N = {
+  'much learned':['viel gelernt','beaucoup appris','molto imparato'],
+  'some learned':['teilweise gelernt','partiellement appris','in parte imparato'],
+  'goal set':['Ziel gesetzt','objectif fixé','obiettivo fissato'],
+  'how far out per area':['wie weit aussen pro Bereich','progression par domaine','progresso per settore'],
+  'Tap a field for the tricks':['Feld antippen für die Tricks','Touche une case pour les tricks','Tocca un campo per i trick'],
+  'confirmed':['bestätigt','confirmé','confermato'],
   'created':['erstellt am','créé le','creato il'],
   'Please run database update 15 and redeploy the function «create-accounts» first.':['Bitte zuerst Datenbank-Update 15 ausführen und die Function «create-accounts» neu deployen.','Exécute d’abord la mise à jour 15 de la base et redéploie la fonction «create-accounts».','Esegui prima l’aggiornamento 15 del database e ridistribuisci la funzione «create-accounts».'],
   'E-mail or username':['E-Mail oder Benutzername','E-mail ou nom d’utilisateur','E-mail o nome utente'],
@@ -2823,40 +2830,54 @@ function radarSvg(ath, disc){
     by[c][li].push({text:sl.text, state:o.state});
   })));
   if (cats.length < 2) return '';
-  const W = 420, C = W / 2, R = 175, ring = i => R * (i + 1) / 4;
   const learnedSt = st => st==='done' || st==='partial' || st==='pending';
-  const span = 2 * Math.PI / cats.length, a0 = -Math.PI / 2;
+  const W = 440, C = W / 2, R0 = 26, R = 168, rr = i => R0 + (R - R0) * i / 4;   // Ring i: von rr(i) bis rr(i+1)
+  const span = 2 * Math.PI / cats.length, top = -Math.PI / 2, gap = .012;
   const pt = (r, a) => [C + r * Math.cos(a), C + r * Math.sin(a)];
+  const f1 = v => v.toFixed(1);
+  const cell = (r0, r1, a0, a1) => { const [x0, y0] = pt(r1, a0), [x1, y1] = pt(r1, a1), [x2, y2] = pt(r0, a1), [x3, y3] = pt(r0, a0), big = a1 - a0 > Math.PI ? 1 : 0;
+    return `M${f1(x0)},${f1(y0)} A${r1},${r1} 0 ${big} 1 ${f1(x1)},${f1(y1)} L${f1(x2)},${f1(y2)} A${r0},${r0} 0 ${big} 0 ${f1(x3)},${f1(y3)}Z`; };
   let g = '';
-  // Ringe + Beschriftung
-  LV.forEach((lv, i) => {
-    g += `<circle cx="${C}" cy="${C}" r="${ring(i)}" fill="${i===3 ? 'rgba(226,0,26,.04)' : 'none'}" stroke="${i===3 ? '#E2001A' : '#E7E3E1'}" stroke-width="${i===3 ? 1.5 : 1}"/>`;
-    g += `<text x="${C + 4}" y="${C - ring(i) + 14}" font-size="13" fill="#93a7bb" font-weight="700">${lv}</text>`;
+  // Felder: Bereich × Stufe, Farbe nach Anteil gelernt
+  cats.forEach((c, k) => {
+    const a0 = top + span * k + gap, a1 = top + span * (k + 1) - gap;
+    by[c].forEach((sl, i) => {
+      const n = sl.length, l = sl.filter(x => learnedSt(x.state)).length, d = sl.filter(x => x.state==='done').length, goal = sl.some(x => x.state==='goal');
+      const fill = !n ? '#FAF7F6' : l ? `rgba(62,142,90,${(.22 + .68 * l / n).toFixed(2)})` : goal ? 'rgba(201,106,31,.16)' : '#EFEAE8';
+      const tip = n ? `${LV[i]} · ${c}: ${l}/${n} ${trString('learned')}${d ? ` · ${d} ${trString('confirmed')}` : ''}\n` + sl.map(x => (learnedSt(x.state) ? '✓ ' : x.state==='goal' ? '◦ ' : '· ') + x.text).join('\n') : `${LV[i]} · ${c}: –`;
+      g += `<path d="${cell(rr(i) + 1, rr(i + 1) - 1, a0, a1)}" fill="${fill}"${i===3 && n ? ' stroke="rgba(226,0,26,.35)" stroke-width="1"' : ''}${n ? ' style="cursor:pointer" onclick="radarTip(this)"' : ''}><title>${esc(tip)}</title></path>`;
+      if (n && l){ const [tx, ty] = pt((rr(i) + rr(i + 1)) / 2, (a0 + a1) / 2);
+        g += `<text x="${f1(tx)}" y="${f1(ty + 4)}" font-size="11" font-weight="700" text-anchor="middle" fill="${l / n > .55 ? '#fff' : '#6B6B70'}" pointer-events="none">${l}/${n}</text>`; }
+    });
   });
-  // Fläche: pro Bereich so weit, wie die Stufen von innen her gelernt sind
+  // Netz: pro Bereich so weit, wie die Stufen von innen her gelernt sind
   const reach = cats.map(c => { let r = 0;
-    if (!by[c].flat().some(x => learnedSt(x.state))) return 0;   // nichts gelernt → keine Fläche
+    if (!by[c].flat().some(x => learnedSt(x.state))) return 0;
     for (let i = 0; i < 4; i++){ const sl = by[c][i]; if (!sl.length){ r = i + 1; continue; }
       const f = sl.filter(x => learnedSt(x.state)).length / sl.length; r = i + f; if (f < 1) break; }
     return r; });
-  const poly = cats.map((c, k) => pt(R * reach[k] / 4, a0 + span * (k + .5)).map(v => v.toFixed(1)).join(',')).join(' ');
-  g += `<polygon points="${poly}" fill="rgba(62,142,90,.18)" stroke="#3E8E5A" stroke-width="2" stroke-linejoin="round"/>`;
-  // Speichen, Bereichsnamen, Punkte
+  if (reach.some(r => r > 0)){
+    const P = cats.map((c, k) => pt(R0 + (R - R0) * reach[k] / 4, top + span * (k + .5)));
+    g += `<polygon points="${P.map(p => p.map(f1).join(',')).join(' ')}" fill="rgba(58,58,58,.06)" stroke="#3A3A3A" stroke-width="2" stroke-linejoin="round" pointer-events="none"/>`;
+    g += P.map(([x, y]) => `<circle cx="${f1(x)}" cy="${f1(y)}" r="3.5" fill="#3A3A3A" pointer-events="none"/>`).join('');
+  }
+  // Stufen-Beschriftung oben und Bereichsnamen mit Anzahl
+  LV.forEach((lv, i) => { const [x, y] = pt((rr(i) + rr(i + 1)) / 2, top); g += `<text x="${f1(x)}" y="${f1(y + 4)}" font-size="11" font-weight="800" text-anchor="middle" fill="#93a7bb" paint-order="stroke" stroke="#fff" stroke-width="4" pointer-events="none">${lv}</text>`; });
   cats.forEach((c, k) => {
-    const a1 = a0 + span * k, [x1, y1] = pt(R + 6, a1);
-    g += `<line x1="${C}" y1="${C}" x2="${x1.toFixed(1)}" y2="${y1.toFixed(1)}" stroke="#E7E3E1"/>`;
-    const am = a0 + span * (k + .5), [lx, ly] = pt(R + 26, am);
-    const anchor = Math.abs(Math.cos(am)) < .3 ? 'middle' : Math.cos(am) > 0 ? 'start' : 'end';
-    g += `<text x="${lx.toFixed(1)}" y="${(ly + 4).toFixed(1)}" font-size="15" font-weight="700" fill="#3A3A3A" text-anchor="${anchor}">${esc(c)}</text>`;
-    by[c].forEach((sl, i) => sl.forEach((x, j) => {
-      const a = a1 + span * (j + 1) / (sl.length + 1), [px, py] = pt(ring(i), a);
-      const col = RADAR_COL[x.state] || RADAR_COL.open, full = learnedSt(x.state);
-      g += `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="${sl.length > 10 ? 3 : 4.5}" fill="${full ? col : '#fff'}" stroke="${col}" stroke-width="1.6"><title>${LV[i]} · ${esc(c)}: ${esc(x.text)}</title></circle>`;
-    }));
+    const am = top + span * (k + .5), [lx, ly] = pt(R + 18, am), all = by[c].flat();
+    const anchor = Math.abs(Math.cos(am)) < .25 ? 'middle' : Math.cos(am) > 0 ? 'start' : 'end';
+    const dy = Math.sin(am) > .5 ? 12 : Math.sin(am) < -.5 ? -14 : -2;
+    g += `<text x="${f1(lx)}" y="${f1(ly + dy)}" font-size="15" font-weight="800" fill="#3A3A3A" text-anchor="${anchor}">${esc(c)}<tspan x="${f1(lx)}" dy="17" font-size="12" font-weight="600" fill="#93a7bb">${all.filter(x => learnedSt(x.state)).length} / ${all.length}</tspan></text>`;
   });
   const nAll = cats.reduce((a, c) => a + by[c].flat().length, 0), nL = cats.reduce((a, c) => a + by[c].flat().filter(x => learnedSt(x.state)).length, 0);
   return `<div class="radar"><h4>${esc(DISC_LABEL[disc])} <span class="muted">· ${nL} / ${nAll}</span></h4>
-    <svg viewBox="-95 -5 ${W + 190} ${W + 10}" role="img" aria-label="Skills-Check ${esc(DISC_LABEL[disc])} T1–T4">${g}</svg></div>`;
+    <svg viewBox="-95 -30 ${W + 190} ${W + 70}" role="img" aria-label="Skills-Check ${esc(DISC_LABEL[disc])} T1–T4">${g}</svg></div>`;
+}
+// Feld antippen: Tricks dieses Bereichs und dieser Stufe anzeigen (Tooltips gibt es auf dem Handy nicht)
+function radarTip(el){
+  const [head, ...rows] = (el.querySelector('title')?.textContent || '').split('\n');
+  modal(`<h3>${esc(head)}</h3><ul class="hints" style="margin-top:10px">${rows.map(r => `<li>${esc(r)}</li>`).join('')}</ul>
+    <div class="btnrow" style="margin-top:12px"><button class="btn ghost" onclick="closeModal()">Close</button></div>`);
 }
 function radarCard(ath){
   if (!HAS_SC || !ath?.gender) return '';
@@ -2865,7 +2886,7 @@ function radarCard(ath){
   if (!charts.length) return '';
   return `<div class="card"><h2>Skills-Check overview <span class="muted" style="letter-spacing:0;font-weight:600">T1 inside · T4 outside</span></h2>
     <div class="radars">${charts.join('')}</div>
-    <div class="radar-legend"><span><i style="background:${RADAR_COL.done}"></i>confirmed with full points</span><span><i style="background:${RADAR_COL.pending}"></i>learned</span><span><i style="border:1.6px solid ${RADAR_COL.goal};background:#fff"></i>goal</span><span><i style="border:1.6px solid ${RADAR_COL.open};background:#fff"></i>not yet</span><span>Area = how far out per area</span></div></div>`;
+    <div class="radar-legend"><span><i style="background:rgba(62,142,90,.9)"></i>much learned</span><span><i style="background:rgba(62,142,90,.3)"></i>some learned</span><span><i style="background:rgba(201,106,31,.3)"></i>goal set</span><span><i style="background:#EFEAE8"></i>not yet</span><span><i style="background:#3A3A3A;width:14px;height:3px;border-radius:2px"></i>how far out per area</span><span>Tap a field for the tricks</span></div></div>`;
 }
 function renderAssessment(){
   const root = $('#page-assessment');
