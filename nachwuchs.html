@@ -2875,7 +2875,7 @@ function radarCard(ath){
   // Ringe alle 180°, jeder zweite (360, 720, …) beschriftet
   for (let v = 180; v <= MAX; v += 180){
     const strong = (v % 360 === 0 && MAX - v >= 360) || v === MAX;
-    g += `<circle cx="${C}" cy="${C}" r="${f1(rad(v))}" fill="${v===MAX ? 'rgba(226,0,26,.03)' : 'none'}" stroke="${v===MAX ? '#E2001A' : strong ? '#DDD6D3' : '#EFEAE8'}" stroke-width="${v===MAX ? 1.5 : 1}"/>`;
+    g += `<circle cx="${C}" cy="${C}" r="${f1(rad(v))}" fill="${v===MAX ? '#FAF7F6' : 'none'}" stroke="${v===MAX ? '#93A7BB' : strong ? '#DDD6D3' : '#EFEAE8'}" stroke-width="${v===MAX ? 2 : 1}"/>`;
     if (strong || v === 180){ const [x, y] = pt(rad(v), -Math.PI / 2);
       g += `<text x="${f1(x)}" y="${f1(y + 4)}" text-anchor="middle" font-size="13" font-weight="700" fill="#93a7bb" paint-order="stroke" stroke="#fff" stroke-width="3">${v}</text>`; }
   }
