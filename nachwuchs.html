@@ -789,6 +789,7 @@ const I18N = {
   'Takes off on the upper part of the transition, near or at the lip':['Take-off im oberen Teil der Transition, nahe oder an der Kante','Take-off dans la partie haute de la transition, près du coping ou au coping','Take-off nella parte alta della transizione, vicino o sul coping'],
   'Full control and stability, minimal insecurities or instabilities':['Volle Kontrolle und Stabilität, möglichst keine Unsicherheiten','Contrôle et stabilité complets, un minimum d’hésitations ou d’instabilités','Controllo e stabilità completi, il minimo di insicurezze o instabilità'],
   'Trick completed before landing, not finished on the snow':['Trick vor der Landung abgeschlossen, nicht erst auf dem Schnee','Trick terminé avant la réception, pas fini sur la neige','Trick completato prima dell’atterraggio, non finito sulla neve'],
+  'Grab on the board, not on boot, binding or knee':['Grab am Board, nicht am Schuh, an der Bindung oder am Knie','Grab sur la planche, pas sur la chaussure, la fixation ou le genou','Grab sulla tavola, non su scarpone, attacco o ginocchio'],
   'Grab on the ski, not on boot, binding or knee':['Grab am Ski, nicht am Schuh, an der Bindung oder am Knie','Grab sur le ski, pas sur la chaussure, la fixation ou le genou','Grab sullo sci, non su scarpone, attacco o ginocchio'],
   'Held throughout the majority of the trick (missed or short grab counts negatively)':['Über den Grossteil des Tricks gehalten (verpasster oder kurzer Grab zählt negativ)','Tenu pendant la majeure partie du trick (grab manqué ou court = négatif)','Tenuto per la maggior parte del trick (grab mancato o corto = negativo)'],
   'Boning or tweaking shows extra grab control; the free hand also affects execution':['Bone oder Tweak zeigt zusätzliche Grab-Kontrolle; auch die freie Hand beeinflusst die Execution','Boning ou tweak montre un contrôle supplémentaire; la main libre influence aussi l’exécution','Bone o tweak mostra un controllo in più; anche la mano libera influisce sull’esecuzione'],
@@ -1539,20 +1540,22 @@ const CATALOG = SB ? {Jump:{}, Rail:{}, Halfpipe:{}} : {
    Checkpunkte abgeleitet aus FIS Judges Handbook (SB/FK, 8.1 Execution):
    Take-off, Control, Grabs, Landing.
    ══════════════════════════════════════════════════════════════════════ */
+// FIS JH 8.1.1: «on the board/ski» → je nach Sportart
+const GRAB_ON = SB ? 'Grab on the board, not on boot, binding or knee' : 'Grab on the ski, not on boot, binding or knee';
 const CRIT = {
   // Hinweise ausschliesslich nach FIS Snowboard & Freeski Park & Pipe Judges Handbook (Update Spring 2022):
   // 8.1.1 Execution (Control, Takeoff, Landing, Grabs, Rails) · 8.3.1/8.3.2 Amplitude
   jump: [
     {k:'takeoff', name:'Take-Off', hints:['Proper timing and a clean pop off the lip','No rushed take-off, no low pop, rotation not started early on the lip (intentional butter = ok)','Appropriate speed and a high arc through the air']},
     {k:'trick', name:'Trick (Axis / Control)', hints:['Full control and stability, minimal insecurities or instabilities','Trick completed before landing, not finished on the snow']},
-    {k:'grab', name:'Grab', hints:['Grab on the ski, not on boot, binding or knee','Held throughout the majority of the trick (missed or short grab counts negatively)','Boning or tweaking shows extra grab control; the free hand also affects execution']},
+    {k:'grab', name:'Grab', hints:[GRAB_ON,'Held throughout the majority of the trick (missed or short grab counts negatively)','Boning or tweaking shows extra grab control; the free hand also affects execution']},
     {k:'landing', name:'Landing', hints:['Lands in the sweet spot, not short on the knuckle','Lands on the balls of the feet or lightly on edge, no other contact with the snow','No hand drag, butt check, backseat landing or washout']},
   ],
   // Halfpipe = gleiche Kriterien wie Jumps + Amplitude (FIS JH 8.3.1) → max. 5 Punkte
   hp: [
     {k:'takeoff', name:'Take-Off', hints:['Takes off on the upper part of the transition, near or at the lip','Proper timing and a clean pop off the lip','No rushed take-off, no low pop, rotation not started early on the lip (intentional butter = ok)']},
     {k:'trick', name:'Trick (Axis / Control)', hints:['Full control and stability, minimal insecurities or instabilities','Trick completed before landing, not finished on the snow']},
-    {k:'grab', name:'Grab', hints:['Grab on the ski, not on boot, binding or knee','Held throughout the majority of the trick (missed or short grab counts negatively)','Boning or tweaking shows extra grab control; the free hand also affects execution']},
+    {k:'grab', name:'Grab', hints:[GRAB_ON,'Held throughout the majority of the trick (missed or short grab counts negatively)','Boning or tweaking shows extra grab control; the free hand also affects execution']},
     {k:'landing', name:'Landing', hints:['Lands high on the wall, near or at the lip','Lands on the balls of the feet or lightly on edge, no other contact with the snow','No hand drag, butt check, backseat landing or washout']},
     {k:'amplitude', name:'Amplitude', hints:['Vertical height above the lip','Keeps amplitude from hit to hit (losing height counts negatively)','Distance down the pipe in proportion to the height']},
   ],
