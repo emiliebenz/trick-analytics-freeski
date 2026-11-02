@@ -191,6 +191,7 @@ textarea{min-height:64px;resize:vertical}
 .bar.thin{height:5px;margin-top:4px}.bar.thin i{display:block;height:100%;background:#396FA8;border-radius:3px}
 /* Spinnennetz im Assessment */
 .radars{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:24px;margin-top:8px}
+.radars.one{grid-template-columns:1fr;justify-items:center}.radars.one .radar{width:100%;max-width:560px}
 @media (max-width:768px){.radars{grid-template-columns:1fr}}
 .radar{text-align:center}
 .radar svg{width:100%;max-width:520px;height:auto}
@@ -699,6 +700,10 @@ let LANG = (() => {
 })();
 document.documentElement.lang = LANG;
 const I18N = {
+  'Rotation per direction':['Rotation pro Drehrichtung','Rotation par sens','Rotazione per direzione'],
+  'Line = highest learned rotation per direction':['Linie = höchste gelernte Rotation pro Richtung','Ligne = rotation apprise la plus haute par sens','Linea = rotazione imparata più alta per direzione'],
+  'Tap a point for the trick':['Punkt antippen für den Trick','Touche un point pour le trick','Tocca un punto per il trick'],
+  'No learned spins yet: as soon as tricks are entered as learned, the lines appear here.':['Noch keine gelernten Rotationen: Sobald Tricks als gelernt erfasst sind, erscheinen hier die Linien.','Pas encore de rotations apprises : dès que des tricks sont saisis comme appris, les lignes apparaissent ici.','Ancora nessuna rotazione imparata: appena i trick sono registrati come imparati, qui appaiono le linee.'],
   '(info)':['(Info)','(info)','(info)'],
   '«All levels» (T1–T4 together) is shown for information only and does not count for the ranking':['«Alle Stufen» (T1–T4 zusammen) ist nur zur Info und zählt nicht für die Rangierung','«Tous les niveaux» (T1–T4 ensemble) est indiqué à titre d’information et ne compte pas pour le classement','«Tutti i livelli» (T1–T4 insieme) è solo informativo e non conta per la classifica'],
   'All levels T1–T4 together':['Alle Stufen T1–T4 zusammen','Tous les niveaux T1–T4 ensemble','Tutti i livelli T1–T4 insieme'],
@@ -1073,6 +1078,7 @@ const I18N_DE = {
 };
 // Texte mit Zahlen/Namen
 const I18N_PAT = [
+  [/^180 inside · (\d+) outside$/, (m, i) => [`180 innen · ${m[1]} aussen`, `180 au centre · ${m[1]} à l’extérieur`, `180 al centro · ${m[1]} all’esterno`][i]],
   [/^Your level (T\d)$/, (m, i) => `${['Deine Stufe','Ton niveau','Il tuo livello'][i]} ${m[1]}`],
   [/^Show videos \((\d+)\)$/, (m, i) => [`Videos anzeigen (${m[1]})`, `Afficher les vidéos (${m[1]})`, `Mostra video (${m[1]})`][i]],
   [/^Delete (\d+) videos$/, (m, i) => [`${m[1]} Videos löschen`, `Supprimer ${m[1]} vidéos`, `Elimina ${m[1]} video`][i]],
@@ -2830,92 +2836,73 @@ function asList(items, emptyMsg){
     return `${title}<div class="dir-group">${bar}${groups[d].map(asRow).join('')}</div>`;
   }).join('');
 }
-// Spinnennetz (Emilie 2.11.2026): Ringe = Stufen (T1 innen, T4 aussen), Sektoren = Bereiche des Skills-Checks,
-// Punkte = jede Vorgabe der Stufe. Gefüllt = aus dem Assessment gelernt, Fläche = wie weit die Athlet:in pro Bereich ist.
-// Bereiche im Netz. Rails (Emilie 2.11.2026): pro Vorgabe nach Trick, nicht nach Abschnitt (die Abschnitte heissen
-// auf jeder Stufe anders). Spin on UND Spin out im selben Trick (inkl. Pretzel) = eigener Bereich.
-const RAIL_ORDER = ['Slides', 'Spin on', 'Spin on & out', 'Spin out', 'Swaps'];
-const railCat = text => /pretzel|\d+\s+on\s+\d+\s+out/i.test(text) ? 'Spin on & out'
-  : /swap|fed\b|britney/i.test(text) ? 'Swaps'
-  : /\d+\s+out|spin\/flip out|flip\/cork out|spin out/i.test(text) ? 'Spin out'
-  : /\d+\s+(on|in)\b/i.test(text) ? 'Spin on' : 'Slides';
-const RADAR_CAT = {
-  Jump: t => t,
-  Halfpipe: t => t==='Focus' ? 'Amplitude' : t,
-  Rail: (t, text) => railCat(text),
-};
-const RADAR_COL = {done:'#3E8E5A', partial:'#8CC59E', pending:'#8CC59E', goal:'#C96A1F', open:'#D9D3D0'};
-function radarSvg(ath, disc){
-  const ents = entriesOf(ath.id), LV = ['T1','T2','T3','T4'];
-  const evs = LV.map(lv => evaluate(disc, ath.gender, lv, ents));
-  if (evs.some(ev => !ev)) return '';
-  // Vorgaben pro Bereich und Stufe
-  const cats = [], by = {};
-  evs.forEach((ev, li) => ev.def.sections.forEach(sec => sec.slots.forEach(sl => {
-    const o = ev.out[sl.id]; if (!o || !o.applicable) return;
-    const c = RADAR_CAT[disc](sec.title, sl.text);
-    if (!by[c]){ by[c] = [[], [], [], []]; cats.push(c); }
-    by[c][li].push({text:sl.text, state:o.state});
-  })));
-  if (cats.length < 2) return '';
-  if (disc==='Rail') cats.sort((a, b) => RAIL_ORDER.indexOf(a) - RAIL_ORDER.indexOf(b));
-  const learnedSt = st => st==='done' || st==='partial' || st==='pending';
-  const W = 440, C = W / 2, R0 = 26, R = 168, rr = i => R0 + (R - R0) * i / 4;   // Ring i: von rr(i) bis rr(i+1)
-  const span = 2 * Math.PI / cats.length, top = -Math.PI / 2, gap = .012;
-  const pt = (r, a) => [C + r * Math.cos(a), C + r * Math.sin(a)];
-  const f1 = v => v.toFixed(1);
-  const cell = (r0, r1, a0, a1) => { const [x0, y0] = pt(r1, a0), [x1, y1] = pt(r1, a1), [x2, y2] = pt(r0, a1), [x3, y3] = pt(r0, a0), big = a1 - a0 > Math.PI ? 1 : 0;
-    return `M${f1(x0)},${f1(y0)} A${r1},${r1} 0 ${big} 1 ${f1(x1)},${f1(y1)} L${f1(x2)},${f1(y2)} A${r0},${r0} 0 ${big} 0 ${f1(x3)},${f1(y3)}Z`; };
-  let g = '';
-  // Felder: Bereich × Stufe, Farbe nach Anteil gelernt
-  cats.forEach((c, k) => {
-    const a0 = top + span * k + gap, a1 = top + span * (k + 1) - gap;
-    by[c].forEach((sl, i) => {
-      const n = sl.length, l = sl.filter(x => learnedSt(x.state)).length, d = sl.filter(x => x.state==='done').length, goal = sl.some(x => x.state==='goal');
-      const fill = !n ? '#FAF7F6' : l ? `rgba(62,142,90,${(.22 + .68 * l / n).toFixed(2)})` : goal ? 'rgba(201,106,31,.16)' : '#EFEAE8';
-      const tip = n ? `${LV[i]} · ${c}: ${l}/${n} ${trString('learned')}${d ? ` · ${d} ${trString('confirmed')}` : ''}\n` + sl.map(x => (learnedSt(x.state) ? '✓ ' : x.state==='goal' ? '◦ ' : '· ') + x.text).join('\n') : `${LV[i]} · ${c}: –`;
-      g += `<path d="${cell(rr(i) + 1, rr(i + 1) - 1, a0, a1)}" fill="${fill}"${i===3 && n ? ' stroke="rgba(226,0,26,.35)" stroke-width="1"' : ''}${n ? ' style="cursor:pointer" onclick="radarTip(this)"' : ''}><title>${esc(tip)}</title></path>`;
-      if (n && l){ const [tx, ty] = pt((rr(i) + rr(i + 1)) / 2, (a0 + a1) / 2);
-        g += `<text x="${f1(tx)}" y="${f1(ty + 4)}" font-size="11" font-weight="700" text-anchor="middle" fill="${l / n > .55 ? '#fff' : '#6B6B70'}" pointer-events="none">${l}/${n}</text>`; }
-    });
-  });
-  // Netz: pro Bereich so weit, wie die Stufen von innen her gelernt sind
-  const reach = cats.map(c => { let r = 0;
-    if (!by[c].flat().some(x => learnedSt(x.state))) return 0;
-    for (let i = 0; i < 4; i++){ const sl = by[c][i]; if (!sl.length){ r = i + 1; continue; }
-      const f = sl.filter(x => learnedSt(x.state)).length / sl.length; r = i + f; if (f < 1) break; }
-    return r; });
-  if (reach.some(r => r > 0)){
-    const P = cats.map((c, k) => pt(R0 + (R - R0) * reach[k] / 4, top + span * (k + .5)));
-    g += `<polygon points="${P.map(p => p.map(f1).join(',')).join(' ')}" fill="rgba(58,58,58,.06)" stroke="#3A3A3A" stroke-width="2" stroke-linejoin="round" pointer-events="none"/>`;
-    g += P.map(([x, y]) => `<circle cx="${f1(x)}" cy="${f1(y)}" r="3.5" fill="#3A3A3A" pointer-events="none"/>`).join('');
+// Netz nach Drehrichtung (Emilie 2.11.2026): vier Achsen Left / Right / Switch Left / Switch Right
+// (Snowboard: Frontside / Backside / Switch …), 180 innen, höchste Rotation aussen.
+// Eine Linie pro Disziplin im Fokus = höchste gelernte Rotation in dieser Richtung (aus dem Assessment).
+const DIR_ORDER = ['L', 'R', 'SR', 'SL'];   // oben, rechts, unten, links
+const RADAR_LINES = {Jump:'#E2001A', Rail:'#148FA0', Halfpipe:'#3A3A3A'};
+const degOf = v => +((/(\d{3,4})/.exec(String(v || '')) || [])[1] || 0);
+// Richtung und Rotation eines Tricks (null = keine Rotation, z.B. Flip ohne Spin oder Slide)
+function dirRot(disc, t){
+  if (!t) return null;
+  if (disc==='Jump'){ const r = +t.rot || 0; return D4.includes(t.dir) && r ? {dir:t.dir, rot:r} : null; }
+  if (disc==='Halfpipe'){ const r = +t.rot || 0; return t.kind!=='basic' && ['L','R'].includes(t.dir) && r ? {dir:(t.sw ? 'S' : '') + t.dir, rot:r} : null; }
+  if (SB){   // Snowboard-Rail: «Switch BS 270», «FS 450 out»
+    const sp = [t.inspin, t.outspin].filter(Boolean), r = Math.max(0, ...sp.map(degOf));
+    const ref = t.inspin || t.outspin || ''; if (!r) return null;
+    const side = /\bBS\b/.test(ref) ? 'R' : 'L';
+    return {dir:(/switch/i.test(ref) ? 'S' : '') + side, rot:r};
   }
-  // Stufen-Beschriftung oben und Bereichsnamen mit Anzahl
-  LV.forEach((lv, i) => { const [x, y] = pt((rr(i) + rr(i + 1)) / 2, top); g += `<text x="${f1(x)}" y="${f1(y + 4)}" font-size="11" font-weight="800" text-anchor="middle" fill="#93a7bb" paint-order="stroke" stroke="#fff" stroke-width="4" pointer-events="none">${lv}</text>`; });
-  cats.forEach((c, k) => {
-    const am = top + span * (k + .5), [lx, ly] = pt(R + 18, am), all = by[c].flat();
-    const anchor = Math.abs(Math.cos(am)) < .25 ? 'middle' : Math.cos(am) > 0 ? 'start' : 'end';
-    const dy = Math.sin(am) > .5 ? 12 : Math.sin(am) < -.5 ? -14 : -2;
-    g += `<text x="${f1(lx)}" y="${f1(ly + dy)}" font-size="15" font-weight="800" fill="#3A3A3A" text-anchor="${anchor}">${esc(c)}<tspan x="${f1(lx)}" dy="17" font-size="12" font-weight="600" fill="#93a7bb">${all.filter(x => learnedSt(x.state)).length} / ${all.length}</tspan></text>`;
-  });
-  const nAll = cats.reduce((a, c) => a + by[c].flat().length, 0), nL = cats.reduce((a, c) => a + by[c].flat().filter(x => learnedSt(x.state)).length, 0);
-  return `<div class="radar"><h4>${esc(DISC_LABEL[disc])} <span class="muted">· ${nL} / ${nAll}</span></h4>
-    <svg viewBox="-95 -30 ${W + 190} ${W + 70}" role="img" aria-label="Skills-Check ${esc(DISC_LABEL[disc])} T1–T4">${g}</svg></div>`;
+  const r = Math.max(degOf(t.on), degOf(t.out), degOf(t.swap)); if (!r || !['L','R'].includes(t.side)) return null;
+  return {dir:(t.approach==='S' ? 'S' : '') + t.side, rot:r};
 }
-// Feld antippen: Tricks dieses Bereichs und dieser Stufe anzeigen (Tooltips gibt es auf dem Handy nicht)
-function radarTip(el){
-  const [head, ...rows] = (el.querySelector('title')?.textContent || '').split('\n');
-  modal(`<h3>${esc(head)}</h3><ul class="hints" style="margin-top:10px">${rows.map(r => `<li>${esc(r)}</li>`).join('')}</ul>
-    <div class="btnrow" style="margin-top:12px"><button class="btn ghost" onclick="closeModal()">Close</button></div>`);
-}
+const learnedEntry = e => e.status!=='goal' || e.trick?.elite_status==='mastered';
 function radarCard(ath){
-  if (!HAS_SC || !ath?.gender) return '';
+  if (!ath) return '';
   const discs = focusDiscs(ath, ath.level || 'T4');
-  const charts = discs.map(d => radarSvg(ath, d)).filter(Boolean);
-  if (!charts.length) return '';
-  return `<div class="card"><h2>Skills-Check overview <span class="muted" style="letter-spacing:0;font-weight:600">T1 inside · T4 outside</span></h2>
-    <div class="radars">${charts.join('')}</div>
-    <div class="radar-legend"><span><i style="background:rgba(62,142,90,.9)"></i>much learned</span><span><i style="background:rgba(62,142,90,.3)"></i>some learned</span><span><i style="background:rgba(201,106,31,.3)"></i>goal set</span><span><i style="background:#EFEAE8"></i>not yet</span><span><i style="background:#3A3A3A;width:14px;height:3px;border-radius:2px"></i>how far out per area</span><span>Tap a field for the tricks</span></div></div>`;
+  const ents = entriesOf(ath.id).filter(learnedEntry);
+  // höchste Rotation pro Disziplin und Richtung (+ Trickname für die Anzeige)
+  const best = {};
+  for (const d of discs){ best[d] = {};
+    for (const e of ents.filter(x => x.discipline===d)){ const dr = dirRot(d, e.trick); if (!dr) continue;
+      if (!best[d][dr.dir] || dr.rot > best[d][dr.dir].rot) best[d][dr.dir] = {rot:dr.rot, label:e.label}; } }
+  const any = discs.some(d => Object.keys(best[d]).length);
+  const top = Math.max(0, ...discs.flatMap(d => Object.values(best[d]).map(b => b.rot)));
+  const MAX = Math.max(ath.gender==='W' ? 1260 : 1800, Math.ceil(top / 180) * 180);
+  const W = 460, C = W / 2, R0 = 22, R = 175, rad = v => R0 + (R - R0) * (v - 180) / (MAX - 180), f1 = v => v.toFixed(1);
+  const ang = k => -Math.PI / 2 + k * Math.PI / 2, pt = (r, a) => [C + r * Math.cos(a), C + r * Math.sin(a)];
+  let g = '';
+  // Ringe alle 180°, jeder zweite (360, 720, …) beschriftet
+  for (let v = 180; v <= MAX; v += 180){
+    const strong = (v % 360 === 0 && MAX - v >= 360) || v === MAX;
+    g += `<circle cx="${C}" cy="${C}" r="${f1(rad(v))}" fill="${v===MAX ? 'rgba(226,0,26,.03)' : 'none'}" stroke="${v===MAX ? '#E2001A' : strong ? '#DDD6D3' : '#EFEAE8'}" stroke-width="${v===MAX ? 1.5 : 1}"/>`;
+    if (strong || v === 180){ const [x, y] = pt(rad(v), -Math.PI / 4);
+      g += `<text x="${f1(x + 3)}" y="${f1(y - 3)}" font-size="13" font-weight="700" fill="#93a7bb" paint-order="stroke" stroke="#fff" stroke-width="3">${v}</text>`; }
+  }
+  // Achsen + Richtungsnamen
+  DIR_ORDER.forEach((d, k) => {
+    const [x, y] = pt(R + 4, ang(k)), [lx, ly] = pt(R + 22, ang(k));
+    g += `<line x1="${C}" y1="${C}" x2="${f1(x)}" y2="${f1(y)}" stroke="#DDD6D3"/>`;
+    const anchor = k===1 ? 'start' : k===3 ? 'end' : 'middle';
+    g += `<text x="${f1(lx)}" y="${f1(ly + (k===0 ? -2 : k===2 ? 12 : 5))}" font-size="19" font-weight="800" fill="#3A3A3A" text-anchor="${anchor}">${esc(DIRN[d])}</text>`;
+  });
+  // Linien pro Disziplin
+  for (const d of discs){
+    const col = RADAR_LINES[d], pts = DIR_ORDER.map((dir, k) => { const b = best[d][dir]; return {b, p:pt(b ? rad(b.rot) : 0, ang(k))}; });
+    if (!pts.some(x => x.b)) continue;
+    g += `<polygon points="${pts.map(x => x.p.map(f1).join(',')).join(' ')}" fill="${col}" fill-opacity=".10" stroke="${col}" stroke-width="2.5" stroke-linejoin="round"/>`;
+    g += pts.filter(x => x.b).map(x => `<circle cx="${f1(x.p[0])}" cy="${f1(x.p[1])}" r="5.5" fill="${col}" stroke="#fff" stroke-width="2" style="cursor:pointer" onclick="radarTip(this)"><title>${esc(DISC_LABEL[d])}: ${esc(x.b.label)} (${x.b.rot})</title></circle>`).join('');
+  }
+  const legend = discs.map(d => `<span><i style="background:${RADAR_LINES[d]}"></i>${esc(DISC_LABEL[d])}</span>`).join('');
+  return `<div class="card"><h2>Rotation per direction <span class="muted" style="letter-spacing:0;font-weight:600">180 inside · ${MAX} outside</span></h2>
+    ${any ? '' : '<div class="tiny muted" style="margin:6px 0">No learned spins yet: as soon as tricks are entered as learned, the lines appear here.</div>'}
+    <div class="radars one"><div class="radar"><svg viewBox="-110 -30 ${W + 220} ${W + 60}" role="img" aria-label="Rotation per direction">${g}</svg></div></div>
+    <div class="radar-legend">${legend}<span>Line = highest learned rotation per direction</span><span>Tap a point for the trick</span></div></div>`;
+}
+// Punkt antippen: Trick anzeigen (Tooltips gibt es auf dem Handy nicht)
+function radarTip(el){
+  const t = el.querySelector('title')?.textContent || '';
+  modal(`<h3>${esc(t)}</h3><div class="btnrow" style="margin-top:12px"><button class="btn ghost" onclick="closeModal()">Close</button></div>`);
 }
 function renderAssessment(){
   const root = $('#page-assessment');
