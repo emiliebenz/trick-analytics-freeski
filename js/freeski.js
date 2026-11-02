@@ -3835,8 +3835,15 @@ function renderMonTeam() {
   const byAth = {};
   rows.forEach(t => { (byAth[t.athlet] = byAth[t.athlet] || []).push(t); });
   _monAthletes = SESS_ALL_ATHLETES.map(a => a.name);
-  const urteil = srTeamUrteilHtml();          // Chip «Coach judgement» (kern.js): Übersicht aller Athlet:innen statt der Karten
-  if (urteil !== null) { root.innerHTML = `<div class="card polster-20">${monHeaderHtml('Team Monitoring', 'Coach judgement · ' + sbMonPeriodLabel(), false)}${urteil}</div>`; return; }
+  // Chip «Athlete overview» (kern.js): Übersicht aller Athlet:innen statt der Karten; Training hier, weil QoE sportartspezifisch
+  const urteil = srTeamUrteilHtml(Object.assign(name => {
+    const ar = byAth[name] || [], att = ar.length, qoe = fsMonAvgQoe(ar);
+    if (!att) return {html: '<span class="gedaempft">no attempts</span>', txt: '0 attempts'};
+    const ready = sbMonTrickAgg(ar).filter(tr => sbMonStatusKey(tr.att, tr.qoe) === 'ready').length;
+    const col = att < 5 || qoe === null ? '#5c5c61' : qoe >= 70 ? '#3E8E5A' : qoe >= 50 ? '#C96A1F' : '#e2001a';
+    return {html: `<b style="color:${col};">${qoe !== null ? qoe + '%' : '–'}</b> QoE<span class="gedaempft"> · ${att} att. · ${ready} ready</span>`, txt: `${att} attempts, Ø QoE ${qoe !== null ? qoe + '%' : '–'}, ${ready} tricks ready`};
+  }, {lab: 'Ø QoE'}));
+  if (urteil !== null) { root.innerHTML = `<div class="card polster-20">${monHeaderHtml('Team Monitoring', 'Athlete overview · ' + sbMonPeriodLabel(), false)}${urteil}</div>`; return; }
   const sections = SESS_SQUADS.map(sq => {
     const aths = SESS_ALL_ATHLETES.filter(a => a.squad === sq.key);
     if (!aths.length) return '';

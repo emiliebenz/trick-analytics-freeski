@@ -4361,8 +4361,16 @@ function renderMonTeam() {
   const byAth = {};
   rows.forEach(t => { (byAth[t.athlet] = byAth[t.athlet] || []).push(t); });
   _monAthletes = SESS_ALL_ATHLETES.map(a => a.name);
-  const urteil = srTeamUrteilHtml();          // Chip «Coach judgement» (kern.js): Übersicht aller Athlet:innen statt der Karten
-  if (urteil !== null) { root.innerHTML = `<div class="card polster-20">${monHeaderHtml('Team Monitoring', 'Coach judgement · ' + sbMonPeriodLabel(), false)}${urteil}</div>`; return; }
+  // Chip «Athlete overview» (kern.js): Übersicht aller Athlet:innen statt der Karten; Training hier, weil Stomp-Quote sportartspezifisch
+  const urteil = srTeamUrteilHtml(Object.assign(name => {
+    const ar = byAth[name] || [], att = ar.length;
+    if (!att) return {html: '<span class="gedaempft">no attempts</span>', txt: '0 attempts'};
+    const r = Math.round(ar.filter(t => sbMonOutcome(t) === 'stomped').length / att * 100);
+    const ready = sbMonTrickAgg(ar).filter(tr => sbMonStatusKey(tr.att, tr.stomped) === 'ready').length;
+    const col = att < 5 ? '#5c5c61' : r >= 70 ? '#3E8E5A' : r >= 40 ? '#C96A1F' : '#e2001a';
+    return {html: `<b style="color:${col};">${r}%</b> stomp<span class="gedaempft"> · ${att} att. · ${ready} ready</span>`, txt: `${att} attempts, ${r}% stomped, ${ready} tricks ready`};
+  }, {lab: 'stomp rate'}));
+  if (urteil !== null) { root.innerHTML = `<div class="card polster-20">${monHeaderHtml('Team Monitoring', 'Athlete overview · ' + sbMonPeriodLabel(), false)}${urteil}</div>`; return; }
   const sections = SESS_SQUADS.map(sq => {
     const aths = SESS_ALL_ATHLETES.filter(a => a.squad === sq.key);
     if (!aths.length) return '';

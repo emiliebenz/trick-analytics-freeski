@@ -1206,7 +1206,9 @@ function sbMonBack() {
   sbMonView = sbMonView.level === 'trick'
     ? {level:'athlete', athlete:sbMonView.athlete, trick:null}
     : {level:'team', athlete:null, trick:null};
-  if (sbMonView.level === 'team' && sbMonTyp === SR_TAB) { sbMonTyp = _srZurueck || ''; _srZurueck = null; }     // «Comp overview» gibt es nur pro Athlet:in; aus der Coach-judgement-Übersicht geöffnet → dorthin zurück
+  if (sbMonView.level === 'team') {               // aus der Athlete overview geöffnet → dorthin zurück; «Comp overview» gibt es nur pro Athlet:in
+    if (_srZurueck) { sbMonTyp = _srZurueck; _srZurueck = null; } else if (sbMonTyp === SR_TAB) sbMonTyp = '';
+  }
   renderMonitoring();
 }
 
@@ -1862,7 +1864,7 @@ function srTeamChip(name) {
 // ── Athlet:innen-Ebene ──
 // Tab «Comp overview» neben den Typ-Filtern (nur auf der Athlet:innen-Seite); roter Punkt, solange Ziel und Plan fehlen
 function srChipHtml() {
-  if (sbMonView.level === 'team') return srTeamChipHtml();     // Team-Ebene: Chip «Coach judgement»
+  if (sbMonView.level === 'team') return srTeamChipHtml();     // Team-Ebene: Chip «Athlete overview»
   if (sbMonView.level !== 'athlete') return '';
   srEnsure();
   const name = sbMonView.athlete;
@@ -2564,57 +2566,122 @@ function srUrteilHtml(name, ks) {
     <div style="margin-top:8px;">${srTextFeldHtml(name, ks, feldK, `Your comment (round ${runde})`, 'What the ratings rest on, e.g. last three sessions, Laax World Cup', 2)}</div>
     ${kom ? `<div class="sr-ut-kom">${kom}</div>` : ''}
     ${srVerlaufUrteilHtml(name, ks, runde)}
-    <details class="sr-info"><summary>How to read</summary><div class="sr-fuss">${srListe(['<b>Annex B</b> of the selection rules: several coaches rate each athlete (multi-eye principle), three times per season.', '<b>Scale</b> 1 to 10 as on the coach assessment sheet: 1 = very poor, 10 = excellent (hover a number to see the band). Criteria: learning curve, rail, kicker, transition / halfpipe, mental attitude.', '<b>Ø</b> per criterion = mean of the coaches who rated in this round. <b>Overall</b> = mean of the five criteria per coach, then across coaches. Click your rating again to remove it.', '<b>Who:</b> every rating and comment is stored under the login e-mail of the coach; the history shows who entered what and when.', 'All athletes at once: Monitoring, team level, tab «Coach judgement», with a CSV export of the sheet.', 'The selection committee decides; the ratings are its basis, not a threshold.'])}</div></details>
+    <details class="sr-info"><summary>How to read</summary><div class="sr-fuss">${srListe(['<b>Annex B</b> of the selection rules: several coaches rate each athlete (multi-eye principle), three times per season.', '<b>Scale</b> 1 to 10 as on the coach assessment sheet: 1 = very poor, 10 = excellent (hover a number to see the band). Criteria: learning curve, rail, kicker, transition / halfpipe, mental attitude.', '<b>Ø</b> per criterion = mean of the coaches who rated in this round. <b>Overall</b> = mean of the five criteria per coach, then across coaches. Click your rating again to remove it.', '<b>Who:</b> every rating and comment is stored under the login e-mail of the coach; the history shows who entered what and when.', 'All athletes at once: Monitoring, team level, tab «Athlete overview» → «Coach judgement», with a CSV export of the sheet.', 'The selection committee decides; the ratings are its basis, not a threshold.'])}</div></details>
   </details>`;
 }
 
-// ─── Trainerurteil: Übersicht aller Athlet:innen (Team-Ebene, Chip «Coach judgement») ───
-// Eine Zeile pro Athlet:in mit Selektionsdaten (nur dort fliesst das Trainerurteil ein), Ø je Kriterium mit Anzahl Coaches,
-// Gesamt-Mittel, eigene offene Bewertungen; Fusszeile wie die Pivot-Tabelle des Blatts; CSV mit einer Zeile pro Coach.
+// ─── Athlete overview (Team-Ebene, Chip «Athlete overview») ───
+// Eine Zeile pro Athlet:in mit allen Daten (Wunsch Emilie 2.11.2026): Training (vom Modul geliefert, weil Stomp-Quote bzw. QoE
+// sportartspezifisch sind), Wettkampf (FIS, season_review.uebersicht), Kader und Selektionsstand (selection_check), Coach judgement.
+// Umschalter «All data» / «Coach judgement»: die zweite Ansicht zeigt die fünf Kriterien einzeln (nur Athlet:innen mit Selektionsdaten,
+// weil das Urteil nur dort in die Selektion einfliesst). CSV für beide Ansichten.
+let _srOvAnsicht = 'alle', _srTrain = null;
 function srKs(name) { return srNaechste(srSaisonen(name)[0] || SR_JETZT); }      // Kaderjahr, für das die Bewertung gilt
 function srTeamChipHtml() {
+  if (!srIch()) return '';
   srEnsure();
-  if (!_srData || _srData.fehlt || !srIch()) return '';
-  if (!CFG.athletes.some(a => srSelections(a.name)[srKs(a.name)])) return '';
-  return `<button class="sr-tabchip ${sbMonTyp === SR_UT_TAB ? 'on' : ''}" onclick="sbMonSetTyp('${SR_UT_TAB}')">Coach judgement</button>`;
+  return `<button class="sr-tabchip ${sbMonTyp === SR_UT_TAB ? 'on' : ''}" onclick="sbMonSetTyp('${SR_UT_TAB}')">Athlete overview</button>`;
 }
-function srTeamUrteilZeilen(runde) {
+function srSetOvAnsicht(a) { _srOvAnsicht = a; renderMonitoring(); }
+// Wettkampf der gewählten Saison; ohne Auswertung die jüngste frühere Saison mit Übersicht (dann mit Saison-Label)
+function srOvWettkampf(name) {
+  const saison = srSaisonen(name)[0] || SR_JETZT, revs = srReviews(name);
+  let s = revs[saison] && revs[saison].uebersicht ? saison : Object.keys(revs).filter(x => x < saison && revs[x].uebersicht).sort().pop();
+  const U = s ? revs[s].uebersicht : null;
+  if (!U || !U.disz) return {html: '<span class="gedaempft">–</span>', txt: '', saison: null};
+  const teile = Object.entries(U.disz).map(([k, d]) => ({k, d, txt: `${k} ${d.best_rank || '–'}${d.podeste ? ` · ${d.podeste}× podium` : d.finals ? ` · ${d.finals} final${d.finals === 1 ? '' : 's'}` : ''} (${d.n_events} ev.)`}));
+  const html = teile.map(t => `<div><b>${t.k}</b> ${srEsc(t.d.best_rank || '–')}${t.d.podeste ? ` <b style="color:${SR_GUT};">${t.d.podeste}× podium</b>` : t.d.finals ? ` <span>${t.d.finals} final${t.d.finals === 1 ? '' : 's'}</span>` : ''}<span class="gedaempft"> ${t.d.n_events} ev.</span></div>`).join('')
+    + (s !== saison ? `<div class="gedaempft">season ${s}</div>` : '');
+  return {html, txt: teile.map(t => t.txt).join('; ') + (s !== saison ? ` [${s}]` : ''), saison: s};
+}
+// höchste Stufe mit Met, sonst On track; sonst offen (bzw. nur über das Trainerurteil erreichbar)
+function srOvSelektion(name, S) {
+  if (!S || !S.stufen) return {html: '<span class="gedaempft">–</span>', txt: ''};
+  const st = S.stufen.filter(s => s.stufe !== 'Rookie' || srIstDvlp(name));
+  const best = st.find(s => s.status === 'met') || st.find(s => s.status === 'on_track');
+  if (best) { const c = SR_STATUS[best.status]; return {html: `${srEsc(best.name)} <b style="color:${c.color};">${c.label}</b>`, txt: `${best.name} ${c.label}`}; }
+  const coach = st.find(s => s.status === 'coach');
+  return coach ? {html: `<span class="gedaempft">open · ${srEsc(coach.name)} by coach judgement</span>`, txt: `open; ${coach.name} by coach judgement`}
+    : {html: '<span class="gedaempft">open</span>', txt: 'open'};
+}
+function srTeamUrteilZeilen(runde, alle) {
   const out = [];
   CFG.squads.forEach(sq => CFG.athletes.filter(a => a.squad === sq.key).forEach(a => {
     const ks = srKs(a.name), S = srSelections(a.name)[ks];
-    if (!S) return;
+    if (!S && !alle) return;
     const U = srUrteile(a.name, ks, runde);
-    out.push({name: a.name, squad: sq, ks, kader: S.kader ? (SR_KADER[S.kader] || S.kader) : '', U, G: srGesamt(U.werte)});
+    out.push({name: a.name, squad: sq, ks, S, kader: S && S.kader ? (SR_KADER[S.kader] || S.kader) : '', U, G: srGesamt(U.werte)});
   }));
   return out;
 }
-// Zeile anklicken: Athlet:in mit aufgeklappter Bewertung öffnen; «Back» führt zur Übersicht zurück (sbMonBack)
-function srTeamUrteilOpen(i) { _srZurueck = SR_UT_TAB; sbMonTyp = SR_TAB; _srUrteilOffen = true; sbMonOpenAthlete(i); }
-function srTeamUrteilHtml() {
+// Zeile anklicken: Athlet:in öffnen (Überblick: Trainingsansicht; Coach judgement: Comp overview mit aufgeklapptem Urteil); «Back» zurück zur Übersicht
+function srTeamUrteilOpen(i) {
+  _srZurueck = SR_UT_TAB;
+  if (_srOvAnsicht === 'urteil') { sbMonTyp = SR_TAB; _srUrteilOffen = true; } else sbMonTyp = '';
+  sbMonOpenAthlete(i);
+}
+// train(name) → {html, txt}: Trainingskennzahlen aus dem Modul (Snowboard: Stomp-Quote, Freeski: Ø QoE)
+function srTeamUrteilHtml(train) {
   if (sbMonTyp !== SR_UT_TAB) return null;
+  _srTrain = train || null;
   srEnsure();
   if (!_srData) return '<div class="loading"><span class="spinner"></span></div>';
-  if (_srData.fehlt) return '<div class="leer-schmal">Coach judgement not available.</div>';
-  const ich = srIch(), basis = srTeamUrteilZeilen(1);
-  if (!basis.length) return '<div class="leer-schmal">No athlete in this group has selection data.</div>';
-  const runde = _srRunde || [3, 2, 1].find(r => basis.some(z => Object.keys(srUrteile(z.name, z.ks, r).werte).length)) || 1;
-  const zeilen = runde === 1 ? basis : srTeamUrteilZeilen(runde);
-  const zelle = o => { const m = srMittel(o); return m == null ? '<td><span class="gedaempft">–</span></td>' : `<td><b style="color:${srUtFarbe(m)};">${srF(m)}</b><span class="gedaempft"> ${Object.keys(o).length}</span></td>`; };
-  const rows = zeilen.map(z => {
-    const i = _monAthletes.indexOf(z.name);
-    const meine = SR_URTEIL.filter(c => (z.U.werte[c.k] || {})[ich] != null).length;
-    const coaches = new Set(Object.values(z.U.werte).flatMap(o => Object.keys(o))).size;
-    const mine = meine === SR_URTEIL.length ? '<span style="color:#3E8E5A;font-weight:700;">✓</span>' : meine ? `<span style="color:#C96A1F;font-weight:700;">${meine} of ${SR_URTEIL.length}</span>` : '<span style="color:#e2001a;font-weight:700;">open</span>';
-    return `<tr onclick="srTeamUrteilOpen(${i})"><td><b>${srEsc(z.name)}</b><span class="gedaempft"> · <span style="color:${z.squad.color};">${srEsc(z.squad.short || z.squad.label)}</span>${z.kader ? ' · ' + srEsc(z.kader) : ''}</span></td>${SR_URTEIL.map(c => zelle(z.U.werte[c.k])).join('')}<td>${z.G.mittel != null ? `<b style="color:${srUtFarbe(z.G.mittel)};">${srF(z.G.mittel)}</b>` : '<span class="gedaempft">–</span>'}</td><td>${coaches || '<span class="gedaempft">0</span>'}</td><td>${mine}</td></tr>`;
-  }).join('');
-  const mw = SR_URTEIL.map(c => srAvg(zeilen.map(z => srMittel(z.U.werte[c.k])))), gw = srAvg(zeilen.map(z => z.G.mittel));
-  const fuss = `<tr class="sr-ut-fuss"><td>Ø listed athletes</td>${mw.map(m => `<td>${m != null ? `<b>${srF(m)}</b>` : '<span class="gedaempft">–</span>'}</td>`).join('')}<td>${gw != null ? `<b>${srF(gw)}</b>` : '<span class="gedaempft">–</span>'}</td><td></td><td></td></tr>`;
+  const ich = srIch(), fehlt = _srData.fehlt;
+  const alleZ = srTeamUrteilZeilen(1, true), mitSel = alleZ.filter(z => z.S);
+  const runde = _srRunde || [3, 2, 1].find(r => mitSel.some(z => Object.keys(srUrteile(z.name, z.ks, r).werte).length)) || 1;
+  const ansicht = _srOvAnsicht === 'urteil' && mitSel.length ? 'urteil' : 'alle';
+  const zeilen = srTeamUrteilZeilen(runde, ansicht === 'alle');
+  const ks = (mitSel[0] || alleZ[0] || {}).ks || srNaechste(SR_JETZT);
+  const meinTxt = z => { const meine = SR_URTEIL.filter(c => (z.U.werte[c.k] || {})[ich] != null).length; return !z.S ? '' : meine === SR_URTEIL.length ? '<span style="color:#3E8E5A;font-weight:700;">✓</span>' : meine ? `<span style="color:#C96A1F;font-weight:700;">${meine} of ${SR_URTEIL.length}</span>` : '<span style="color:#e2001a;font-weight:700;">open</span>'; };
+  const nameZ = z => `<td><b>${srEsc(z.name)}</b><span class="gedaempft"> · <span style="color:${z.squad.color};">${srEsc(z.squad.short || z.squad.label)}</span></span></td>`;
+  const umsch = `<span class="sr-ut-runden" style="margin-left:0;">${[['alle', 'All data'], ['urteil', 'Coach judgement']].map(([k, l]) => `<button class="${ansicht === k ? 'on' : ''}" ${k === 'urteil' && !mitSel.length ? 'disabled title="No athlete with selection data"' : ''} onclick="srSetOvAnsicht('${k}')">${l}</button>`).join('')}</span>`;
+  const runden = `<span class="sr-ut-runden">${[1, 2, 3].map(r => `<button class="${r === runde ? 'on' : ''}" onclick="srSetRunde(${r})">Round ${r}</button>`).join('')}</span>`;
+  let tab, lesen;
+  if (ansicht === 'alle') {
+    const rows = zeilen.map(z => {
+      const i = _monAthletes.indexOf(z.name), t = train ? train(z.name) : null, w = fehlt ? null : srOvWettkampf(z.name), sel = srOvSelektion(z.name, z.S);
+      const coaches = new Set(Object.values(z.U.werte).flatMap(o => Object.keys(o))).size;
+      const cj = !z.S ? '<span class="gedaempft">–</span>' : z.G.mittel != null ? `<b style="color:${srUtFarbe(z.G.mittel)};">${srF(z.G.mittel)}</b><span class="gedaempft"> ${coaches} coach${coaches === 1 ? '' : 'es'}</span>` : '<span class="gedaempft">not rated</span>';
+      return `<tr onclick="srTeamUrteilOpen(${i})">${nameZ(z)}<td>${t ? t.html : '–'}</td><td>${w ? w.html : '<span class="gedaempft">–</span>'}</td><td>${z.kader ? srEsc(z.kader) : '<span class="gedaempft">–</span>'}</td><td>${sel.html}</td><td>${cj}</td><td>${meinTxt(z)}</td></tr>`;
+    }).join('');
+    tab = `<table class="sr-karriere sr-ut-tab"><thead><tr><th>Athlete</th><th>Training</th><th>Competition (FIS)</th><th>Squad</th><th>Selection ${srEsc(ks)}</th><th>Coach judgement</th><th>You</th></tr></thead><tbody>${rows}</tbody></table>`;
+    lesen = ['<b>Training</b> = the period and filters chosen above: attempts, ' + (train && train.lab ? train.lab : 'success rate') + ' and the number of tricks with status Ready.', '<b>Competition</b> = FIS events of the chosen season per discipline: best rank, podium places or finals, number of events. Without results yet, the latest earlier season is shown with its label.', '<b>Selection</b> = the highest squad level the FIS results meet (Met) or are on track for; «by coach judgement» = that level depends on the coach judgement (Annex B).', '<b>Coach judgement</b> = overall mean of the chosen round (five criteria, scale 1 to 10). <b>You</b> = your own ratings: ✓ complete, open = none yet.', 'Click a row to open the athlete. «Coach judgement» above shows the five criteria one by one.'];
+  } else {
+    const zelle = o => { const m = srMittel(o); return m == null ? '<td><span class="gedaempft">–</span></td>' : `<td><b style="color:${srUtFarbe(m)};">${srF(m)}</b><span class="gedaempft"> ${Object.keys(o).length}</span></td>`; };
+    const rows = zeilen.map(z => {
+      const i = _monAthletes.indexOf(z.name), coaches = new Set(Object.values(z.U.werte).flatMap(o => Object.keys(o))).size;
+      return `<tr onclick="srTeamUrteilOpen(${i})"><td><b>${srEsc(z.name)}</b><span class="gedaempft"> · <span style="color:${z.squad.color};">${srEsc(z.squad.short || z.squad.label)}</span>${z.kader ? ' · ' + srEsc(z.kader) : ''}</span></td>${SR_URTEIL.map(c => zelle(z.U.werte[c.k])).join('')}<td>${z.G.mittel != null ? `<b style="color:${srUtFarbe(z.G.mittel)};">${srF(z.G.mittel)}</b>` : '<span class="gedaempft">–</span>'}</td><td>${coaches || '<span class="gedaempft">0</span>'}</td><td>${meinTxt(z)}</td></tr>`;
+    }).join('');
+    const mw = SR_URTEIL.map(c => srAvg(zeilen.map(z => srMittel(z.U.werte[c.k])))), gw = srAvg(zeilen.map(z => z.G.mittel));
+    const fuss = `<tr class="sr-ut-fuss"><td>Ø listed athletes</td>${mw.map(m => `<td>${m != null ? `<b>${srF(m)}</b>` : '<span class="gedaempft">–</span>'}</td>`).join('')}<td>${gw != null ? `<b>${srF(gw)}</b>` : '<span class="gedaempft">–</span>'}</td><td></td><td></td></tr>`;
+    tab = `<table class="sr-karriere sr-ut-tab"><thead><tr><th>Athlete</th>${SR_URTEIL.map(c => `<th title="${srEsc(c.frage)}">${srEsc(c.lab)}</th>`).join('')}<th>Overall</th><th>Coaches</th><th>You</th></tr></thead><tbody>${rows}${fuss}</tbody></table>`;
+    lesen = ['<b>Scale</b> 1 to 10: 1 = very poor, 10 = excellent. <b>Overall</b> = mean of the five criteria per coach, then across coaches.', '<b>Coaches</b> = how many coaches rated in this round. <b>You</b> = your own ratings: ✓ complete, open = none yet.', 'The last row averages the listed athletes, like the pivot table of the sheet.', 'Only athletes with selection data are listed; elsewhere the rating has no place in the selection rules. Click a row to rate.'];
+  }
   return `<div class="sr-urteil" style="margin-top:0;">
-    <div class="sr-ut-kopf"><b>Coach judgement (Annex B) · squad year ${zeilen[0].ks}</b><span class="gedaempft">Ø per criterion with the number of coaches · click a row to rate</span><span class="sr-ut-runden">${[1, 2, 3].map(r => `<button class="${r === runde ? 'on' : ''}" onclick="srSetRunde(${r})">Round ${r}</button>`).join('')}</span></div>
-    <table class="sr-karriere sr-ut-tab"><thead><tr><th>Athlete</th>${SR_URTEIL.map(c => `<th title="${srEsc(c.frage)}">${srEsc(c.lab)}</th>`).join('')}<th>Overall</th><th>Coaches</th><th>You</th></tr></thead><tbody>${rows}${fuss}</tbody></table>
-    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><button type="button" class="btn-secondary" onclick="srTeamUrteilCsv(${runde})">Download CSV, round ${runde}</button><span class="gedaempft">one row per coach and athlete, columns as on the assessment sheet</span></div>
-    <details class="sr-info"><summary>How to read</summary><div class="sr-fuss">${srListe(['<b>Scale</b> 1 to 10: 1 = very poor, 10 = excellent. <b>Overall</b> = mean of the five criteria per coach, then across coaches.', '<b>Coaches</b> = how many coaches rated in this round. <b>You</b> = your own ratings: ✓ complete, open = none yet.', 'The last row averages the listed athletes, like the pivot table of the sheet. The group filter top right narrows the list to one training group.', 'Athletes without selection data are not listed; their rating has no place in the selection rules.'])}</div></details>
+    <div class="sr-ut-kopf"><b>Athlete overview</b>${umsch}<span class="gedaempft">squad year ${srEsc(ks)} · click a row to open the athlete</span>${runden}</div>
+    ${zeilen.length ? tab : '<div class="leer-schmal">No athletes in this group.</div>'}
+    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><button type="button" class="btn-secondary" onclick="${ansicht === 'alle' ? `srTeamOverviewCsv(${runde})` : `srTeamUrteilCsv(${runde})`}">Download CSV${ansicht === 'urteil' ? `, round ${runde}` : ''}</button><span class="gedaempft">${ansicht === 'alle' ? 'one row per athlete with all columns' : 'one row per coach and athlete, columns as on the assessment sheet'}</span></div>
+    <details class="sr-info"><summary>How to read</summary><div class="sr-fuss">${srListe(lesen)}</div></details>
   </div>`;
+}
+function srCsvLaden(out, datei) {
+  const csv = out.map(r => r.map(x => `"${String(x ?? '').replace(/"/g, '""')}"`).join(';')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['﻿' + csv], {type: 'text/csv;charset=utf-8'}));
+  a.download = datei;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+// CSV der Gesamtübersicht: eine Zeile pro Athlet:in
+function srTeamOverviewCsv(runde) {
+  const zeilen = srTeamUrteilZeilen(runde, true);
+  const out = [['Name Athlet:in', 'Trainingsgruppe', 'Training', 'Wettkampf (FIS)', 'Kaderlevel', 'Selektion ' + ((zeilen[0] || {}).ks || ''), 'Coach judgement Gesamt-Mittel', 'Anzahl Coaches', ...SR_URTEIL.map(c => c.lab + ' Ø')]];
+  zeilen.forEach(z => {
+    const t = _srTrain ? _srTrain(z.name) : null, w = _srData && !_srData.fehlt ? srOvWettkampf(z.name) : null;
+    const coaches = new Set(Object.values(z.U.werte).flatMap(o => Object.keys(o))).size;
+    out.push([z.name, z.squad.label, t ? t.txt : '', w ? w.txt : '', z.kader, srOvSelektion(z.name, z.S).txt, z.G.mittel == null ? '' : srF(z.G.mittel, 2), z.S ? coaches : '', ...SR_URTEIL.map(c => { const m = srMittel(z.U.werte[c.k]); return m == null ? '' : srF(m, 2); })]);
+  });
+  srCsvLaden(out, `athlete-overview-${SPORT}-${SR_JETZT.replace('/', '-')}-round${runde}.csv`);
 }
 // CSV wie das Blatt «Trainer:innenbeurteilung»: eine Zeile pro Coach und Athlet:in, Strichpunkt-getrennt für Excel
 function srTeamUrteilCsv(runde) {
