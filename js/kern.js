@@ -1758,7 +1758,8 @@ const srListe = items => `<ul style="margin:4px 0 0 16px;padding:0;">${items.fil
 function srLegende(saison, sektionen) {
   return `<div class="sr-fuss" style="margin:0 0 8px;">${srListe([
     `<b>Final</b> = the athletes who just made the final (the last qualifiers), <b>Podium</b> = the podium athletes of the finals; both season averages ${saison} from the same rounds one level up.`,
-    `<b>Judged against</b> Podium after reaching a final, otherwise against Final (see the line next to the discipline); the black line on the bar marks that level. <b style="color:${SR_GUT};">Green</b> at or above that level, <b style="color:${SR_SCHLECHT};">red</b> below, <b style="color:var(--muted);">grey</b> fewer than 5 values${sektionen ? ' (sections: fewer than 10)' : ''}. Grey zone on the bar: from Final to Podium.`])}</div>`;
+    `<b>Judged against</b> Podium after reaching a final, otherwise against Final (see the line next to the discipline); the black line on the bar marks that level. <b style="color:${SR_GUT};">Green</b> at or above that level, <b style="color:${SR_SCHLECHT};">red</b> below, <b style="color:var(--muted);">grey</b> fewer than 5 values${sektionen ? ' (sections: fewer than 10)' : ''}. `,
+    `<b>Grey zone:</b> the span between the two levels, its edges are the Final and Podium values from the columns. Bar ending before the zone: below the Final level; inside: between Final and Podium; beyond: above the Podium level.`])}</div>`;
 }
 // Saison wie im Monitoring: ab 1. Mai zählt die neue Saison
 function srSaisonVon(y) { return `${y}/${String((y + 1) % 100).padStart(2, '0')}`; }
