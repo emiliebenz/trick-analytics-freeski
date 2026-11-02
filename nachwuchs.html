@@ -180,6 +180,24 @@ textarea{min-height:64px;resize:vertical}
 .modal{background:#fff;border-radius:14px;max-width:760px;width:100%;padding:22px 24px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
 .modal h3{margin:0 0 4px;font-size:var(--fs-page);font-weight:800;color:var(--char)}
 .modal video{width:100%;max-height:60vh;background:#111;border-radius:10px;margin:12px 0}
+/* Spinnennetz im Assessment */
+.radars{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;margin-top:8px}
+.radar{text-align:center}
+.radar svg{width:100%;max-width:560px;height:auto}
+.radar h4{margin:0 0 4px;font-size:var(--fs-label);letter-spacing:.08em;text-transform:uppercase;color:var(--char)}
+.radar-legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:var(--fs-label);color:var(--muted);margin-top:10px}
+.radar-legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+/* Skills-Check-Dokument (SVG T1–T4) */
+.scdocs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:10px}
+.scdoc{border:1px solid var(--line);border-radius:10px;background:#fff;padding:8px;cursor:pointer;text-align:left;font-family:inherit;display:flex;flex-direction:column;gap:6px}
+.scdoc.own{border-color:var(--red);box-shadow:0 0 0 2px rgba(226,0,26,.15)}
+.scdoc img{width:100%;height:120px;object-fit:contain;object-position:center;border-radius:6px;background:#FAF7F6}
+.scdoc b{font-size:var(--fs-label);letter-spacing:.06em;color:var(--char)}
+@media (max-width:768px){.scdocs{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.modal.doc{max-width:1100px;padding:16px}
+.doc-scroll{overflow:auto;max-height:75vh;border-radius:8px;background:#FAF7F6;margin-top:10px}
+.doc-scroll img{display:block;width:100%;height:auto}
+.doc-scroll.zoom img{width:200%;max-width:none}
 .crit{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:flex-start;padding:12px 0;border-top:1px solid var(--line)}
 .crit .tog{width:48px;height:48px;border-radius:12px;border:2px solid var(--line);background:#fff;font-size:22px;cursor:pointer;color:#cfc8c5}
 .crit .tog.yes{background:var(--green);border-color:var(--green);color:#fff}
@@ -670,6 +688,52 @@ let LANG = (() => {
 })();
 document.documentElement.lang = LANG;
 const I18N = {
+  'Skills-Check overview':['Skills-Check-Übersicht','Aperçu Skills-Check','Panoramica Skills-Check'],
+  'T1 inside · T4 outside':['T1 innen · T4 aussen','T1 au centre · T4 à l’extérieur','T1 al centro · T4 all’esterno'],
+  'confirmed with full points':['bestätigt, volle Punktzahl','confirmé, tous les points','confermato, punteggio pieno'],
+  'learned':['gelernt','appris','imparato'],
+  'goal':['Ziel','objectif','obiettivo'],
+  'not yet':['noch nicht','pas encore','non ancora'],
+  'Area = how far out per area':['Fläche = wie weit aussen pro Bereich','Surface = progression par domaine','Area = progresso per settore'],
+  'Tap an image to open it large':['Bild antippen, um es gross zu öffnen','Touche une image pour l’agrandir','Tocca un’immagine per ingrandirla'],
+  'your level':['deine Stufe','ton niveau','il tuo livello'],
+  'Open in new tab':['In neuem Tab öffnen','Ouvrir dans un nouvel onglet','Apri in una nuova scheda'],
+  'Zoom':['Zoom','Zoom','Zoom'],
+  '50 tricks':["50 Tricks", "50 tricks", "50 trick"],
+  '50 confirmed tricks':["50 bestätigte Tricks", "50 tricks confirmés", "50 trick confermati"],
+  '5 perfect tricks':["5 perfekte Tricks", "5 tricks parfaits", "5 trick perfetti"],
+  '5 tricks with full points':["5 Tricks mit voller Punktzahl", "5 tricks avec tous les points", "5 trick con punteggio pieno"],
+  '15 perfect tricks':["15 perfekte Tricks", "15 tricks parfaits", "15 trick perfetti"],
+  '15 tricks with full points':["15 Tricks mit voller Punktzahl", "15 tricks avec tous les points", "15 trick con punteggio pieno"],
+  'Off-axis in all 4 directions':["Off-axis in alle 4 Richtungen", "Off-axis dans les 4 sens", "Off-axis in tutte e 4 le direzioni"],
+  'A confirmed off-axis trick in every direction (Left, Right, Switch Left, Switch Right)':["Ein bestätigter Off-axis-Trick in jeder Richtung (Left, Right, Switch Left, Switch Right)", "Un trick off-axis confirmé dans chaque sens (Left, Right, Switch Left, Switch Right)", "Un trick off-axis confermato in ogni direzione (Left, Right, Switch Left, Switch Right)"],
+  'Switch specialist':["Switch-Spezialist:in", "Spécialiste switch", "Specialista switch"],
+  '5 confirmed switch tricks':["5 bestätigte Switch-Tricks", "5 tricks switch confirmés", "5 trick switch confermati"],
+  'Axis variety':["Achsen-Vielfalt", "Variété d’axes", "Varietà di assi"],
+  'Confirmed tricks on 3 different off-axis axes':["Bestätigte Tricks auf 3 verschiedenen Off-axis-Achsen", "Tricks confirmés sur 3 axes off-axis différents", "Trick confermati su 3 assi off-axis diversi"],
+  'Doubles in two directions':["Doubles in zwei Richtungen", "Doubles dans deux sens", "Double in due direzioni"],
+  'Confirmed doubles in 2 different directions':["Bestätigte Doubles in 2 verschiedenen Richtungen", "Doubles confirmés dans 2 sens différents", "Double confermati in 2 direzioni diverse"],
+  'Grab variety':["Grab-Vielfalt", "Variété de grabs", "Varietà di grab"],
+  '8 different grabs in confirmed tricks':["8 verschiedene Grabs in bestätigten Tricks", "8 grabs différents dans des tricks confirmés", "8 grab diversi in trick confermati"],
+  'Creative take-off':["Kreativer Take-off", "Take-off créatif", "Take-off creativo"],
+  "A confirmed trick with a creative take-off (e.g. butter, N'Ollie)":["Ein bestätigter Trick mit kreativem Take-off (z.B. Butter, N'Ollie)", "Un trick confirmé avec un take-off créatif (p.ex. butter, N'Ollie)", "Un trick confermato con take-off creativo (es. butter, N'Ollie)"],
+  'Rail all-rounder':["Rail-Allrounder:in", "Polyvalent·e sur rail", "Polivalente su rail"],
+  'Confirmed rail tricks on 4 different rail types':["Bestätigte Rail-Tricks auf 4 verschiedenen Rail-Typen", "Tricks sur rail confirmés sur 4 types de rail", "Trick su rail confermati su 4 tipi di rail"],
+  'Spin on, spin out':["Spin on, Spin out", "Spin on, spin out", "Spin on, spin out"],
+  'A confirmed rail trick with a spin on and a spin out':["Ein bestätigter Rail-Trick mit Spin on und Spin out", "Un trick sur rail confirmé avec spin on et spin out", "Un trick su rail confermato con spin on e spin out"],
+  'Alley-oop':["Alley-oop", "Alley-oop", "Alley-oop"],
+  'A confirmed alley-oop in the halfpipe':["Ein bestätigter Alley-oop in der Halfpipe", "Un alley-oop confirmé en halfpipe", "Un alley-oop confermato in halfpipe"],
+  'Off-axis in the pipe':["Off-axis in der Pipe", "Off-axis en pipe", "Off-axis in pipe"],
+  'A confirmed off-axis trick in the halfpipe':["Ein bestätigter Off-axis-Trick in der Halfpipe", "Un trick off-axis confirmé en halfpipe", "Un trick off-axis confermato in halfpipe"],
+  'Halfway there':["Halbzeit", "À mi-chemin", "A metà strada"],
+  '50 % of your Skills-Check':["50 % deines Skills-Checks", "50 % de ton Skills-Check", "50 % del tuo Skills-Check"],
+  'Discipline complete':["Disziplin komplett", "Discipline complète", "Disciplina completa"],
+  'All requirements of one discipline in your Skills-Check':["Alle Anforderungen einer Disziplin in deinem Skills-Check", "Toutes les exigences d’une discipline de ton Skills-Check", "Tutti i requisiti di una disciplina del tuo Skills-Check"],
+  'Skills-Check complete':["Skills-Check komplett", "Skills-Check complet", "Skills-Check completo"],
+  'All requirements of your Skills-Check with full points':["Alle Anforderungen deines Skills-Checks mit voller Punktzahl", "Toutes les exigences de ton Skills-Check avec tous les points", "Tutti i requisiti del tuo Skills-Check con punteggio pieno"],
+  '3 tricks rated higher on a new attempt':["3 Tricks bei einem neuen Versuch besser bewertet", "3 tricks mieux notés lors d’un nouvel essai", "3 trick valutati meglio in un nuovo tentativo"],
+  '3 shout-outs':["3 Shout-outs", "3 shout-outs", "3 shout-out"],
+  '3 shout-outs from your coach':["3 Shout-outs von deinem Coach", "3 shout-outs de ton coach", "3 shout-out dal tuo coach"],
   'L = Lead grab':['L = Lead-Grab','L = grab Lead','L = grab Lead'],
   // Navigation & Kopf
   'Log out':['Abmelden','Déconnexion','Esci'], 'Notifications':['Mitteilungen','Notifications','Notifiche'], 'Switch user':['Person wechseln','Changer de personne','Cambia persona'],
@@ -2721,6 +2785,72 @@ function asList(items, emptyMsg){
     return `${title}<div class="dir-group">${bar}${groups[d].map(asRow).join('')}</div>`;
   }).join('');
 }
+// Spinnennetz (Emilie 2.11.2026): Ringe = Stufen (T1 innen, T4 aussen), Sektoren = Bereiche des Skills-Checks,
+// Punkte = jede Vorgabe der Stufe. Gefüllt = aus dem Assessment gelernt, Fläche = wie weit die Athlet:in pro Bereich ist.
+const RADAR_CAT = {
+  Jump: t => t,
+  Halfpipe: t => t==='Focus' ? 'Amplitude' : t,
+  Rail: t => /swap/i.test(t) ? 'Swaps' : /pretzel/i.test(t) ? 'Pretzel' : /^out$/i.test(t) ? 'Out' : /on – out/i.test(t) ? 'On – Out'
+    : /slide|switch on/i.test(t) ? 'Slides' : /^on$/i.test(t) ? 'On' : 'New',
+};
+const RADAR_COL = {done:'#3E8E5A', partial:'#8CC59E', pending:'#8CC59E', goal:'#C96A1F', open:'#D9D3D0'};
+function radarSvg(ath, disc){
+  const ents = entriesOf(ath.id), LV = ['T1','T2','T3','T4'];
+  const evs = LV.map(lv => evaluate(disc, ath.gender, lv, ents));
+  if (evs.some(ev => !ev)) return '';
+  // Vorgaben pro Bereich und Stufe
+  const cats = [], by = {};
+  evs.forEach((ev, li) => ev.def.sections.forEach(sec => sec.slots.forEach(sl => {
+    const o = ev.out[sl.id]; if (!o || !o.applicable) return;
+    const c = RADAR_CAT[disc](sec.title);
+    if (!by[c]){ by[c] = [[], [], [], []]; cats.push(c); }
+    by[c][li].push({text:sl.text, state:o.state});
+  })));
+  if (cats.length < 2) return '';
+  const W = 420, C = W / 2, R = 175, ring = i => R * (i + 1) / 4;
+  const learnedSt = st => st==='done' || st==='partial' || st==='pending';
+  const span = 2 * Math.PI / cats.length, a0 = -Math.PI / 2;
+  const pt = (r, a) => [C + r * Math.cos(a), C + r * Math.sin(a)];
+  let g = '';
+  // Ringe + Beschriftung
+  LV.forEach((lv, i) => {
+    g += `<circle cx="${C}" cy="${C}" r="${ring(i)}" fill="${i===3 ? 'rgba(226,0,26,.04)' : 'none'}" stroke="${i===3 ? '#E2001A' : '#E7E3E1'}" stroke-width="${i===3 ? 1.5 : 1}"/>`;
+    g += `<text x="${C + 4}" y="${C - ring(i) + 14}" font-size="13" fill="#93a7bb" font-weight="700">${lv}</text>`;
+  });
+  // Fläche: pro Bereich so weit, wie die Stufen von innen her gelernt sind
+  const reach = cats.map(c => { let r = 0;
+    if (!by[c].flat().some(x => learnedSt(x.state))) return 0;   // nichts gelernt → keine Fläche
+    for (let i = 0; i < 4; i++){ const sl = by[c][i]; if (!sl.length){ r = i + 1; continue; }
+      const f = sl.filter(x => learnedSt(x.state)).length / sl.length; r = i + f; if (f < 1) break; }
+    return r; });
+  const poly = cats.map((c, k) => pt(R * reach[k] / 4, a0 + span * (k + .5)).map(v => v.toFixed(1)).join(',')).join(' ');
+  g += `<polygon points="${poly}" fill="rgba(62,142,90,.18)" stroke="#3E8E5A" stroke-width="2" stroke-linejoin="round"/>`;
+  // Speichen, Bereichsnamen, Punkte
+  cats.forEach((c, k) => {
+    const a1 = a0 + span * k, [x1, y1] = pt(R + 6, a1);
+    g += `<line x1="${C}" y1="${C}" x2="${x1.toFixed(1)}" y2="${y1.toFixed(1)}" stroke="#E7E3E1"/>`;
+    const am = a0 + span * (k + .5), [lx, ly] = pt(R + 26, am);
+    const anchor = Math.abs(Math.cos(am)) < .3 ? 'middle' : Math.cos(am) > 0 ? 'start' : 'end';
+    g += `<text x="${lx.toFixed(1)}" y="${(ly + 4).toFixed(1)}" font-size="15" font-weight="700" fill="#3A3A3A" text-anchor="${anchor}">${esc(c)}</text>`;
+    by[c].forEach((sl, i) => sl.forEach((x, j) => {
+      const a = a1 + span * (j + 1) / (sl.length + 1), [px, py] = pt(ring(i), a);
+      const col = RADAR_COL[x.state] || RADAR_COL.open, full = learnedSt(x.state);
+      g += `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="${sl.length > 10 ? 3 : 4.5}" fill="${full ? col : '#fff'}" stroke="${col}" stroke-width="1.6"><title>${LV[i]} · ${esc(c)}: ${esc(x.text)}</title></circle>`;
+    }));
+  });
+  const nAll = cats.reduce((a, c) => a + by[c].flat().length, 0), nL = cats.reduce((a, c) => a + by[c].flat().filter(x => learnedSt(x.state)).length, 0);
+  return `<div class="radar"><h4>${esc(DISC_LABEL[disc])} <span class="muted">· ${nL} / ${nAll}</span></h4>
+    <svg viewBox="-95 -5 ${W + 190} ${W + 10}" role="img" aria-label="Skills-Check ${esc(DISC_LABEL[disc])} T1–T4">${g}</svg></div>`;
+}
+function radarCard(ath){
+  if (!HAS_SC || !ath?.gender) return '';
+  const discs = focusDiscs(ath, ath.level || 'T4');
+  const charts = discs.map(d => radarSvg(ath, d)).filter(Boolean);
+  if (!charts.length) return '';
+  return `<div class="card"><h2>Skills-Check overview <span class="muted" style="letter-spacing:0;font-weight:600">T1 inside · T4 outside</span></h2>
+    <div class="radars">${charts.join('')}</div>
+    <div class="radar-legend"><span><i style="background:${RADAR_COL.done}"></i>confirmed with full points</span><span><i style="background:${RADAR_COL.pending}"></i>learned</span><span><i style="border:1.6px solid ${RADAR_COL.goal};background:#fff"></i>goal</span><span><i style="border:1.6px solid ${RADAR_COL.open};background:#fff"></i>not yet</span><span>Area = how far out per area</span></div></div>`;
+}
 function renderAssessment(){
   const root = $('#page-assessment');
   const staff = isStaff();
@@ -2746,7 +2876,7 @@ function renderAssessment(){
       <div class="sb-ov-card"><div class="sb-ov-num" style="color:var(--cblue)">${waiting}</div><div class="sb-ov-label">Waiting for Coach</div></div>
       <div class="sb-ov-card"><div class="sb-ov-num" style="color:#C96A1F">${goals.length}</div><div class="sb-ov-label">Open Goals</div></div>
     </div>
-    ${ST.form ? formCard() : ''}
+    ${ST.form ? formCard() : radarCard(ath)}
     ${discBtns}
     <div class="sb-columns">
       <div><div class="sb-col-header mastered">✅ LEARNED TRICKS <span style="opacity:.6;font-size:var(--fs-meta)">(${learned.length})</span></div>
@@ -2826,40 +2956,48 @@ const GI = {
 const gIcon = (k, size=22) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${GI[k]}</svg>`;
 const confirmedOf = aid => entriesOf(aid).filter(e => e.status==='reviewed' && e.video_path);
 const jumpC = c => c.filter(e => e.discipline==='Jump');
+// Abzeichen für T4 (Emilie 2.11.2026): schwieriger und genereller, keine Rotationszahlen.
+// disc = nur sichtbar, wenn die Disziplin im Fokus ist; sc = braucht den Skills-Check (Snowboard noch ohne).
+const airC = c => c.filter(e => e.discipline==='Jump' || (e.discipline==='Halfpipe' && e.trick?.kind!=='basic'));
+const dirOf = e => e.discipline==='Halfpipe' ? (e.trick?.sw ? 'S' : '') + (e.trick?.dir || '') : e.trick?.dir;
+const isFull = e => e.score === maxFor(e.discipline);
+const BASIC_TO = ['Carved','Blender','Hand-Drag','Inside Edge'];
+const railSpinOnOut = t => SB ? !!(t.inspin && t.outspin && !/^to /.test(t.outspin)) : ['270','Lip 270','450','Lip 450'].includes(t.on) && railSpinOut(t);
+const scTot = ath => HAS_SC && ath?.gender && ath?.level ? levelTotals(ath, ath.level) : null;
 const BADGES = [
-  {id:'video1',  ic:'video',    col:'#396FA8', name:'First video',              how:'Upload your first video',                 test:(c, all) => all.some(e => e.video_path)},
-  {id:'learn1',  ic:'check',    col:'#3E8E5A', name:'First trick confirmed',    how:'Your coach rates a trick with video',     test:c => c.length >= 1},
-  {id:'learn5',  ic:'star',     col:'#B08D1E', name:'5 tricks',                 how:'5 confirmed tricks',                       test:c => c.length >= 5},
-  {id:'learn10', ic:'star',     col:'#C96A1F', name:'10 tricks',                how:'10 confirmed tricks',                      test:c => c.length >= 10},
-  {id:'learn25', ic:'star',     col:'#E2001A', name:'25 tricks',                how:'25 confirmed tricks',                      test:c => c.length >= 25},
-  {id:'perfect', ic:'trophy',   col:'#3E8E5A', name:'All criteria met',         how:'A trick with full points',                 test:c => c.some(e => e.score === maxFor(e.discipline))},
-  {id:'dir180',  ic:'compass',  col:'#148FA0', name:'180 in all 4 directions',  how:'180 Left, Right, Switch Left and Switch Right', test:c => D4.every(d => jumpC(c).some(e => e.trick?.dir===d && +e.trick?.rot >= 180))},
-  {id:'dir360',  ic:'compass',  col:'#396FA8', name:'360 in all 4 directions',  how:'360 in all four directions',               test:c => D4.every(d => jumpC(c).some(e => e.trick?.dir===d && +e.trick?.rot >= 360))},
-  {id:'dir540',  ic:'compass',  col:'#8E5BB8', name:'540 in all 4 directions',  how:'540 in all four directions',               test:c => D4.every(d => jumpC(c).some(e => e.trick?.dir===d && +e.trick?.rot >= 540))},
-  {id:'switch',  ic:'swap',     col:'#8E5BB8', name:'First switch trick',       how:'A confirmed switch trick',                 test:c => jumpC(c).some(e => isSw(e.trick || {}))},
-  {id:'offaxis', ic:'axis',     col:'#C96A1F', name:'First off-axis trick',     how:'A confirmed off-axis trick (e.g. Cork)',   test:c => jumpC(c).some(e => isOff(e.trick || {}))},
-  {id:'flip',    ic:'flip',     col:'#E2001A', name:'First flip',               how:'A confirmed flip',                          test:c => jumpC(c).some(e => isFlip(e.trick || {}))},
-  {id:'rot720',  ic:'spin',     col:'#148FA0', name:'First 720',                how:'A confirmed 720 or more',                  test:c => c.some(e => +e.trick?.rot >= 720)},
-  {id:'rot1080', ic:'spin',     col:'#E2001A', name:'First 1080',               how:'A confirmed 1080 or more',                 test:c => c.some(e => +e.trick?.rot >= 1080)},
-  {id:'double',  ic:'flip',     col:'#3A3A3A', name:'First double',             how:'A confirmed double',                        test:c => c.some(e => +e.trick?.flips >= 2)},
-  {id:'rail',    ic:'rail',     col:'#1F9E93', name:'First rail trick',         how:'A confirmed rail trick',                    test:c => c.some(e => e.discipline==='Rail')},
-  {id:'pipe',    ic:'pipe',     col:'#396FA8', name:'First halfpipe trick',     how:'A confirmed halfpipe trick',                test:c => c.some(e => e.discipline==='Halfpipe')},
-  {id:'better',  ic:'up',       col:'#3E8E5A', name:'Better than before',       how:'A new attempt rated higher than before',   test:c => c.some(e => c.some(o => o.id!==e.id && o.label===e.label && o.created_at < e.created_at && (o.score||0) < (e.score||0)))},
-  {id:'kudos',   ic:'clap',     col:'#C96A1F', name:'Shout-out from the coach',     how:'Your coach gives you a shout-out',         test:(c, all) => all.some(e => e.kudos_at)},
-  {id:'level',   ic:'mountain', col:'#E2001A', name:'Level complete',           how:'All requirements of one discipline at your level', test:(c, all, ath) => {
-    if (!HAS_SC || !ath?.gender || !ath?.level) return false;
-    const tot = levelTotals(ath, ath.level); return DISCS.some(d => tot.by[d] && tot.by[d].n > 0 && tot.by[d].done === tot.by[d].n); }},
+  {id:'t4learn10', ic:'star',     col:'#B08D1E', name:'10 tricks',               how:'10 confirmed tricks',                                  test:c => c.length >= 10},
+  {id:'t4learn25', ic:'star',     col:'#C96A1F', name:'25 tricks',               how:'25 confirmed tricks',                                  test:c => c.length >= 25},
+  {id:'t4learn50', ic:'star',     col:'#E2001A', name:'50 tricks',               how:'50 confirmed tricks',                                  test:c => c.length >= 50},
+  {id:'t4perf5',   ic:'trophy',   col:'#3E8E5A', name:'5 perfect tricks',        how:'5 tricks with full points',                            test:c => c.filter(isFull).length >= 5},
+  {id:'t4perf15',  ic:'trophy',   col:'#E2001A', name:'15 perfect tricks',       how:'15 tricks with full points',                           test:c => c.filter(isFull).length >= 15},
+  {id:'t4dirs',    ic:'compass',  col:'#148FA0', name:'Off-axis in all 4 directions', how:'A confirmed off-axis trick in every direction (Left, Right, Switch Left, Switch Right)', test:c => D4.every(d => airC(c).some(e => dirOf(e)===d && isOff(e.trick || {})))},
+  {id:'t4switch',  ic:'swap',     col:'#8E5BB8', name:'Switch specialist',       how:'5 confirmed switch tricks',                            test:c => airC(c).filter(e => e.discipline==='Halfpipe' ? e.trick?.sw : isSw(e.trick || {})).length >= 5},
+  {id:'t4axes',    ic:'axis',     col:'#C96A1F', name:'Axis variety',            how:'Confirmed tricks on 3 different off-axis axes',        test:c => new Set(airC(c).filter(e => isOff(e.trick || {})).map(e => e.trick.axis)).size >= 3},
+  {id:'t4double',  ic:'flip',     col:'#3A3A3A', name:'Doubles in two directions', how:'Confirmed doubles in 2 different directions',        test:c => new Set(airC(c).filter(e => +e.trick?.flips >= 2).map(dirOf)).size >= 2},
+  {id:'t4grabs',   ic:'check',    col:'#396FA8', name:'Grab variety',            how:'8 different grabs in confirmed tricks',                test:c => new Set(c.map(e => e.trick?.grab).filter(Boolean)).size >= 8},
+  {id:'t4creative',ic:'up',       col:'#1F9E93', name:'Creative take-off',       how:'A confirmed trick with a creative take-off (e.g. butter, N\'Ollie)', test:c => c.some(e => e.trick?.takeoff && !BASIC_TO.includes(e.trick.takeoff))},
+  {id:'t4railtypes', ic:'rail',   col:'#1F9E93', name:'Rail all-rounder',        how:'Confirmed rail tricks on 4 different rail types',      disc:'Rail', test:c => new Set(c.filter(e => e.discipline==='Rail').map(e => e.trick?.railType).filter(Boolean)).size >= 4},
+  {id:'t4spinonout', ic:'spin',   col:'#148FA0', name:'Spin on, spin out',       how:'A confirmed rail trick with a spin on and a spin out', disc:'Rail', test:c => c.some(e => e.discipline==='Rail' && railSpinOnOut(e.trick || {}))},
+  {id:'t4alleyoop',  ic:'pipe',   col:'#396FA8', name:'Alley-oop',               how:'A confirmed alley-oop in the halfpipe',                disc:'Halfpipe', test:c => c.some(e => e.discipline==='Halfpipe' && e.trick?.ao)},
+  {id:'t4pipeoff',   ic:'pipe',   col:'#E2001A', name:'Off-axis in the pipe',    how:'A confirmed off-axis trick in the halfpipe',           disc:'Halfpipe', test:c => c.some(e => e.discipline==='Halfpipe' && isOff(e.trick || {}))},
+  {id:'t4sc50',    ic:'mountain', col:'#C96A1F', name:'Halfway there',           how:'50 % of your Skills-Check',                            sc:true, test:(c, all, ath) => (scTot(ath)?.pct || 0) >= 50},
+  {id:'t4level',   ic:'mountain', col:'#E2001A', name:'Discipline complete',     how:'All requirements of one discipline in your Skills-Check', sc:true, test:(c, all, ath) => { const t = scTot(ath); return !!t && t.incl.some(d => t.by[d] && t.by[d].n > 0 && t.by[d].done === t.by[d].n); }},
+  {id:'t4all',     ic:'trophy',   col:'#3A3A3A', name:'Skills-Check complete',   how:'All requirements of your Skills-Check with full points', sc:true, test:(c, all, ath) => { const t = scTot(ath); return !!t && t.n > 0 && t.done === t.n; }},
+  {id:'t4better',  ic:'up',       col:'#3E8E5A', name:'Better than before',      how:'3 tricks rated higher on a new attempt',               test:c => c.filter(e => c.some(o => o.id!==e.id && o.label===e.label && o.created_at < e.created_at && (o.score||0) < (e.score||0))).length >= 3},
+  {id:'t4kudos',   ic:'clap',     col:'#C96A1F', name:'3 shout-outs',            how:'3 shout-outs from your coach',                         test:(c, all) => all.filter(e => e.kudos_at).length >= 3},
 ];
+// Sichtbare Abzeichen: nur Disziplinen im Fokus, Skills-Check-Abzeichen nur mit Skills-Check
+const badgesFor = ath => { const inc = ath?.level ? focusDiscs(ath, ath.level) : DISCS; return BADGES.filter(b => (!b.disc || inc.includes(b.disc)) && (!b.sc || HAS_SC)); };
 function earnedBadges(ath){
   const all = entriesOf(ath.id), c = all.filter(e => e.status==='reviewed' && e.video_path);
-  return BADGES.filter(b => { try { return b.test(c, all, ath); } catch { return false; } });
+  return badgesFor(ath).filter(b => { try { return b.test(c, all, ath); } catch { return false; } });
 }
 function badgesCard(ath){
   const got = new Set(earnedBadges(ath).map(b => b.id));
   const mine = !isStaff() && ath.id===ST.me.id;
-  return `<div class="card"><h2>${mine ? 'Your badges' : 'Badges'} <span class="muted" style="letter-spacing:0;font-weight:600">${got.size} / ${BADGES.length}</span></h2>
+  return `<div class="card"><h2>${mine ? 'Your badges' : 'Badges'} <span class="muted" style="letter-spacing:0;font-weight:600">${got.size} / ${badgesFor(ath).length}</span></h2>
     <div class="tiny muted" style="margin:-4px 0 12px">Only tricks with video and coach rating count.</div>
-    <div class="badges">${BADGES.map(b => `<div class="badge-it ${got.has(b.id)?'on':''}" title="${esc(b.how)}"><span class="bi" style="${got.has(b.id)?`background:${b.col}`:''}">${gIcon(b.ic)}</span><b>${esc(b.name)}</b>${got.has(b.id) ? '' : `<small>${esc(b.how)}</small>`}</div>`).join('')}</div>
+    <div class="badges">${badgesFor(ath).map(b => `<div class="badge-it ${got.has(b.id)?'on':''}" title="${esc(b.how)}"><span class="bi" style="${got.has(b.id)?`background:${b.col}`:''}">${gIcon(b.ic)}</span><b>${esc(b.name)}</b>${got.has(b.id) ? '' : `<small>${esc(b.how)}</small>`}</div>`).join('')}</div>
     <div class="btnrow" style="margin-top:14px"><button class="btn ghost" onclick="openReview_season('${ath.id}')">${gIcon('mountain', 16)} <span>${reviewSeason().after ? 'Season review' : 'Your season so far'}</span></button></div></div>`;
 }
 // neue Abzeichen einmal feiern (Merkliste pro Gerät; beim allerersten Mal nichts feiern)
@@ -2959,9 +3097,27 @@ function seasonBanner(ath){
 }
 
 const ruleHtml = r => `<div class="rule">${r.ok ? '✅' : '⚠️'} <b>${esc(r.text)}</b><span class="muted">${esc(r.detail)}</span></div>`;
+// Skills-Check-Dokumente (SVG aus «3 Wettkampfdaten/SkillsCheck_SVG», nur T1–T4, ohne E/M)
+const DOC_DISC = {Jump:'Jumps', Rail:'Rails', Halfpipe:'Halfpipe'};
+const docSrc = (disc, lv) => `skillscheck/${SPORT}/${DOC_DISC[disc]}_${lv}.svg`;
+function docsCard(disc, ownLevel){
+  const lvs = ['T1','T2','T3','T4'];
+  return `<div class="card"><h2>Skills-Check ${esc(DISC_LABEL[disc])} <span class="muted" style="letter-spacing:0;font-weight:600">T1–T4</span></h2>
+    ${HAS_SC ? '' : `<div class="seg" style="margin:6px 0 4px">${DISCS.map(d => `<button class="${d===disc?'on':''}" onclick="ST.disc='${d}';renderSkills()">${esc(DISC_LABEL[d])}</button>`).join('')}</div>`}
+    <div class="tiny muted">Tap an image to open it large</div>
+    <div class="scdocs">${lvs.map(lv => `<button type="button" class="scdoc ${lv===ownLevel?'own':''}" onclick="openDoc('${disc}','${lv}')"><img src="${docSrc(disc, lv)}" alt="Skills-Check ${esc(DISC_LABEL[disc])} ${lv}" loading="lazy"><b>${lv}${lv===ownLevel ? ' · <span>your level</span>' : ''}</b></button>`).join('')}</div></div>`;
+}
+function openDoc(disc, lv){
+  modal(`<div class="row" style="gap:8px"><h3 style="margin:0">Skills-Check ${esc(DISC_LABEL[disc])} ${lv}</h3><span class="grow"></span>
+      <button class="btn ghost sm" onclick="this.closest('.modal').querySelector('.doc-scroll').classList.toggle('zoom')">Zoom</button>
+      <a class="btn ghost sm" href="${docSrc(disc, lv)}" target="_blank" rel="noopener">Open in new tab</a>
+      <button class="btn ghost sm" onclick="closeModal()">Close</button></div>
+    <div class="doc-scroll"><img src="${docSrc(disc, lv)}" alt="Skills-Check ${esc(DISC_LABEL[disc])} ${lv}"></div>`);
+  $('#modal-root .modal').classList.add('doc');
+}
 function renderSkills(){
   const root = $('#page-skills');
-  if (!HAS_SC){ root.innerHTML = `<div class="card"><h2>Skills-Check Snowboard</h2><div class="empty">The Snowboard Skills-Check is being prepared and will be added here.</div><ul class="hints"><li>Tricks, ratings and sessions already work as usual</li><li>As soon as the requirements are defined, all existing tricks are matched automatically</li></ul></div>`; return; }
+  if (!HAS_SC){ root.innerHTML = `<div class="card"><h2>Skills-Check Snowboard</h2><div class="empty">The Snowboard Skills-Check is being prepared and will be added here.</div><ul class="hints"><li>Tricks, ratings and sessions already work as usual</li><li>As soon as the requirements are defined, all existing tricks are matched automatically</li></ul></div>${docsCard(ST.disc, prof(ST.athleteId)?.level)}`; return; }
   const staff = isStaff();
   const ath = prof(ST.athleteId);
   if (!ath){ root.innerHTML = '<div class="card"><div class="empty">No athlete selected.</div></div>'; return; }
@@ -3009,6 +3165,7 @@ function renderSkills(){
       ${ev.def.sections.some(x => x.rules) ? '' : ev.rules.map(ruleHtml).join('')}
 
     </div>
+    ${docsCard(disc, ath.level)}
     ${badgesCard(ath)}`;
   celebrateBadges(ath);
 }
