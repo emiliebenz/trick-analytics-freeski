@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "Trick Analyses Youth",
-  "short_name": "Youth",
-  "description": "Swiss-Ski Trick Analyses Youth (Freeski & Snowboard)",
+  "name": "Trick Collector",
+  "short_name": "Trick Collector",
+  "description": "Swiss-Ski Trick Collector (Freeski & Snowboard)",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

@@ -68,7 +68,7 @@ Deno.serve(async (req) => {
     for (const s of subs ?? []) {
       const lang = (["de", "fr", "it", "en"].includes(s.lang) ? s.lang : "de") as Lang;
       const arg = n.kind === "reminder" ? String(n.text).replace(/^deadline:/, "") : String(n.text);
-      const [title, text] = (T[n.kind]?.[lang] ?? ((x: string) => ["Trick Analyses Youth", x]))(arg);
+      const [title, text] = (T[n.kind]?.[lang] ?? ((x: string) => ["Trick Collector", x]))(arg);
       try {
         await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
           JSON.stringify({ title, body: text, tag: n.entry_id ?? n.kind, url: "./" }));
