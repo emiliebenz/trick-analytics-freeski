@@ -1242,6 +1242,8 @@ const baseGrab = g => (g || '').replace(/^Lead /, '');
 const BOTH_HANDS = ['Double Japan','Double Tail','Double Nose','Truckdriver','Truck Driver'];
 const TAKEOFFS = SB ? ["N'Ollie",'Nosebutter','Noseslide','Tailbutter','Tailslide','Hardway'] : ['Carved','Blender','Hand-Drag','Inside Edge','Nosebutter','Tailbutter',"N'Ollie"];
 const CREATIVE = ['Nosebutter','Tailbutter',"N'Ollie"];
+const RAIL_TAKEOFFS = ["N'Ollie",'Nosebutter','Tailbutter'];   // Take-off auf Rails (Emilie 2.11.2026)
+const railTo = t => t.takeoff ? ` · ${t.takeoff}` : '';
 const OBST = {'Tube':1, 'Simple rail':2, 'Demanding rail':3};   // wie Skills-Check (keine Box)
 const obstLevel = o => OBST[o] || (o==='Tube / Box' ? 1 : 0);   // Altwert
 // Freeski-Rail-Typ → Skills-Check-Stufe: Box/Tube = Tube, Rail = einfaches Rail, alles andere = anspruchsvolles Rail
@@ -1280,7 +1282,7 @@ function trickLabel(disc, t){
     return [DIRN[t.dir], fl, ax, t.rot, t.grab].filter(Boolean).join(' ') + extraLbl(t) + (t.takeoff?` · ${t.takeoff}`:'');
   }
   if (disc === 'Rail' && (SB || t.slideform)){
-    return [t.inspin ? t.inspin + ' on' : '', t.variant, t.slideform, t.outspin ? '→ ' + t.outspin : ''].filter(Boolean).join(' ') + (t.railType ? ` · ${t.railType}` : '');
+    return [t.inspin ? t.inspin + ' on' : '', t.variant, t.slideform, t.outspin ? '→ ' + t.outspin : ''].filter(Boolean).join(' ') + railTo(t) + (t.railType ? ` · ${t.railType}` : '');
   }
   if (disc === 'Rail'){
     let s = `${SIDE[t.side]||''} ${railOnName(t)}`;
@@ -1288,7 +1290,7 @@ function trickLabel(disc, t){
     if (t.transfer) s += ` → ${t.transfer}`;
     s += ` → ${t.out}`;
     if (railSpinOut(t)) s += ` (${t.outSide}, ${String(t.foot||'').toLowerCase()} foot fwd${t.outStyle==='flip'?', flip/cork':''})`;
-    return s.trim() + ` · ${t.railType || t.obstacle}`;
+    return s.trim() + railTo(t) + ` · ${t.railType || t.obstacle}`;
   }
   if (t.kind === 'basic') return `${t.basic}${/drop in/i.test(t.basic) ? ' '+(SIDE[t.side]||'') : ''}`.trim();
   const fl = (SB ? OFFAX : ['Cork','Bio/Misty','Rodeo','Flat Spin']).includes(t.axis) && +t.flips >= 2 ? FLIPN[t.flips] : '';
@@ -2298,6 +2300,7 @@ function formFields(disc, F, fn='formSet'){
     f.push('<div class="section-divider">Rail</div>');
     const customRail = [...new Set(ST.entries.map(e => e.trick?.railType).filter(Boolean))].filter(t => !RAIL_TYPES.includes(t));
     f.push(`<div class="form-group"><label>Rail Type</label><select onchange="${fn}('railType', this.value==='__add__' ? (prompt('New rail type:')||'${esc(F.railType)}') : this.value)">${opts([...RAIL_TYPES, ...customRail, ...(F.railType && !RAIL_TYPES.includes(F.railType) && !customRail.includes(F.railType) ? [F.railType] : []), ['__add__','＋ Add new…']], F.railType)}</select></div>`);
+    add('takeoff', 'Take-Off', [['','–'], ...RAIL_TAKEOFFS]);
     add('slideform', 'Slide Form', SB_SLIDE);
     add('variant', 'Direction', ['Frontside','Backside','Switch Frontside','Switch Backside']);
     add('inspin', 'In-Spin', [['','–'], ...SB_INSPIN]);
@@ -2308,6 +2311,7 @@ function formFields(disc, F, fn='formSet'){
     const customRail = [...new Set(ST.entries.map(e => e.trick?.railType).filter(Boolean))].filter(t => !RAIL_TYPES.includes(t));
     const transfers = [...new Set(ST.entries.map(e => e.trick?.transfer).filter(Boolean))];
     f.push(`<div class="form-group"><label>Rail Type <span class="lbl-hint">(Skills-Check: ${esc(railLevel(F.railType))})</span></label><select onchange="${fn}('railType', this.value==='__add__' ? (prompt('New rail type:')||'${esc(F.railType)}') : this.value)">${opts([...RAIL_TYPES, ...customRail, ...(F.railType && !RAIL_TYPES.includes(F.railType) && !customRail.includes(F.railType) ? [F.railType] : []), ['__add__','＋ Add new…']], F.railType)}</select></div>`);
+    add('takeoff', 'Take-Off', [['','–'], ...RAIL_TAKEOFFS]);
     dir4('side', 'approach', 'S', 'F');
     add('on', 'In-Spin / Slide Form', RAIL_ON.map(o => [o, railOnName({approach:F.approach, on:o})]));
     add('swap', 'Swap', [['','–'], ...RAIL_SWAP]);
