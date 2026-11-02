@@ -688,11 +688,26 @@ let LANG = (() => {
 })();
 document.documentElement.lang = LANG;
 const I18N = {
+  'Please run database update 15 and redeploy the function «create-accounts» first.':['Bitte zuerst Datenbank-Update 15 ausführen und die Function «create-accounts» neu deployen.','Exécute d’abord la mise à jour 15 de la base et redéploie la fonction «create-accounts».','Esegui prima l’aggiornamento 15 del database e ridistribuisci la funzione «create-accounts».'],
+  'E-mail or username':['E-Mail oder Benutzername','E-mail ou nom d’utilisateur','E-mail o nome utente'],
+  'Logging in with a username: ask your coach or an admin for a new start password.':['Login mit Benutzername: Frag deinen Coach oder einen Admin nach einem neuen Startpasswort.','Connexion avec nom d’utilisateur : demande un nouveau mot de passe de départ à ton coach ou à un admin.','Accesso con nome utente: chiedi al tuo coach o a un admin una nuova password iniziale.'],
+  'Athletes get their username and start password from their coach. Log in with them above.':['Athlet:innen bekommen Benutzername und Startpasswort vom Coach. Damit oben einloggen.','Les athlètes reçoivent nom d’utilisateur et mot de passe de départ de leur coach. Connecte-toi ci-dessus.','Gli atleti ricevono nome utente e password iniziale dal coach. Accedi qui sopra.'],
+  'Athletes log in with a username (e.g. lena.muster), coaches with their e-mail':['Athlet:innen loggen sich mit Benutzername ein (z.B. lena.muster), Coaches mit ihrer E-Mail','Les athlètes se connectent avec un nom d’utilisateur (p.ex. lena.muster), les coachs avec leur e-mail','Gli atleti accedono con un nome utente (es. lena.muster), i coach con la loro e-mail'],
+  'Forgotten password: «New start password» next to the athlete in the team table':['Passwort vergessen: «Neues Startpasswort» bei der Athlet:in in der Team-Tabelle','Mot de passe oublié : «Nouveau mot de passe de départ» à côté de l’athlète dans le tableau','Password dimenticata: «Nuova password iniziale» accanto all’atleta nella tabella'],
+  'Athletes: log in with your username, coaches: with your e-mail':['Athlet:innen: mit Benutzername einloggen, Coaches: mit E-Mail','Athlètes : connexion avec le nom d’utilisateur, coachs : avec l’e-mail','Atleti: accesso con nome utente, coach: con e-mail'],
+  'Then enter the start password':['Dann das Startpasswort eingeben','Puis saisir le mot de passe de départ','Poi inserisci la password iniziale'],
+  'Username':['Benutzername','Nom d’utilisateur','Nome utente'],
+  'Username after «Create accounts»':['Benutzername nach «Create accounts»','Nom d’utilisateur après «Create accounts»','Nome utente dopo «Create accounts»'],
+  'New start password':['Neues Startpasswort','Nouveau mot de passe de départ','Nuova password iniziale'],
+  'Create a new start password for':['Neues Startpasswort erstellen für','Créer un nouveau mot de passe de départ pour','Creare una nuova password iniziale per'],
+  'The old password stops working.':['Das alte Passwort funktioniert dann nicht mehr.','L’ancien mot de passe ne fonctionnera plus.','La vecchia password non funzionerà più.'],
+  'Shown only now: write it down or save the PDF':['Wird nur jetzt angezeigt: notieren oder PDF speichern','Affiché seulement maintenant : note-le ou enregistre le PDF','Mostrata solo ora: annotala o salva il PDF'],
+  'At the next login a new own password must be chosen':['Beim nächsten Login muss ein eigenes Passwort gewählt werden','À la prochaine connexion, il faut choisir son propre mot de passe','Al prossimo accesso bisogna scegliere una propria password'],
+  'Login':['Login','Connexion','Accesso'],
   'Skills-Check overview':['Skills-Check-Übersicht','Aperçu Skills-Check','Panoramica Skills-Check'],
   'T1 inside · T4 outside':['T1 innen · T4 aussen','T1 au centre · T4 à l’extérieur','T1 al centro · T4 all’esterno'],
   'confirmed with full points':['bestätigt, volle Punktzahl','confirmé, tous les points','confermato, punteggio pieno'],
   'learned':['gelernt','appris','imparato'],
-  'goal':['Ziel','objectif','obiettivo'],
   'not yet':['noch nicht','pas encore','non ancora'],
   'Area = how far out per area':['Fläche = wie weit aussen pro Bereich','Surface = progression par domaine','Area = progresso per settore'],
   'Tap an image to open it large':['Bild antippen, um es gross zu öffnen','Touche une image pour l’agrandir','Tocca un’immagine per ingrandirla'],
@@ -3269,7 +3284,7 @@ function renderTeam(){
     const cell = d => !t ? '–' : t.incl.includes(d) ? `${pct(t.by[d].pts, t.by[d].max)}% <span class="tiny muted">${t.by[d].pts}/${t.by[d].max}</span>` : '<span class="tiny muted">not in focus</span>';
     return `<tr class="click" onclick="if(event.target.closest('select,input'))return;ST.athleteId='${a.id}';ST.level=null;go('skills')">
       <td>${dv ? `<input type="text" class="name-in" value="${esc(a.name)}" onchange="setProfile('${a.id}','name',this.value.trim())" title="Edit name">` : `<div class="name-ro">${esc(a.name)}</div>`}<div class="tiny muted">${a.birthdate ? a.birthdate.slice(0,4) + ' · ' : ''}${a.user_id || DEMO ? '<span style="color:var(--green)">✓ login</span>' : 'no login yet'}${dv ? ' · ' + esc(groupName(a.group_id)) : ''}</div>
-        ${dv && !DEMO ? `<input type="email" class="name-in mail-in" value="${esc(a.email||'')}" placeholder="+ e-mail for login" onchange="setProfile('${a.id}','email',this.value.trim().toLowerCase())" ${a.user_id?'disabled title="Linked to a login"':''}>` : ''}</td>
+        ${dv && !DEMO ? `<div class="tiny muted">${a.username ? `<span>Username</span>: <b>${esc(a.username)}</b>` : '<span>Username after «Create accounts»</span>'}${a.user_id ? ` · <a href="#" onclick="event.stopPropagation();resetStartPassword('${a.id}');return false">New start password</a>` : ''}</div>` : ''}</td>
       <td class="c-sel" data-l="Sex">${dv ? `<select onchange="setProfile('${a.id}','gender',this.value)"><option value="">–</option>${opts([['W','W'],['M','M']], a.gender)}</select>` : `<b>${esc(a.gender || '–')}</b>`}</td>
       <td class="c-sel c-focus" data-l="Focus">${a.level==='T4' ? `<select onchange="setProfile('${a.id}','focus',this.value)">${opts([['','All'],['park','Jumps & Rails'],['hp','Halfpipe']], a.focus||'')}</select>` : '<span class="tiny muted">all (T1–T3)</span>'}</td>
       ${dv ? `<td class="c-sel c-group" data-l="Group"><select onchange="setProfile('${a.id}','group_id',this.value)"><option value="">–</option>${ST.groups.map(g => `<option value="${g.id}" ${a.group_id===g.id?'selected':''}>${esc(g.name)}</option>`).join('')}</select></td>` : ''}
@@ -3315,17 +3330,20 @@ function setExtraCoach(aid, cid, on){
 function loginsCard(){
   const P = (ST.allProfiles||[]).filter(p => ['coach','athlete'].includes(p.role) && p.name !== 'ZZ Test Athlet');
   const row = (role, label) => {
-    const all = P.filter(p => p.role===role), withLogin = all.filter(p => p.user_id).length, open = noLoginYet(role).length, noMail = all.filter(p => !p.email && !p.user_id && (role==='coach' || ['T3','T4'].includes(p.level))).length;
+    const all = P.filter(p => p.role===role), withLogin = all.filter(p => p.user_id).length, open = noLoginYet(role).length, noMail = all.filter(p => !p.email && !p.user_id && role==='coach').length;
     return `<div class="login-row"><div><b>${label}</b><div class="tiny muted">${withLogin} with login · ${open} ready for an account${noMail ? ` · ${noMail} without e-mail` : ''}</div></div>
       <div class="row" style="gap:8px">${open ? `<button class="btn red sm" onclick="createAccounts('${role}')"><span>Create accounts</span> (${open})</button>` : ''}${withLogin ? `<button class="btn ghost sm" onclick="createAccounts('${role}', true)" title="Only for accounts that have never logged in">New start passwords</button>` : ''}</div></div>`;
   };
   return `<div class="card"><h2>Logins</h2>
-    <ul class="hints"><li>Accounts get a start password, you download the list as PDF (one page per club)</li><li>At the first login everyone chooses their own password</li><li>«New start passwords» only affects accounts that have never logged in</li></ul>
+    <ul class="hints"><li>Accounts get a start password, you download the list as PDF (one page per club)</li><li>At the first login everyone chooses their own password</li><li>Athletes log in with a username (e.g. lena.muster), coaches with their e-mail</li><li>«New start passwords» only affects accounts that have never logged in</li><li>Forgotten password: «New start password» next to the athlete in the team table</li></ul>
     ${row('coach', 'Coaches')}${row('athlete', 'Athletes')}</div>`;
 }
 // Konten mit Startpasswort anlegen (nur Admins, Edge Function «create-accounts»)
-const noLoginYet = role => (ST.allProfiles||[]).filter(p => (role ? p.role===role : ['athlete','coach'].includes(p.role)) && p.email && !p.user_id);
+const noLoginYet = role => (ST.allProfiles||[]).filter(p => (role ? p.role===role : ['athlete','coach'].includes(p.role)) && (p.role==='athlete' || p.email) && !p.user_id);
 async function createAccounts(role, reset){
+  // Athlet:innen-Konten erst nach Update 15 (Spalte username), sonst entstünden E-Mail-Konten
+  const ath0 = (ST.allProfiles||[]).find(p => p.role==='athlete');
+  if ((!role || role==='athlete') && ath0 && !('username' in ath0)){ alert(trString('Please run database update 15 and redeploy the function «create-accounts» first.')); return; }
   const n = noLoginYet(role).length;
   if (reset ? !confirm(trString('Create new start passwords for all accounts that have never logged in? The old start passwords stop working. You get the new ones only once: save the PDF right away.')) : !confirm(`${n} · ` + trString('Create accounts with a start password for all coaches and athletes with an e-mail and no login yet? You get the start passwords only once: save the PDF right away.'))) return;
   toast('Creating accounts…');
@@ -3337,9 +3355,21 @@ async function createAccounts(role, reset){
     <ul class="hints"><li>This list with the start passwords is shown only now</li><li>Save the PDF (one page per club) and give each coach their page</li><li>Delete the list once everyone has logged in</li></ul>
     ${data.failed.length ? `<div class="rule" style="margin:10px 0">Not created: ${data.failed.map(f => esc(f.name) + ' (' + esc(f.error) + ')').join(', ')}</div>` : ''}
     <div class="btnrow"><button class="btn red" onclick="accountsPdf()">📄 PDF per club</button><button class="btn ghost" onclick="accountsCsv()">CSV</button><button class="btn ghost" onclick="closeModal();loadData().then(render)">Close</button></div>
-    <div class="scroll-x" style="margin-top:12px"><table class="tbl"><thead><tr><th>Name</th><th>Club</th><th>E-mail</th><th>Start password</th></tr></thead><tbody>
-    ${data.created.map(a => `<tr><td>${esc(a.name)}</td><td>${esc(gname(a.group_id))}</td><td>${esc(a.email)}</td><td><code>${esc(a.password)}</code></td></tr>`).join('')}</tbody></table></div>`);
+    <div class="scroll-x" style="margin-top:12px"><table class="tbl"><thead><tr><th>Name</th><th>Club</th><th>Login</th><th>Start password</th></tr></thead><tbody>
+    ${data.created.map(a => `<tr><td>${esc(a.name)}</td><td>${esc(gname(a.group_id))}</td><td><b>${esc(a.login || a.email)}</b></td><td><code>${esc(a.password)}</code></td></tr>`).join('')}</tbody></table></div>`);
   document.querySelector('.modal-bg')?.removeAttribute('onclick');   // nicht versehentlich schliessen: Passwörter gibt es nur jetzt
+}
+// Passwort vergessen (Benutzername-Login): Admin erstellt ein neues Startpasswort für eine Person
+async function resetStartPassword(id){
+  const p = prof(id); if (!p) return;
+  if (!confirm(trString('Create a new start password for') + ' ' + p.name + '? ' + trString('The old password stops working.'))) return;
+  const { data, error } = await db.functions.invoke('create-accounts', {body:{roles:[p.role], reset:true, force:true, ids:[id]}});
+  if (error || data?.error || !data?.created?.length){ toast('Could not reset: ' + (data?.error || error?.message || data?.failed?.[0]?.error || '?'), true); return; }
+  const a = data.created[0]; ST._newAccounts = data.created;
+  modal(`<h3>${esc(a.name)}</h3><ul class="hints"><li>Shown only now: write it down or save the PDF</li><li>At the next login a new own password must be chosen</li></ul>
+    <div class="kpis" style="margin-top:12px"><div class="kpi"><div class="k">Login</div><div class="v" style="font-size:var(--fs-item)">${esc(a.login || a.email)}</div></div>
+    <div class="kpi"><div class="k">Start password</div><div class="v" style="font-size:var(--fs-item)"><code>${esc(a.password)}</code></div></div></div>
+    <div class="btnrow" style="margin-top:12px"><button class="btn red" onclick="accountsPdf()">PDF</button><button class="btn ghost" onclick="closeModal()">Close</button></div>`);
 }
 function accountsPdf(){
   const gname = id => (ST.allGroups||[]).find(g => g.id===id)?.name || 'No club';
@@ -3348,16 +3378,16 @@ function accountsPdf(){
   const url = location.origin + location.pathname;
   const html = Object.keys(by).sort().map((club, i) => `<div style="${i ? 'page-break-before:always;' : ''}padding-top:4px">
     <h2>${esc(club)}</h2>
-    <ul class="hints"><li>App: ${esc(url)}</li><li>Log in with your e-mail and the start password</li><li>At the first login you choose your own password (at least 8 characters)</li><li>Coaches: give each athlete only their own line</li></ul>
-    <table class="tbl"><thead><tr><th>Name</th><th>Role</th><th>Sport</th><th>E-mail</th><th>Start password</th></tr></thead><tbody>
-    ${by[club].sort((a,b) => (a.role > b.role ? -1 : a.role < b.role ? 1 : a.name.localeCompare(b.name))).map(a => `<tr><td>${esc(a.name)}</td><td>${a.role==='coach' ? 'Coach' : 'Athlete ' + esc(a.level||'')}</td><td>${a.sport==='snowboard' ? 'Snowboard' : 'Freeski'}</td><td>${esc(a.email)}</td><td><b>${esc(a.password)}</b></td></tr>`).join('')}
+    <ul class="hints"><li>App: ${esc(url)}</li><li>Athletes: log in with your username, coaches: with your e-mail</li><li>Then enter the start password</li><li>At the first login you choose your own password (at least 8 characters)</li><li>Coaches: give each athlete only their own line</li></ul>
+    <table class="tbl"><thead><tr><th>Name</th><th>Role</th><th>Sport</th><th>Login</th><th>Start password</th></tr></thead><tbody>
+    ${by[club].sort((a,b) => (a.role > b.role ? -1 : a.role < b.role ? 1 : a.name.localeCompare(b.name))).map(a => `<tr><td>${esc(a.name)}</td><td>${a.role==='coach' ? 'Coach' : 'Athlete ' + esc(a.level||'')}</td><td>${a.sport==='snowboard' ? 'Snowboard' : 'Freeski'}</td><td><b>${esc(a.login || a.email)}</b></td><td><b>${esc(a.password)}</b></td></tr>`).join('')}
     </tbody></table></div>`).join('');
   openPrintWindow('Start passwords', APP_TITLE + ' · one page per club', html);
 }
 function accountsCsv(){
   const gname = id => (ST.allGroups||[]).find(g => g.id===id)?.name || '';
   const q = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
-  const rows = [['Club','Name','Role','Sport','Level','E-mail','Start password'], ...(ST._newAccounts||[]).map(a => [gname(a.group_id), a.name, a.role, a.sport, a.level, a.email, a.password])];
+  const rows = [['Club','Name','Role','Sport','Level','Login','Start password'], ...(ST._newAccounts||[]).map(a => [gname(a.group_id), a.name, a.role, a.sport, a.level, a.login || a.email, a.password])];
   const blob = new Blob(['\ufeff' + rows.map(r => r.map(q).join(';')).join('\n')], {type:'text/csv'});
   const l = document.createElement('a'); l.href = URL.createObjectURL(blob); l.download = 'Youth_start_passwords.csv'; l.click();
 }
@@ -4736,7 +4766,7 @@ function showLoginGate(msg){
   $('#gate').innerHTML = gateShell(`
     <div class="card"><h2>Log in</h2>
       <div style="display:grid;gap:12px">
-        <label class="f">E-mail<input type="email" id="lg-mail" autocomplete="username"></label>
+        <label class="f">E-mail or username<input type="text" id="lg-mail" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false"></label>
         <label class="f">Password<input type="password" id="lg-pw" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"></label>
       </div>
       <div class="small" id="lg-msg" style="margin-top:10px;min-height:18px;color:var(--red)">${esc(msg||'')}</div>
@@ -4745,14 +4775,19 @@ function showLoginGate(msg){
       <div class="first-time"><b>First time here?</b><span>Your coach or Swiss-Ski has registered your e-mail. Enter it above and activate your account.</span><button class="btn ghost" onclick="authActivate()">Activate account</button></div></div>`);
   $('#gate').hidden = false; $('#app').hidden = true;
 }
+// Athlet:innen melden sich mit Benutzername an (Update 15): intern <benutzername>@login.trick-collector.invalid
+const LOGIN_DOMAIN = 'login.trick-collector.invalid';
+const loginEmail = v => { v = (v || '').trim().toLowerCase(); return v.includes('@') ? v : `${v}@${LOGIN_DOMAIN}`; };
+const isUsername = v => !!(v || '').trim() && !(v || '').includes('@');
 async function doLogin(){
-  try { await SupaStore.login($('#lg-mail').value.trim(), $('#lg-pw').value); await startApp(); }
+  try { await SupaStore.login(loginEmail($('#lg-mail').value), $('#lg-pw').value); await startApp(); }
   catch (err){ $('#lg-msg').textContent = 'Login failed: ' + (err.message||err); }
 }
 // Ablauf wie Freeski/Snowboard: Code (6-stellig) statt Link: Links werden von Mail-Scannern verbraucht
 function loginMsg(t, ok){ const m = $('#lg-msg'); if (!m) return; m.style.color = ok ? 'var(--muted)' : 'var(--red)'; m.textContent = t; }
 async function authForgotPassword(){
   const email = ($('#lg-mail')?.value || '').trim();
+  if (isUsername(email)){ loginMsg('Logging in with a username: ask your coach or an admin for a new start password.'); return; }
   if (!email){ loginMsg('Enter your e-mail above first, then tap the link again.'); return; }
   loginMsg('Sending code…', true);
   const { error } = await db.auth.resetPasswordForEmail(email);
@@ -4762,6 +4797,7 @@ async function authForgotPassword(){
 // Erstes Mal: Konto selbst aktivieren (nur hinterlegte E-Mails, siehe Update 11)
 async function authActivate(){
   const email = ($('#lg-mail')?.value || '').trim().toLowerCase();
+  if (isUsername(email)){ loginMsg('Athletes get their username and start password from their coach. Log in with them above.'); return; }
   if (!email){ loginMsg('Enter your e-mail above first, then tap «Activate account» again.'); return; }
   loginMsg('Checking…', true);
   const { data:ok, error:e1 } = await db.rpc('can_register', {p_email:email});
