@@ -1228,8 +1228,13 @@ const SIDE = SB ? {L:'Frontside', R:'Backside'} : {L:'Left', R:'Right'};
 const OFFAX = SB ? ['Cork','Crippler','McTwist','Todeo','Rodeo','Infinity Axis','Underflip'] : ['Cork','Bio/Misty','Flat Spin','Rodeo'];
 const NOROT = SB ? ['Straight Air','Backroll','Frontroll','Wildcat','Tamedog'] : ['Zero Spin','Frontflip','Backflip','Sideflip'];
 const FLIPN = {1:'Single', 2:'Double', 3:'Triple', 4:'Quad'};
-const GRABS = SB ? ['Bloody Dracula','Canadian Bacon','Chicken Salad','Crail','Crooked Cop','Cross Rocket','Double Tail','Drunk Driver','Frontside','Indy','Japan','Lien','Melon','Method','Mute','Nose','Nuclear','Roast Beef','Rocket Air','Sad Air','Seat Belt','Slob','Stalefish','Stelmasky','Stink Bug','Suitcase','Tai Pan','Tail','Truck Driver','Tuck Knee'] : ['Blunt','Bow and Arrow','Broken Arrow','Critical','Cuban','Double Grab (both hands)','Double Japan','Esco','Guitar','High Mute','In and out','Indi-Truck','Inside Tail','Japan','Mute','Nose','Octo','Rocket','Safety',"Screamin' Seamen",'Seatbelt','Seatbelt Japan','Stale','Stink Bug','Tail','Truckdriver','Venom'];
-const BOTH_HANDS = ['Double Grab (both hands)','Double Japan','Truckdriver'];
+// Grabs genau wie in der Elite-App (js/freeski.js FS_ASSESS_GRABS, js/snowboard.js SB_JUMP_GRABS / SB_HP_GRABS)
+const FS_GRABS = ['Blunt','Bow and Arrow','Broken Arrow','Critical','Cuban','Double Japan','Double Tail','Esco','Guitar','High Mute','In and out','Indi-Truck','Inside Tail','Japan','Mute','Nose','Octo','Rocket','Safety',"Screamin' Seamen",'Seatbelt','Seatbelt Japan','Stale','Stink Bug','Tail','Truckdriver','Venom'];
+const SB_JUMP_GRABS = ['Canadian Bacon','Chicken Salad','Crail','Double Japan','Double Nose','Double Tail','Drunk Driver','Indy','Japan','Melon','Method','Nose','Roast Beef','Rocket Air','Rusty Trombone','Seat Belt','Stalefish','Tai Pan','Tail','Truck Driver','Tuck Knee','Weddle (Mute)'];
+const SB_HP_GRABS = ['Bloody Dracula','Canadian Bacon','Chicken Salad','Cookie Monster','Crail','Crooked Cop','Cross Rocket','Double Tail','Dracula Method','Drunk Driver','Freshfish','Frontside','Indy','Japan','Lien','Melon','Method','Nose','Nuclear','Nuclear Method','Reach Around','Roast Beef','Rocket Air','Rusty Trombone','Sad Air','Seat Belt','Slob','Spaghetti','Stalefish','Stelmasky','Stink Bug','Suitcase','Swiss Cheese','Tai Pan','Tail','Truck Driver','Tuck Knee','Weddle (Mute)'];
+const GRABS = SB ? [...new Set([...SB_HP_GRABS, ...SB_JUMP_GRABS])].sort() : FS_GRABS;
+const grabsFor = disc => !SB ? FS_GRABS : disc==='Halfpipe' ? SB_HP_GRABS : disc==='Jump' ? SB_JUMP_GRABS : GRABS;
+const BOTH_HANDS = ['Double Japan','Double Tail','Double Nose','Truckdriver','Truck Driver'];
 const TAKEOFFS = SB ? ["N'Ollie",'Nosebutter','Noseslide','Tailbutter','Tailslide','Hardway'] : ['Carved','Blender','Hand-Drag','Inside Edge','Nosebutter','Tailbutter',"N'Ollie"];
 const CREATIVE = ['Nosebutter','Tailbutter',"N'Ollie"];
 const OBST = {'Tube':1, 'Simple rail':2, 'Demanding rail':3};   // wie Skills-Check (keine Box)
@@ -2260,7 +2265,7 @@ function formFields(disc, F, fn='formSet'){
     f.push(`<div class="form-group"><label>Direction</label><select onchange="if(this.value){${fn}('${swKey}', this.value[0]==='S' ? '${swOn}' : '${swOff}', true);${fn}('${sideKey}', this.value.slice(-1))}">${opts(ph([['L', SIDE.L], ['R', SIDE.R], ['SL', 'Switch ' + SIDE.L], ['SR', 'Switch ' + SIDE.R]], cur), cur)}</select></div>`);
   };
   const grabBlock = () => f.push(`<div class="form-group full"><label>Grab <span class="lbl-hint">(click to select · click again = no grab)</span></label>
-    <div class="grabchips">${GRABS.map((g, i) => `<button type="button" class="gchip ${F.grab===g?'on':''}" onclick="${fn}('grab', F_GRAB(${i}, ${esc(JSON.stringify(F.grab||''))}))">${esc(g)}</button>`).join('')}</div></div>`);
+    <div class="grabchips">${[...new Set([...grabsFor(disc), ...(F.grab ? [F.grab] : [])])].map(g => `<button type="button" class="gchip ${F.grab===g?'on':''}" onclick="${fn}('grab', F_GRAB(${esc(JSON.stringify(g))}, ${esc(JSON.stringify(F.grab||''))}))">${esc(g)}</button>`).join('')}</div></div>`);
   if (disc==='Jump'){
     f.push('<div class="section-divider">Jump</div>');
     const noRot = NOROT.includes(F.axis);
@@ -2327,7 +2332,7 @@ function formFields(disc, F, fn='formSet'){
   return f.join('');
 }
 // Grab-Button: nochmals klicken = abwählen
-function F_GRAB(i, cur){ const g = GRABS[i]; return cur===g ? '' : g; }
+function F_GRAB(g, cur){ return cur===g ? '' : g; }
 
 function normTrick(disc, F){
   if (disc==='Jump'){
@@ -3613,7 +3618,7 @@ function renderSessionActive(root, s){
   const grabOpts = pk && hasGrab(pk) ? sxGrabOptions(pk) : [];
   const grabBlock = pk && hasGrab(pk) ? `<div class="sub-h" style="margin-top:14px">Grab <span class="lbl-hint" style="text-transform:none;letter-spacing:0;font-weight:400">(2nd tap on another grab = double grab)</span></div>
       <div class="grabchips"><button class="gchip ${!SX.grab?'on':''}" onclick="sxGrabTap('')">No Grab</button>${grabOpts.map(([g, src]) => `<button class="gchip ${SX.grab===g || (SX.grab||'').split(' to ').includes(g) ?'on':''}" onclick="sxGrabTap(${esc(JSON.stringify(g))})">${src==='goal'?'🎯 ':''}${esc(g)}</button>`).join('')}
-        <select class="gsel" onchange="sxGrabOther(this.value)"><option value="">+ Other grab…</option>${opts(GRABS, '')}</select></div>
+        <select class="gsel" onchange="sxGrabOther(this.value)"><option value="">+ Other grab…</option>${opts(grabsFor(pk.disc), '')}</select></div>
       ${SX.grab ? `<div class="tiny muted" style="margin-top:4px">Selected: <b>${esc(SX.grab)}</b></div>` : ''}` : '';
   root.innerHTML = `
     <div class="card sess-head">
@@ -3827,7 +3832,7 @@ function renderEditAttempt(){
   const reasons = [...new Set([...failReasonList(), ...EA.fails])];
   modal(`<h3>Edit attempt</h3><div class="muted small">${esc(prof(a.athlete_id)?.name)} · ${fmtDate(sessDate(a))} · ${new Date(a.created_at).toLocaleTimeString('de-CH', {hour:'2-digit', minute:'2-digit'})}</div>
     <div style="font-weight:800;color:var(--char);font-size:var(--fs-body);margin:10px 0">${esc(grabbable ? trickLabel(a.discipline, {...a.trick, grab:EA.grab}) : a.label)}</div>
-    ${grabbable ? `<div class="form-group" style="margin-bottom:12px"><label>Grab</label><select onchange="EA.grab=this.value;renderEditAttempt()"><option value="">No grab</option>${opts([...new Set([...(EA.grab ? [EA.grab] : []), ...GRABS])], EA.grab)}</select></div>` : ''}
+    ${grabbable ? `<div class="form-group" style="margin-bottom:12px"><label>Grab</label><select onchange="EA.grab=this.value;renderEditAttempt()"><option value="">No grab</option>${opts([...new Set([...(EA.grab ? [EA.grab] : []), ...grabsFor(a.discipline)])], EA.grab)}</select></div>` : ''}
     <div class="bigbtns" style="${EA.hasCrit ? '' : 'grid-template-columns:1fr 1fr 1fr'}">
       <button class="bigbtn fail ${EA.oc==='failed'?'on':''}" onclick="EA.oc='failed';renderEditAttempt()">✗<br>FAILED</button>
       <button class="bigbtn land ${EA.oc!=='failed' && (EA.hasCrit || EA.oc==='landed')?'on':''}" onclick="EA.oc='landed';renderEditAttempt()">✓<br>LANDED</button>
