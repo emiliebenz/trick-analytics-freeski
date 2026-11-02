@@ -738,13 +738,20 @@ header h1 .dot{color:#E2001A}
 .sr-ut-lab b { display: block; font-size: 14px; color: var(--text); }
 .sr-ut-lab span { color: var(--muted); }
 .sr-ut-wahl { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
-.sr-ut-wahl button { font-family: inherit; width: 32px; height: 32px; border-radius: 8px; border: 1.5px solid var(--border); background: var(--surface2); color: var(--text); font-weight: 700; cursor: pointer; }
+.sr-ut-wahl button { font-family: inherit; width: 28px; height: 30px; border-radius: 8px; border: 1.5px solid var(--border); background: var(--surface2); color: var(--text); font-weight: 700; cursor: pointer; }
 .sr-ut-wahl button.on { border-color: #8E5BB8; background: #8E5BB8; color: #fff; }
 .sr-ut-text { font-size: 12px; margin-left: 6px; color: #8E5BB8; font-weight: 600; min-width: 120px; }
 .sr-ut-alle { font-size: 12px; }
 .sr-ut-kom { font-size: 12px; color: var(--text); margin-top: 6px; display: flex; flex-direction: column; gap: 3px; }
 @media (max-width: 768px) { .sr-ut-zeile { grid-template-columns: 1fr; } .sr-ut-runden { margin-left: 0; } }
-.sr-ut-zeile { grid-template-columns: minmax(0, 1fr) 190px minmax(0, 1.1fr) !important; }
+.sr-ut-zeile { grid-template-columns: minmax(0, 1fr) 322px minmax(0, 1.1fr) !important; }
 .sr-ut-wahl { flex-wrap: nowrap; }
 .sr-ut-text { display: block; margin: 0 0 2px; min-width: 0; }
-@media (max-width: 768px) { .sr-ut-zeile { grid-template-columns: 1fr !important; } }
+@media (max-width: 768px) { .sr-ut-zeile { grid-template-columns: 1fr !important; } .sr-ut-wahl { flex-wrap: wrap; gap: 3px; } .sr-ut-wahl button { width: 26px; height: 28px; } }
+/* Trainerurteil: Gesamt-Zeile und Team-Übersicht (Tabelle wird auf dem Handy von ui-regeln.js zu Karten) */
+.sr-ut-gesamt { background: var(--surface2); border-radius: 8px; padding: 8px 10px; }
+.sr-ut-tab { width: 100%; border-collapse: collapse; margin-top: 4px; }
+.sr-ut-tab th { text-align: left; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; border-bottom: 1px solid var(--border); }
+.sr-ut-tab td { border-bottom: 1px solid var(--border); }
+.sr-ut-tab tbody tr:hover td { background: rgba(142,91,184,0.06); }
+.sr-ut-tab tr.sr-ut-fuss td { border-top: 2px solid var(--border); border-bottom: 0; cursor: default; color: var(--muted); }

@@ -4361,6 +4361,8 @@ function renderMonTeam() {
   const byAth = {};
   rows.forEach(t => { (byAth[t.athlet] = byAth[t.athlet] || []).push(t); });
   _monAthletes = SESS_ALL_ATHLETES.map(a => a.name);
+  const urteil = srTeamUrteilHtml();          // Chip «Coach judgement» (kern.js): Übersicht aller Athlet:innen statt der Karten
+  if (urteil !== null) { root.innerHTML = `<div class="card polster-20">${monHeaderHtml('Team Monitoring', 'Coach judgement · ' + sbMonPeriodLabel(), false)}${urteil}</div>`; return; }
   const sections = SESS_SQUADS.map(sq => {
     const aths = SESS_ALL_ATHLETES.filter(a => a.squad === sq.key);
     if (!aths.length) return '';
