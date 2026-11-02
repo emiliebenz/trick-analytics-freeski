@@ -2063,7 +2063,11 @@ function athleteSelect(onchangeFn){
 }
 function groupFilterSelect(){
   if (ST.me.role !== 'dvlp') return '';
-  return `<select onchange="setGroupFilter(this.value)" style="max-width:240px"><option value="">All groups</option><option value="__none" ${ST.groupFilter==='__none'?'selected':''}>No group yet</option>${ST.groups.map(g => `<option value="${g.id}" ${ST.groupFilter===g.id?'selected':''}>${esc(g.name)}</option>`).join('')}</select>`;
+  // nur Gruppen mit Athlet:innen dieser Sportart (z. B. keine Clubs ohne T4 mehr)
+  const aths = ST.profiles.filter(p => p.role==='athlete' && (p.sport || 'freeski')===SPORT);
+  const groups = ST.groups.filter(g => g.id===ST.groupFilter || aths.some(a => a.group_id===g.id));
+  const noGroup = ST.groupFilter==='__none' || aths.some(a => !a.group_id);
+  return `<select onchange="setGroupFilter(this.value)" style="max-width:240px"><option value="">All groups</option>${noGroup ? `<option value="__none" ${ST.groupFilter==='__none'?'selected':''}>No group yet</option>` : ''}${groups.map(g => `<option value="${g.id}" ${ST.groupFilter===g.id?'selected':''}>${esc(g.name)}</option>`).join('')}</select>`;
 }
 function setGroupFilter(v){ ST.groupFilter = v; const a = visibleAthletes(); if (!a.some(x => x.id===ST.athleteId)) ST.athleteId = a[0]?.id || null; render(); }
 function pickAthlete(id){ ST.athleteId = id; ST.level = null; ST.form = null; render(); }
