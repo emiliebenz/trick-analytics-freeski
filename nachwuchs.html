@@ -3181,6 +3181,7 @@ function renderSkills(){
         <div class="k">${DISC_LABEL[d]} · ${on ? ['','1','½','⅓'][tot.incl.length] : 'not in focus'}</div><div class="v">${pct(e2.pts, e2.max)}<small>% · ${e2.pts}/${e2.max} pts</small></div>${progressBar(e2)}
         <div class="tiny muted" style="margin-top:6px">${e2.done}/${e2.n} achieved${e2.pending?` · ${e2.pending} ⏳`:''}</div></div>`; }).join('')}
     </div>
+    ${docsCard(disc, ath.level)}
     <div class="card">
       <h2>${DISC_LABEL[disc]} · ${level} ${ath.gender==='W'?'Women':'Men'}<span class="rt">${ev.pts} / ${ev.max} pts</span></h2>
       <div class="meta">${ev.def.meta.map(m => `<span class="chip">${esc(m)}</span>`).join('')}</div>
@@ -3202,7 +3203,6 @@ function renderSkills(){
       ${ev.def.sections.some(x => x.rules) ? '' : ev.rules.map(ruleHtml).join('')}
 
     </div>
-    ${docsCard(disc, ath.level)}
     ${badgesCard(ath)}`;
   celebrateBadges(ath);
 }
