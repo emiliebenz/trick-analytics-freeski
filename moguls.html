@@ -221,7 +221,6 @@ header h1 .dot{color:#E2001A}
       <div style="display:flex;flex-wrap:wrap;gap:8px;" id="sess-type-btns">
         <button onclick="selectSessType(this,'Run')" class="sess-type-btn">Run</button>
         <button onclick="selectSessType(this,'Water Jump')" class="sess-type-btn">Water Jump</button>
-        <button onclick="selectSessType(this,'Jump on Snow')" class="sess-type-btn">Jump on Snow</button>
       </div>
     </div>
 
@@ -386,7 +385,9 @@ const TYPES = {
 };
 const TYPE_NAMES = Object.keys(TYPES).filter(t => !TYPES[t].legacy);
 // "Run"-Session: Sammel-Typ im Setup; der konkrete Typ wird pro Athlet:in im Run-Dropdown gewählt
-const RUN_TYPES = ['TTB', '50/50', 'Solo Sci'];
+// Jump on Snow läuft seit 11/2026 unter Run (Coach-Wunsch), Anzeige im Dropdown nur «Jump»
+const RUN_TYPES = ['TTB', '50/50', 'Solo Sci', 'Jump on Snow'];
+const RUN_TYPE_LABELS = { 'Jump on Snow': 'Jump' };
 const ALL_RATING_COLS = ['r_jump1','r_jump2','r_sci','r_ub','r_abs','r_carving','r_asse','r_air','r_grab','r_landing'];
 
 function isGrabJump(j) { return JUMPS_GRAB.includes(j); }
@@ -952,7 +953,7 @@ function renderLiveSession() {
     if (sessType === 'Run') {
       selects.push(`<div class="form-group"><label>Run</label>
         <select onchange="setSessRunType('${name}',this.value)">
-          <option value="">— select —</option>${RUN_TYPES.map(rt => `<option value="${rt}" ${sel.runType===rt?'selected':''}>${rt}</option>`).join('')}
+          <option value="">— select —</option>${RUN_TYPES.map(rt => `<option value="${rt}" ${sel.runType===rt?'selected':''}>${RUN_TYPE_LABELS[rt] || rt}</option>`).join('')}
         </select></div>`);
     }
     if (t && t.jumps >= 1) {
