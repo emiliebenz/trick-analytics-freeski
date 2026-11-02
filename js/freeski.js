@@ -3841,7 +3841,7 @@ function renderMonTeam() {
     if (!att) return {html: '<span class="gedaempft">no attempts</span>', txt: '0 attempts'};
     const ready = sbMonTrickAgg(ar).filter(tr => sbMonStatusKey(tr.att, tr.qoe) === 'ready').length;
     const col = att < 5 || qoe === null ? '#5c5c61' : qoe >= 70 ? '#3E8E5A' : qoe >= 50 ? '#C96A1F' : '#e2001a';
-    return {html: `<b style="color:${col};">${qoe !== null ? qoe + '%' : '–'}</b> QoE<span class="gedaempft"> · ${att} att. · ${ready} ready</span>`, txt: `${att} attempts, Ø QoE ${qoe !== null ? qoe + '%' : '–'}, ${ready} tricks ready`};
+    return {html: `<b style="color:${col};">${qoe !== null ? qoe + '%' : '–'}</b> QoE<div class="gedaempft">${att} att. · ${ready} ready</div>`, txt: `${att} attempts, Ø QoE ${qoe !== null ? qoe + '%' : '–'}, ${ready} tricks ready`};
   }, {lab: 'Ø QoE'}));
   if (urteil !== null) { root.innerHTML = `<div class="card polster-20">${monHeaderHtml('Team Monitoring', 'Athlete overview · ' + sbMonPeriodLabel(), false)}${urteil}</div>`; return; }
   const sections = SESS_SQUADS.map(sq => {

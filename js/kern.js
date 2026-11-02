@@ -2583,16 +2583,24 @@ function srTeamChipHtml() {
   return `<button class="sr-tabchip ${sbMonTyp === SR_UT_TAB ? 'on' : ''}" onclick="sbMonSetTyp('${SR_UT_TAB}')">Athlete overview</button>`;
 }
 function srSetOvAnsicht(a) { _srOvAnsicht = a; renderMonitoring(); }
-// Wettkampf der gewählten Saison; ohne Auswertung die jüngste frühere Saison mit Übersicht (dann mit Saison-Label)
-function srOvWettkampf(name) {
-  const saison = srSaisonen(name)[0] || SR_JETZT, revs = srReviews(name);
-  let s = revs[saison] && revs[saison].uebersicht ? saison : Object.keys(revs).filter(x => x < saison && revs[x].uebersicht).sort().pop();
-  const U = s ? revs[s].uebersicht : null;
-  if (!U || !U.disz) return {html: '<span class="gedaempft">–</span>', txt: '', saison: null};
-  const teile = Object.entries(U.disz).map(([k, d]) => ({k, d, txt: `${k} ${d.best_rank || '–'}${d.podeste ? ` · ${d.podeste}× podium` : d.finals ? ` · ${d.finals} final${d.finals === 1 ? '' : 's'}` : ''} (${d.n_events} ev.)`}));
-  const html = teile.map(t => `<div><b>${t.k}</b> ${srEsc(t.d.best_rank || '–')}${t.d.podeste ? ` <b style="color:${SR_GUT};">${t.d.podeste}× podium</b>` : t.d.finals ? ` <span>${t.d.finals} final${t.d.finals === 1 ? '' : 's'}</span>` : ''}<span class="gedaempft"> ${t.d.n_events} ev.</span></div>`).join('')
-    + (s !== saison ? `<div class="gedaempft">season ${s}</div>` : '');
-  return {html, txt: teile.map(t => t.txt).join('; ') + (s !== saison ? ` [${s}]` : ''), saison: s};
+// Wettkampf nur der gewählten Saison (kein Rückgriff auf frühere Saisons, Emilie 2.11.2026): die Auswertung (season_review),
+// sonst die FIS-Resultate der Selektionsdaten derselben Saison (bester Rang pro Disziplin), sonst «no FIS event yet»
+function srOvWettkampf(name, S) {
+  const saison = srSaisonen(name)[0] || SR_JETZT, R = srReviews(name)[saison], U = R && R.uebersicht;
+  if (U && U.disz) {
+    const teile = Object.entries(U.disz);
+    return {html: teile.map(([k, d]) => `<div><b>${k}</b> ${srEsc(d.best_rank || '–')}${d.podeste ? ` <b style="color:${SR_GUT};">${d.podeste}× podium</b>` : d.finals ? ` ${d.finals} final${d.finals === 1 ? '' : 's'}` : ''}<span class="gedaempft"> · ${d.n_events} ev.</span></div>`).join(''),
+      txt: teile.map(([k, d]) => `${k} ${d.best_rank || '–'}${d.podeste ? ` · ${d.podeste}× podium` : d.finals ? ` · ${d.finals} final${d.finals === 1 ? '' : 's'}` : ''} (${d.n_events} ev.)`).join('; ')};
+  }
+  const res = S && S.saison === saison ? (S.resultate || []) : [];
+  if (res.length) {
+    const best = {};
+    res.forEach(r => { if (r.rang && (!best[r.disz] || r.rang < best[r.disz].rang)) best[r.disz] = r; });
+    const teile = Object.values(best);
+    return {html: teile.map(r => `<div><b>${r.disz}</b> ${srOrd(r.rang)}<span class="gedaempft"> · ${srEsc(SR_KAT[r.kat] || r.kat || '')}</span></div>`).join('') + `<div class="gedaempft">${res.length} FIS result${res.length === 1 ? '' : 's'}</div>`,
+      txt: teile.map(r => `${r.disz} ${srOrd(r.rang)} (${SR_KAT[r.kat] || r.kat || ''})`).join('; ') + ` [${res.length} FIS results]`};
+  }
+  return {html: `<span class="gedaempft">no event yet</span>`, txt: ''};
 }
 // höchste Stufe mit Met, sonst On track; sonst offen (bzw. nur über das Trainerurteil erreichbar)
 function srOvSelektion(name, S) {
@@ -2639,13 +2647,13 @@ function srTeamUrteilHtml(train) {
   let tab, lesen;
   if (ansicht === 'alle') {
     const rows = zeilen.map(z => {
-      const i = _monAthletes.indexOf(z.name), t = train ? train(z.name) : null, w = fehlt ? null : srOvWettkampf(z.name), sel = srOvSelektion(z.name, z.S);
+      const i = _monAthletes.indexOf(z.name), t = train ? train(z.name) : null, w = fehlt ? null : srOvWettkampf(z.name, z.S), sel = srOvSelektion(z.name, z.S);
       const coaches = new Set(Object.values(z.U.werte).flatMap(o => Object.keys(o))).size;
       const cj = !z.S ? '<span class="gedaempft">–</span>' : z.G.mittel != null ? `<b style="color:${srUtFarbe(z.G.mittel)};">${srF(z.G.mittel)}</b><span class="gedaempft"> ${coaches} coach${coaches === 1 ? '' : 'es'}</span>` : '<span class="gedaempft">not rated</span>';
-      return `<tr onclick="srTeamUrteilOpen(${i})">${nameZ(z)}<td>${t ? t.html : '–'}</td><td>${w ? w.html : '<span class="gedaempft">–</span>'}</td><td>${z.kader ? srEsc(z.kader) : '<span class="gedaempft">–</span>'}</td><td>${sel.html}</td><td>${cj}</td><td>${meinTxt(z)}</td></tr>`;
+      return `<tr onclick="srTeamUrteilOpen(${i})">${nameZ(z)}<td>${t ? t.html : '–'}</td><td>${w ? w.html : '<span class="gedaempft">–</span>'}</td><td>${z.kader ? `<div>${srEsc(z.kader)}</div>` : ''}<div>${sel.html}</div></td><td>${cj}</td></tr>`;
     }).join('');
-    tab = `<table class="sr-karriere sr-ut-tab"><thead><tr><th>Athlete</th><th>Training</th><th>Competition (FIS)</th><th>Squad</th><th>Selection ${srEsc(ks)}</th><th>Coach judgement</th><th>You</th></tr></thead><tbody>${rows}</tbody></table>`;
-    lesen = ['<b>Training</b> = the period and filters chosen above: attempts, ' + (train && train.lab ? train.lab : 'success rate') + ' and the number of tricks with status Ready.', '<b>Competition</b> = FIS events of the chosen season per discipline: best rank, podium places or finals, number of events. Without results yet, the latest earlier season is shown with its label.', '<b>Selection</b> = the highest squad level the FIS results meet (Met) or are on track for; «by coach judgement» = that level depends on the coach judgement (Annex B).', '<b>Coach judgement</b> = overall mean of the chosen round (five criteria, scale 1 to 10). <b>You</b> = your own ratings: ✓ complete, open = none yet.', 'Click a row to open the athlete. «Coach judgement» above shows the five criteria one by one.'];
+    tab = `<table class="sr-karriere sr-ut-tab"><thead><tr><th>Athlete</th><th>Training</th><th>Competition (FIS)</th><th>Squad · selection ${srEsc(ks)}</th><th>Coach judgement</th></tr></thead><tbody>${rows}</tbody></table>`;
+    lesen = ['<b>Training</b> = the period and filters chosen above: attempts, ' + (train && train.lab ? train.lab : 'success rate') + ' and the number of tricks with status Ready.', '<b>Competition</b> = FIS events of the chosen season only: best rank per discipline, podium places or finals, number of events. Earlier seasons: choose them in the season menu above.', '<b>Squad · selection</b> = the current squad, below it the highest squad level the FIS results meet (Met) or are on track for; «by coach judgement» = that level depends on the coach judgement (Annex B).', '<b>Coach judgement</b> = overall mean of the chosen round (five criteria, scale 1 to 10) and how many coaches rated. Your own open ratings: switch to «Coach judgement».', 'Click a row to open the athlete. «Coach judgement» above shows the five criteria one by one.'];
   } else {
     const zelle = o => { const m = srMittel(o); return m == null ? '<td><span class="gedaempft">–</span></td>' : `<td><b style="color:${srUtFarbe(m)};">${srF(m)}</b><span class="gedaempft"> ${Object.keys(o).length}</span></td>`; };
     const rows = zeilen.map(z => {
@@ -2654,8 +2662,8 @@ function srTeamUrteilHtml(train) {
     }).join('');
     const mw = SR_URTEIL.map(c => srAvg(zeilen.map(z => srMittel(z.U.werte[c.k])))), gw = srAvg(zeilen.map(z => z.G.mittel));
     const fuss = `<tr class="sr-ut-fuss"><td>Ø listed athletes</td>${mw.map(m => `<td>${m != null ? `<b>${srF(m)}</b>` : '<span class="gedaempft">–</span>'}</td>`).join('')}<td>${gw != null ? `<b>${srF(gw)}</b>` : '<span class="gedaempft">–</span>'}</td><td></td><td></td></tr>`;
-    tab = `<table class="sr-karriere sr-ut-tab"><thead><tr><th>Athlete</th>${SR_URTEIL.map(c => `<th title="${srEsc(c.frage)}">${srEsc(c.lab)}</th>`).join('')}<th>Overall</th><th>Coaches</th><th>You</th></tr></thead><tbody>${rows}${fuss}</tbody></table>`;
-    lesen = ['<b>Scale</b> 1 to 10: 1 = very poor, 10 = excellent. <b>Overall</b> = mean of the five criteria per coach, then across coaches.', '<b>Coaches</b> = how many coaches rated in this round. <b>You</b> = your own ratings: ✓ complete, open = none yet.', 'The last row averages the listed athletes, like the pivot table of the sheet.', 'Only athletes with selection data are listed; elsewhere the rating has no place in the selection rules. Click a row to rate.'];
+    tab = `<table class="sr-karriere sr-ut-tab"><thead><tr><th>Athlete</th>${SR_URTEIL.map(c => `<th title="${srEsc(c.frage)}">${srEsc(c.lab)}</th>`).join('')}<th>Overall</th><th>Coaches</th><th title="Your own ratings in this round">Your rating</th></tr></thead><tbody>${rows}${fuss}</tbody></table>`;
+    lesen = ['<b>Scale</b> 1 to 10: 1 = very poor, 10 = excellent. <b>Overall</b> = mean of the five criteria per coach, then across coaches.', '<b>Coaches</b> = how many coaches rated in this round. <b>Your rating</b> = whether you (the logged-in coach) rated this athlete: ✓ all five criteria, «2 of 5» partly, open = not yet.', 'The last row averages the listed athletes, like the pivot table of the sheet.', 'Only athletes with selection data are listed; elsewhere the rating has no place in the selection rules. Click a row to rate.'];
   }
   return `<div class="sr-urteil" style="margin-top:0;">
     <div class="sr-ut-kopf"><b>Athlete overview</b>${umsch}<span class="gedaempft">squad year ${srEsc(ks)} · click a row to open the athlete</span>${runden}</div>
@@ -2677,7 +2685,7 @@ function srTeamOverviewCsv(runde) {
   const zeilen = srTeamUrteilZeilen(runde, true);
   const out = [['Name Athlet:in', 'Trainingsgruppe', 'Training', 'Wettkampf (FIS)', 'Kaderlevel', 'Selektion ' + ((zeilen[0] || {}).ks || ''), 'Coach judgement Gesamt-Mittel', 'Anzahl Coaches', ...SR_URTEIL.map(c => c.lab + ' Ø')]];
   zeilen.forEach(z => {
-    const t = _srTrain ? _srTrain(z.name) : null, w = _srData && !_srData.fehlt ? srOvWettkampf(z.name) : null;
+    const t = _srTrain ? _srTrain(z.name) : null, w = _srData && !_srData.fehlt ? srOvWettkampf(z.name, z.S) : null;
     const coaches = new Set(Object.values(z.U.werte).flatMap(o => Object.keys(o))).size;
     out.push([z.name, z.squad.label, t ? t.txt : '', w ? w.txt : '', z.kader, srOvSelektion(z.name, z.S).txt, z.G.mittel == null ? '' : srF(z.G.mittel, 2), z.S ? coaches : '', ...SR_URTEIL.map(c => { const m = srMittel(z.U.werte[c.k]); return m == null ? '' : srF(m, 2); })]);
   });

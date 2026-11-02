@@ -755,5 +755,6 @@ header h1 .dot{color:#E2001A}
 .sr-ut-tab td { border-bottom: 1px solid var(--border); }
 .sr-ut-tab tbody tr:hover td { background: rgba(142,91,184,0.06); }
 .sr-ut-runden button:disabled { opacity: .4; cursor: default; }
-.sr-ut-tab td > div { white-space: nowrap; line-height: 1.5; }
+.sr-ut-tab td, .sr-ut-tab th { white-space: normal; vertical-align: top; }
+.sr-ut-tab td > div { line-height: 1.5; }
 .sr-ut-tab tr.sr-ut-fuss td { border-top: 2px solid var(--border); border-bottom: 0; cursor: default; color: var(--muted); }

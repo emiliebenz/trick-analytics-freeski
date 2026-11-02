@@ -4368,7 +4368,7 @@ function renderMonTeam() {
     const r = Math.round(ar.filter(t => sbMonOutcome(t) === 'stomped').length / att * 100);
     const ready = sbMonTrickAgg(ar).filter(tr => sbMonStatusKey(tr.att, tr.stomped) === 'ready').length;
     const col = att < 5 ? '#5c5c61' : r >= 70 ? '#3E8E5A' : r >= 40 ? '#C96A1F' : '#e2001a';
-    return {html: `<b style="color:${col};">${r}%</b> stomp<span class="gedaempft"> · ${att} att. · ${ready} ready</span>`, txt: `${att} attempts, ${r}% stomped, ${ready} tricks ready`};
+    return {html: `<b style="color:${col};">${r}%</b> stomp<div class="gedaempft">${att} att. · ${ready} ready</div>`, txt: `${att} attempts, ${r}% stomped, ${ready} tricks ready`};
   }, {lab: 'stomp rate'}));
   if (urteil !== null) { root.innerHTML = `<div class="card polster-20">${monHeaderHtml('Team Monitoring', 'Athlete overview · ' + sbMonPeriodLabel(), false)}${urteil}</div>`; return; }
   const sections = SESS_SQUADS.map(sq => {
