@@ -1242,7 +1242,7 @@ const baseGrab = g => (g || '').replace(/^Lead /, '');
 const BOTH_HANDS = ['Double Japan','Double Tail','Double Nose','Truckdriver','Truck Driver'];
 const TAKEOFFS = SB ? ["N'Ollie",'Nosebutter','Noseslide','Tailbutter','Tailslide','Hardway'] : ['Carved','Blender','Hand-Drag','Inside Edge','Nosebutter','Tailbutter',"N'Ollie"];
 const CREATIVE = ['Nosebutter','Tailbutter',"N'Ollie"];
-const RAIL_TAKEOFFS = ["N'Ollie",'Nosebutter','Tailbutter'];   // Take-off auf Rails (Emilie 2.11.2026)
+const RAIL_TAKEOFFS = TAKEOFFS;   // Rails: alle Take-off-Varianten wie bei Jumps (Emilie 2.11.2026)
 const railTo = t => t.takeoff ? ` · ${t.takeoff}` : '';
 const OBST = {'Tube':1, 'Simple rail':2, 'Demanding rail':3};   // wie Skills-Check (keine Box)
 const obstLevel = o => OBST[o] || (o==='Tube / Box' ? 1 : 0);   // Altwert
