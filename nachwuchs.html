@@ -2229,6 +2229,8 @@ function openNotif(id){
 }
 
 function render(){
+  // Athlet:innen haben nur Assessment und Skills-Check (Staff-Seiten auch per go() gesperrt)
+  if (!isStaff() && !['assessment','skills'].includes(ST.page)) ST.page = 'assessment';
   renderChrome();
   if (ST.page==='assessment') renderAssessment();
   else if (ST.page==='skills') renderSkills();
@@ -2358,10 +2360,12 @@ function normTrick(disc, F){
     const noRot = NOROT.includes(F.axis);
     return {axis:F.axis, dir:F.dir, flips:OFFAX.includes(F.axis) ? +F.flips||1 : null, rot:noRot ? null : +F.rot, grab:F.grab||'', takeoff:F.takeoff||'', bringback:F.bringback||'', style:F.style||''};
   }
-  if (disc==='Rail' && SB) return {railType:F.railType, slideform:F.slideform, variant:F.variant, inspin:F.inspin||'', outspin:F.outspin||''};
+  // Take-off auf Rails nur speichern, wenn gesetzt (bestehende Tricks behalten ihre Form)
+  const railTk = F.takeoff ? {takeoff:F.takeoff} : {};
+  if (disc==='Rail' && SB) return {railType:F.railType, slideform:F.slideform, variant:F.variant, inspin:F.inspin||'', outspin:F.outspin||'', ...railTk};
   if (disc==='Rail'){
     const so = railSpinOut(F);
-    return {railType:F.railType, obstacle:railLevel(F.railType), transfer:F.transfer||'', side:F.side, approach:F.approach, on:F.on, swap:F.swap||'', out:F.out, outSide:so?F.outSide:'', foot:so?F.foot:'', outStyle:so?F.outStyle:''};
+    return {railType:F.railType, obstacle:railLevel(F.railType), transfer:F.transfer||'', side:F.side, approach:F.approach, on:F.on, swap:F.swap||'', out:F.out, outSide:so?F.outSide:'', foot:so?F.foot:'', outStyle:so?F.outStyle:'', ...railTk};
   }
   if (F.kind==='basic') return {kind:'basic', basic:F.basic, side:/drop in/i.test(F.basic) ? F.side : ''};
   return {kind:'air', dir:F.dir, sw:!!F.sw, ao:!!F.ao, axis:F.axis, flips:(SB ? OFFAX : ['Cork','Bio/Misty','Flat Spin','Rodeo']).includes(F.axis) ? +F.flips||1 : null, rot:+F.rot||0, grab:F.grab||'', height:F.height===''?null:+F.height, bringback:F.bringback||'', style:F.style||''};
@@ -3243,8 +3247,8 @@ async function loadSelectionSnapshot(){
 }
 async function renderSelection(){
   const root = $('#page-selection');
-  if (!HAS_SC){ root.innerHTML = `<div class="card"><h2>Selection</h2><div class="empty">The Snowboard ranking needs the Snowboard Skills-Check. It will be available as soon as the requirements are defined.</div></div>`; return; }
   if (!isAdmin()){ root.innerHTML = '<div class="card"><div class="empty">Admins only.</div></div>'; return; }
+  if (!HAS_SC){ root.innerHTML = `<div class="card"><h2>Selection</h2><div class="empty">The Snowboard ranking needs the Snowboard Skills-Check. It will be available as soon as the requirements are defined.</div></div>`; return; }
   if (!ST.sel || ST.sel.rev !== ST._rev){ root.innerHTML = '<div class="card"><div class="empty">Loading…</div></div>'; await loadSelectionSnapshot(); ST.sel.rev = ST._rev; }
   const F = ST.selF || (ST.selF = {level:'T4', sex:'W'});
   const dl = selectionDeadline(), frozen = ST.sel.frozen;
