@@ -700,6 +700,7 @@ let LANG = (() => {
 })();
 document.documentElement.lang = LANG;
 const I18N = {
+  'Skills-Check documents':['Skills-Check-Dokumente','Documents Skills-Check','Documenti Skills-Check'],
   'Rotation per direction':['Rotation pro Drehrichtung','Rotation par sens','Rotazione per direzione'],
   'Line = highest learned rotation per direction':['Linie = höchste gelernte Rotation pro Richtung','Ligne = rotation apprise la plus haute par sens','Linea = rotazione imparata più alta per direzione'],
   'Tap a point for the trick':['Punkt antippen für den Trick','Touche un point pour le trick','Tocca un punto per il trick'],
@@ -3171,8 +3172,8 @@ const DOC_DISC = {Jump:'Jumps', Rail:'Rails', Halfpipe:'Halfpipe'};
 const docSrc = (disc, lv) => `skillscheck/${SPORT}/${DOC_DISC[disc]}_${lv}.svg`;
 function docsCard(disc, ownLevel){
   const lvs = ['T1','T2','T3','T4'];
-  return `<div class="card"><h2>Skills-Check ${esc(DISC_LABEL[disc])} <span class="muted" style="letter-spacing:0;font-weight:600">T1–T4</span></h2>
-    ${HAS_SC ? '' : `<div class="seg" style="margin:6px 0 4px">${DISCS.map(d => `<button class="${d===disc?'on':''}" onclick="ST.disc='${d}';renderSkills()">${esc(DISC_LABEL[d])}</button>`).join('')}</div>`}
+  return `<div class="card"><h2>Skills-Check documents <span class="muted" style="letter-spacing:0;font-weight:600">T1–T4</span></h2>
+    <div class="seg" style="margin:6px 0 4px">${DISCS.map(d => `<button class="${d===disc?'on':''}" onclick="ST.disc='${d}';renderSkills()">${esc(DISC_LABEL[d])}</button>`).join('')}</div>
     <div class="tiny muted">Tap an image to open it large</div>
     <div class="scdocs">${lvs.map(lv => `<button type="button" class="scdoc ${lv===ownLevel?'own':''}" onclick="openDoc('${disc}','${lv}')"><img src="${docSrc(disc, lv)}" alt="Skills-Check ${esc(DISC_LABEL[disc])} ${lv}" loading="lazy"><b>${lv}${lv===ownLevel ? ' · <span>your level</span>' : ''}</b></button>`).join('')}</div></div>`;
 }
