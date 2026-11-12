@@ -1897,13 +1897,13 @@ const SR_STATUS = {
   not_met:  {label:'Not met',    color:'#e2001a'},
   coach:    {label:'Coach judgement', color:'#8E5BB8'},   // Stufe oder Kriterium hängt am Trainerurteil (Annex B), kein Knopf
 };
-const SR_GUT = '#3E8E5A', SR_SCHLECHT = '#e2001a', SR_GRAU = '#C9BFB9';
+const SR_GUT = '#3E8E5A', SR_SCHLECHT = '#e2001a', SR_GRAU = '#C9BFB9', SR_MITTEL = '#E08A1E';   // Mittel = Final erreicht, Podium nicht
 // Balkenfarbe = Wertung, überall gleich: grün ab Referenz, rot darunter, grau bei zu wenig Werten oder ohne Wertung (siehe srLegende)
 const srListe = items => `<ul style="margin:4px 0 0 16px;padding:0;">${items.filter(Boolean).map(x => `<li style="margin:2px 0;">${x}</li>`).join('')}</ul>`;
 function srLegende(saison, sektionen) {
   return `<div class="sr-fuss" style="margin:0 0 8px;">${srListe([
     `<b>Final</b> = the athletes who just made the final (the last qualifiers), <b>Podium</b> = the podium runs of the finals; both season averages ${saison} from the same rounds one level up. Slopestyle sections: Final = all finalists in their qualification runs.`,
-    `<b>Judged against</b> Podium after reaching a final, otherwise against Final (see the line next to the discipline); the black line on the bar marks that level. <b style="color:${SR_GUT};">Green</b> at or above that level, <b style="color:${SR_SCHLECHT};">red</b> below, <b style="color:var(--muted);">grey</b> fewer than 5 values${sektionen ? ' (sections: fewer than 10)' : ''}. `,
+    `<b>Judged against</b> Podium after reaching a final, otherwise against Final (see the line next to the discipline); the <b>grey line</b> on the bar marks the Final level, the <b>black line</b> the Podium level. <b style="color:${SR_GUT};">Green</b> at or above both, <b style="color:${SR_MITTEL};">orange</b> at or above Final but below Podium, <b style="color:${SR_SCHLECHT};">red</b> below both, <b style="color:var(--muted);">grey</b> fewer than 5 values${sektionen ? ' (sections: fewer than 10)' : ''}. `,
     `<b>Grey zone:</b> the span between the two levels, its edges are the Final and Podium values from the columns. Bar ending before the zone: below the Final level; inside: between Final and Podium; beyond: above the Podium level.`])}</div>`;
 }
 // Saison wie im Monitoring: ab 1. Mai zählt die neue Saison
@@ -2092,15 +2092,19 @@ function srCompHtml(name, dz) {
 const SR_BAND = [['fall', 'Fall 1–30', '#E8A09B', '#1d1d1f'], ['mid', 'Average or below 30–65', '#C5D5E4', '#1d1d1f'], ['good', 'Good 65–85', '#8DB4D9', '#1d1d1f'], ['excellent', 'Excellent 85–100', '#0B2E59', '#fff']];
 // Kopfzeile einer Gruppe: Titel links, rechts die drei Spalten, alle fett (Wunsch 2.11.2026); welche Stufe gewertet wird, sagt die
 // Kopfzeile der Disziplin («judged against …») und der schwarze Strich auf dem Balken (CSS .sr-zk)
-const srZKopf = (titel, podJ) => `<div class="sr-zk"><span>${titel}</span><span></span><span class="j">Athlete</span><span class="j">Final</span><span class="j">Podium</span></div>`;
+const srZKopf = (titel, podJ) => `<div class="sr-zk"><span>${titel}</span><span></span><span class="j">Athlete</span><span class="j"><i class="lf"></i>Final</span><span class="j"><i class="lp"></i>Podium</span></div>`;
 // Eine Zeile: wert = Athlet:in, fin/pod = die zwei Stufen (null, wenn nicht vorhanden), max = Skala, fmt = Formatierung, gut = Wertung (null = keine)
 function srZeile(lab, wert, fin, pod, max, fmt, podJ, gut, wenig) {
   const pct = v => v == null ? null : Math.max(0, Math.min(100, v / max * 100));
   const w = pct(wert), f = pct(fin), p = pct(pod), j = podJ ? p : f;
-  const grau = wenig || wert == null || gut == null;
-  const farbe = grau ? SR_GRAU : gut ? SR_GUT : SR_SCHLECHT, col = grau ? 'var(--muted)' : farbe;
+  // Farbe (Wunsch Emilie 12.11.2026): unter Final und Podium = rot, Final erreicht aber nicht Podium = orange, beides erreicht = grün
+  const grau = wenig || wert == null || (fin == null && pod == null);
+  const okF = fin == null || wert >= fin, okP = pod == null || wert >= pod;
+  const farbe = grau ? SR_GRAU : okF && okP ? SR_GUT : okF || okP ? SR_MITTEL : SR_SCHLECHT, col = grau ? 'var(--muted)' : farbe;
   const zone = f != null && p != null ? `<div class="z" style="left:${Math.min(f, p)}%;width:${Math.abs(f - p)}%;"></div>` : '';
-  return `<div class="sr-zr"><span>${lab}</span><div class="sr-zb">${zone}${j != null ? `<div class="t" style="left:${j}%;"></div>` : ''}${w ? `<div class="w" style="width:${w}%;background:${farbe};"></div>` : ''}</div>
+  // immer beide Linien: Final (grau) und Podium (schwarz)
+  const linie = (x, cls, t) => x != null ? `<div class="t ${cls}" style="left:${x}%;" title="${t}"></div>` : '';
+  return `<div class="sr-zr"><span>${lab}</span><div class="sr-zb">${zone}${w ? `<div class="w" style="width:${w}%;background:${farbe};"></div>` : ''}${linie(f, 'fin', 'Final')}${linie(p, 'pod', 'Podium')}</div>
     <b style="color:${col};">${wert == null ? '–' : fmt(wert)}</b><span>${fin == null ? '–' : fmt(fin)}</span><span>${pod == null ? '–' : fmt(pod)}</span></div>`;
 }
 // Verteilung über die Punktebänder: drei gestapelte Balken (Athlet:in, Final, Podium), Anteile ab 8 % beschriftet; Anteile sind Brüche 0–1

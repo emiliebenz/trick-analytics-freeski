@@ -679,6 +679,10 @@ header h1 .dot{color:#E2001A}
 .sr-zb { position: relative; height: 14px; background: #fff; border: 1px solid #6E6E6E; border-radius: 3px; box-sizing: border-box; }
 .sr-zb > .z { position: absolute; top: 0; bottom: 0; background: #DDD7D3; }
 .sr-zb > .t { position: absolute; top: -2px; height: 16px; width: 2px; margin-left: -1px; background: #1d1d1f; }
+.sr-zb > .t.fin { background: #8a8a8f; }
+.sr-zb > .t.pod { background: #1d1d1f; width: 3px; margin-left: -1.5px; }
+.sr-zk i.lf, .sr-zk i.lp { display: inline-block; width: 2px; height: 11px; margin-right: 5px; vertical-align: -1px; background: #8a8a8f; }
+.sr-zk i.lp { width: 3px; background: #1d1d1f; }
 .sr-zb > .w { position: absolute; left: 0; top: 3px; height: 6px; border-radius: 3px; }
 .sr-vt { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 10px; align-items: center; font-size: 12px; margin: 4px 0; }
 .sr-vt > span { color: var(--muted); }
