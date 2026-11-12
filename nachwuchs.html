@@ -3376,7 +3376,7 @@ function renderTeam(){
       <select onchange="setTeamFilter('sex',this.value)">${opts([['','All sexes'],['W','Women only'],['M','Men only']], TF.sex)}</select>
       <select onchange="setTeamFilter('sort',this.value)">${opts([['name','Sort: name A–Z'],['total_desc','Total: highest first'],['total_asc','Total: lowest first'],['jump','Jumps: highest first'],['rail','Rails: highest first'],['hp','Halfpipe: highest first']], TF.sort)}</select>
       ${filtered || TF.sort!=='name' ? `<button class="btn ghost sm" onclick="ST.teamFilter=null;renderTeam()">Reset filters</button>` : ''}
-      <span class="grow"></span><button class="btn ghost" onclick="teamSkillsPdf()">📄 PDF</button>${dv && !ad ? '' : `<button class="btn red" onclick="openAddAthlete()">+ Add athlete</button>`}</div>
+      <span class="grow"></span><button class="btn ghost" onclick="teamSkillsPdf()">📄 PDF</button>${ad ? `<button class="btn red" onclick="openAddAthlete()">+ Add athlete</button>` : ''}</div>
     <div class="card"><h2>${dv ? 'All athletes' : esc(groupName(myGid()))} <span class="muted" style="letter-spacing:0;font-weight:600">${filtered ? `${aths.length} / ${all.length}` : aths.length}</span></h2>
       <ul class="hints"><li>Skills-Check T4</li><li>Total = Jumps, Rails and Halfpipe, ⅓ each</li><li>Focus possible: Halfpipe only, or Jumps & Rails only</li><li>Click a row to open the Skills-Check</li></ul>
       <div class="scroll-x"><table class="tbl team-tbl"><thead><tr><th>Athlete</th><th>Sex</th><th>Focus</th>${dv?'<th>Group</th>':''}<th class="num">Jumps</th><th class="num">Rails</th><th class="num">HP</th><th class="num">Total</th><th></th></tr></thead>
@@ -3464,7 +3464,7 @@ function accountsPdf(){
     <h2>${esc(club)}</h2>
     <ul class="hints"><li>App: ${esc(url)}</li><li>Athletes: log in with your username, coaches: with your e-mail</li><li>Then enter the start password</li><li>At the first login you choose your own password (at least 8 characters)</li><li>Coaches: give each athlete only their own line</li></ul>
     <table class="tbl"><thead><tr><th>Name</th><th>Role</th><th>Sport</th><th>Login</th><th>Start password</th></tr></thead><tbody>
-    ${by[club].sort((a,b) => (a.role > b.role ? -1 : a.role < b.role ? 1 : a.name.localeCompare(b.name))).map(a => `<tr><td>${esc(a.name)}</td><td>${a.role==='coach' ? 'Coach' : 'Athlete ' + esc(a.level||'')}</td><td>${a.sport==='snowboard' ? 'Snowboard' : 'Freeski'}</td><td><b>${esc(a.login || a.email)}</b></td><td><b>${esc(a.password)}</b></td></tr>`).join('')}
+    ${by[club].sort((a,b) => (a.role > b.role ? -1 : a.role < b.role ? 1 : a.name.localeCompare(b.name))).map(a => `<tr><td>${esc(a.name)}</td><td>${a.role==='coach' ? 'Coach' : '<span>Athlete</span> ' + esc(a.level||'')}</td><td>${a.sport==='snowboard' ? 'Snowboard' : 'Freeski'}</td><td><b>${esc(a.login || a.email)}</b></td><td><b>${esc(a.password)}</b></td></tr>`).join('')}
     </tbody></table></div>`).join('');
   openPrintWindow('Start passwords', 'Trick Collector · <span>one page per club</span>', html, 'Trick Collector');
 }
@@ -3623,6 +3623,7 @@ function selectionPdf(){
 }
 function setTeamFilter(k, v){ (ST.teamFilter ||= {sex:'', level:'', sort:'name'})[k] = v; renderTeam(); }
 function openAddAthlete(){
+  if (!isAdmin()) return;   // nur Admin legt Athlet:innen an (Update 19)
   const dv = ST.me.role==='dvlp';
   modal(`<h3>Add athlete</h3><p class="lead" style="margin-top:6px">The athlete can be tracked right away; a login can be added later via the e-mail.</p>
     <div class="grid">
