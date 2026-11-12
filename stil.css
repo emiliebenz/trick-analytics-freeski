@@ -762,3 +762,20 @@ header h1 .dot{color:#E2001A}
 .sr-ut-tab td, .sr-ut-tab th { white-space: normal; vertical-align: top; }
 .sr-ut-tab td > div { line-height: 1.5; }
 .sr-ut-tab tr.sr-ut-fuss td { border-top: 2px solid var(--border); border-bottom: 0; cursor: default; color: var(--muted); }
+
+/* Niveau eines Wettkampfs (Knopf «Level of this contest») */
+.sr-niv { border-top: 1px solid var(--border); }
+.sr-niv > summary { list-style: none; cursor: pointer; margin: 10px 12px; display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--border); border-radius: 999px; font-size: 12px; font-weight: 700; color: var(--text); background: #fff; }
+.sr-niv > summary::-webkit-details-marker { display: none; }
+.sr-niv > summary::before { content: '▸'; font-size: 11px; }
+.sr-niv[open] > summary::before { content: '▾'; }
+.sr-niv[open] > summary { background: var(--surface2); }
+.sr-niv-in { padding: 0 12px 12px; }
+.sr-niv-k { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)) !important; }
+.sr-niv-cut { font-size: 12px; margin: 4px 0 8px; }
+.sr-niv-tw { overflow-x: auto; }
+.sr-niv-t { width: 100%; border-collapse: collapse; font-size: 12px; }
+.sr-niv-t th { text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); padding: 4px 6px; border-bottom: 1px solid var(--border); }
+.sr-niv-t td { padding: 5px 6px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.sr-niv-t .num { text-align: right; white-space: nowrap; }
+.sr-niv-t tr.ich { background: #FFF1F2; }

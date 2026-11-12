@@ -2054,12 +2054,35 @@ function srRundeHtml(dz, rd) {
   }).join('');
   return `<div class="sr-runde">${kopf}${zeilen}</div>`;
 }
-function srEventHtml(dz, ev) {
+// Niveau eines Wettkampfs (Wunsch Emilie 12.11.2026): was es fürs Final gebraucht hat und was die Finalist:innen gezeigt haben.
+// Daten aus der Pipeline (saison_daten.niveau): pro Quali-Heat der Cut (tiefster Total, der ins Final kam), alle Finalist:innen mit
+// Total, grösster Rotation und den Tricks, die zählten (BA: die zwei zählenden Sprünge, SS: Sprünge des besten Runs, HP: Hits des besten Runs), Podium.
+function srNiveauHtml(dz, ev, name) {
+  const N = ev.niveau; if (!N || !(N.heats || []).length) return '';
+  const ich = srNorm(name), istIch = z => srNorm(z.name) === ich;
+  const rot = v => v ? v + '°' : '–', pt = v => v == null ? '–' : srF(v, 2).replace(/\.?0+$/, '');
+  const was = dz === 'BA' ? 'the two counting jumps' : dz === 'SS' ? 'jumps of the best run' : 'hits of the best run';
+  const ph = N.phase === 'semifinal' ? 'semifinal' : 'qualification';
+  const kach = (v, l) => `<div><b>${v}</b><span>${l}</span></div>`;
+  const heats = N.heats.map(h => `<div class="sr-niv-cut">${N.heats.length > 1 ? `<b>Heat ${srEsc(h.heat)}</b> · ` : ''}${h.n_final} of ${h.n} to the final · cut <b>${pt(h.cut)}</b>${h.erster_aus != null ? ` <span class="gedaempft">(first out ${pt(h.erster_aus)})</span>` : ''}
+      <div class="gedaempft">Last qualifier: ${srEsc(h.cut_name)} (${srEsc(h.cut_nsa)}), biggest ${rot(h.cut_rot)}${(h.cut_tricks || []).length ? ': ' + h.cut_tricks.map(srEsc).join(' · ') : ''}</div></div>`).join('');
+  const zeile = z => `<tr class="${istIch(z) ? 'ich' : ''}"><td>${z.rang ?? '–'}</td><td><b>${srEsc(z.name)}</b> <span class="gedaempft">${srEsc(z.nsa)}</span></td><td class="num">${pt(z.total)}</td><td class="num">${rot(z.rot)}</td><td>${(z.tricks || []).map(srEsc).join('<br>') || '–'}</td></tr>`;
+  const tab = (titel, L, rk) => L.length ? `<div class="sr-sub" style="margin-top:12px;">${titel}</div><div class="sr-niv-tw"><table class="sr-niv-t"><thead><tr><th>${rk}</th><th>Athlete</th><th class="num">Total</th><th class="num">Biggest</th><th>Tricks (${was})</th></tr></thead><tbody>${L.map(zeile).join('')}</tbody></table></div>` : '';
+  return `<details class="sr-niv"><summary>Level of this contest</summary><div class="sr-niv-in">
+    <div class="sr-kpis sr-niv-k">${kach(pt(Math.min(...N.heats.map(h => h.cut))), 'lowest total that made the final')}${kach(rot(N.fin_rot_min), 'smallest biggest rotation of a finalist')}${kach(rot(N.fin_rot_median), 'typical biggest rotation of the finalists')}${kach(pt(N.fin_total_median), 'typical total of the finalists')}</div>
+    <div class="sr-sub" style="margin-top:12px;">What it took to make the final (${ph})</div>${heats}
+    ${tab('Podium (final)', N.podium || [], 'Rank')}
+    ${tab(`All finalists in the ${ph}`, N.finalisten || [], 'Rank')}
+    <div class="gedaempft" style="font-size:11px;margin-top:8px;">Biggest = largest rotation among the counting tricks. Typical = median. Source: FIS result lists and Results Analysis.</div>
+  </div></details>`;
+}
+function srEventHtml(dz, ev, name) {
   const erg = ev.rang ? `<b class="sr-rang">${srOrd(ev.rang)}</b>` : '<b class="sr-rang">–</b>';
   const wie = ev.final ? (ev.final_dns ? 'qualified for the final, did not start' : 'final') : ev.abgesagt ? 'final cancelled, qualification counts' : 'qualification';
   return `<div class="sr-event">
     <div class="sr-event-h"><span>${srDatum(ev.datum).slice(0, 6)}${ev.datum.slice(2, 4)}</span><b>${srEsc(ev.event === 'Olympia' ? 'Olympics' : ev.event)}</b><span class="sr-serie">${SR_SERIE[ev.serie] || srEsc(ev.serie)}</span><span class="sr-event-erg">${erg} <span class="gedaempft">${wie}</span></span></div>
     ${ev.runden.map(rd => srRundeHtml(dz, rd)).join('')}
+    ${srNiveauHtml(dz, ev, name)}
   </div>`;
 }
 function srCompHtml(name, dz) {
@@ -2069,7 +2092,7 @@ function srCompHtml(name, dz) {
     const evs = ((R.wettkampf || {})[dz] || []);
     const fr = (R.fis_resultate || []).filter(x => x.disz === dz);
     const kopf = `<div class="sr-h">${SR_DN[dz]} ${sa}</div>`;
-    const elite = `<div class="sr-sub wc">WC · World Cup, Worlds, Olympics</div>` + (evs.length ? evs.map(ev => srEventHtml(dz, ev)).join('')
+    const elite = `<div class="sr-sub wc">WC · World Cup, Worlds, Olympics</div>` + (evs.length ? evs.map(ev => srEventHtml(dz, ev, name)).join('')
       : `<div class="leer-schmal">No World Cup, Worlds or Olympic start in ${SR_DN[dz]} ${sa}${sa === SR_JETZT ? ' yet' : ''}.</div>`);
     // untereinander, in Spalten: Datum · Ort · Stufe · Rang
     const liste = (xs) => `<div class="sr-fr">${xs.map(x =>
