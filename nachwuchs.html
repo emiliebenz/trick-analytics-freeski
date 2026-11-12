@@ -570,6 +570,10 @@ main svg text{font-size:var(--fs-label)}
 .sport-sw button.on{background:var(--red);color:#fff}
 @media (max-width:768px){.sport-sw button{padding:4px 8px;font-size:11px}}
 .sport-bar{display:none}
+.sel-note{margin-top:8px;padding:6px 8px;border-radius:8px;background:#fff4e5;color:#8a4b00;font-size:var(--fs-meta);font-weight:600}
+.sel-note.ok{background:#eaf7ef;color:#1e6b3a}
+.privacy-link{margin-top:14px;text-align:center}
+.privacy h3{margin-bottom:8px}.privacy h4{margin:14px 0 4px}.privacy p,.privacy li{font-size:var(--fs-meta);line-height:1.5}
 .first-time{margin-top:18px;padding:14px;border-radius:12px;background:#f3f7fb;border:1px solid #d9e4f0;display:grid;gap:6px;font-size:var(--fs-meta)}
 .first-time span{color:var(--muted)}
 .first-time .btn{justify-self:start;margin-top:4px}
@@ -678,13 +682,14 @@ main svg text{font-size:var(--fs-label)}
 'use strict';
 /* ══════════════════════════════════════════════════════════════════════
    KONFIGURATION
-   Projekt «Trick Analyses Youth» (Org Swiss-Ski Freestyle). Leere SUPABASE_URL = Demo-Modus.
-   Mit ?demo in der URL wird auch bei gesetzter URL der Demo-Modus erzwungen.
+   Projekt «Trick Analyses Youth» (Org Swiss-Ski Freestyle).
+   Demo-Modus für den Launch abgeschaltet (Emilie 12.11.2026): ?demo wirkt nicht mehr. Der Demo-Code bleibt
+   vorerst im File, ist aber nicht mehr erreichbar.
    ══════════════════════════════════════════════════════════════════════ */
 const SUPABASE_URL = 'https://yoeqjlonyyuwrojvlcqm.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_oLwde7BCOv-KpTHegncZTQ_-gMz_otw';
 const VIDEO_BUCKET = 'skills-videos';
-const DEMO = !SUPABASE_URL || new URLSearchParams(location.search).has('demo');
+const DEMO = false;
 /* ══════════════════════════════════════════════════════════════════════
    SPRACHE (DE / FR / IT / EN): übersetzt nur, was fürs Verständnis nötig ist.
    Sportspezifisches (Tricks, Achsen, Grabs, Stomped/Landed/Failed, Kriterien,
@@ -796,7 +801,7 @@ const I18N = {
   'just now':['gerade eben','à l’instant','proprio ora'],
   // Login
   'Log in':['Anmelden','Connexion','Accedi'], 'E-mail':['E-Mail','E-mail','E-mail'], 'Password':['Passwort','Mot de passe','Password'],
-  'Forgot password?':['Passwort vergessen?','Mot de passe oublié ?','Password dimenticata?'], 'Reset password':['Passwort zurücksetzen','Réinitialiser le mot de passe','Reimposta password'],
+  'Privacy':['Datenschutz','Protection des données','Protezione dei dati'], 'Forgot password?':['Passwort vergessen?','Mot de passe oublié ?','Password dimenticata?'], 'Reset password':['Passwort zurücksetzen','Réinitialiser le mot de passe','Reimposta password'],
   'We send you a code by e-mail. Enter it here together with your new password.':['Wir schicken dir einen Code per E-Mail. Gib ihn hier zusammen mit deinem neuen Passwort ein.','Nous t’envoyons un code par e-mail. Saisis-le ici avec ton nouveau mot de passe.','Ti inviamo un codice via e-mail. Inseriscilo qui insieme alla nuova password.'],
   'Send code':['Code senden','Envoyer le code','Invia codice'], 'Code from the e-mail':['Code aus der E-Mail','Code reçu par e-mail','Codice dall’e-mail'], 'New password':['Neues Passwort','Nouveau mot de passe','Nuova password'],
   'Set password':['Passwort speichern','Enregistrer le mot de passe','Salva password'], 'Back':['Zurück','Retour','Indietro'], 'Password saved':['Passwort gespeichert','Mot de passe enregistré','Password salvata'],
@@ -1139,6 +1144,8 @@ const I18N_PAT = [
   [/^(\d+)% landed$/, (m, i) => `${m[1]}% ${['gelandet','landed','landed'][i]}`],
   [/^(\d+) of (\d+) fully achieved(.*)$/, (m, i) => [`${m[1]} von ${m[2]} voll erreicht`, `${m[1]} sur ${m[2]} pleinement atteints`, `${m[1]} di ${m[2]} pienamente raggiunti`][i] + m[3].replace(/waiting/, ['wartend','en attente','in attesa'][i])],
   [/^(\d+)\/(\d+) achieved(.*)$/, (m, i) => `${m[1]}/${m[2]} ${['erreicht','atteints','raggiunti'][i]}${m[3]}`],
+  [/^For selection: (\d+)% · only tricks rated with video count$/, (m, i) => [`Für die Selektion: ${m[1]}% · es zählen nur Tricks mit Video`, `Pour la sélection : ${m[1]}% · seuls les tricks avec vidéo comptent`, `Per la selezione: ${m[1]}% · contano solo i trick con video`][i]],
+  [/^For selection: (\d+)% · all rated tricks have a video$/, (m, i) => [`Für die Selektion: ${m[1]}% · alle bewerteten Tricks haben ein Video`, `Pour la sélection : ${m[1]}% · tous les tricks évalués ont une vidéo`, `Per la selezione: ${m[1]}% · tutti i trick valutati hanno un video`][i]],
   [/^Jumps, Rails & Halfpipe count ⅓ each(.*)$/, (m, i) => ['Jumps, Rails & Halfpipe zählen je ⅓', 'Jumps, Rails & Halfpipe comptent ⅓ chacun', 'Jumps, Rails & Halfpipe contano ⅓ ciascuno'][i] + m[1].replace(/(\d+) of (\d+) fully achieved/, (x, a, b) => [`${a} von ${b} voll erreicht`, `${a} sur ${b} pleinement atteints`, `${a} di ${b} pienamente raggiunti`][i]).replace(/waiting/, ['wartend','en attente','in attesa'][i])],
   [/^Rated (\d+)\/(\d+): (.+)$/, (m, i) => [`Bewertet ${m[1]}/${m[2]}: ${m[3]}`, `Évalué ${m[1]}/${m[2]} : ${m[3]}`, `Valutato ${m[1]}/${m[2]}: ${m[3]}`][i]],
   [/^New video requested: (.+)$/, (m, i) => [`Neues Video gewünscht: ${m[1]}`, `Nouvelle vidéo demandée : ${m[1]}`, `Nuovo video richiesto: ${m[1]}`][i]],
@@ -2138,7 +2145,9 @@ function visibleAthleteIds(me, profiles){
   return new Set([me.id]);
 }
 const isStaff = () => ST.me && ST.me.role !== 'athlete';
-const isAdmin = () => !!ST.me && (ADMIN_IDS.includes(ST.me.id) || (DEMO && ST.me.role==='dvlp'));
+const isAdmin = () => !!ST.me && ST.me.role==='dvlp' && ST.me.is_admin===true;   // Update 16: Admin-Merkmal in der DB
+// Löschen dürfen Admins, Coaches und Athlet:innen (eigene Einträge); DVLP ohne Admin nicht (Update 16)
+const canDelete = () => !!ST.me && (ST.me.role !== 'dvlp' || isAdmin());
 const prof = id => ST.profiles.find(p => p.id===id);
 const groupName = id => ST.groups.find(g => g.id===id)?.name || '–';
 function visibleAthletes(){
@@ -2147,9 +2156,8 @@ function visibleAthletes(){
 }
 const entriesOf = id => ST.entries.filter(e => e.athlete_id===id);
 const ROLE_LABEL = {athlete:'Athlete', coach:'Coach', dvlp:'DVLP'};
-// App-Admin (Profil-ID, keine Personendaten im öffentlichen Repo): wird statt «DVLP» als «Admin» angezeigt
-const ADMIN_IDS = ['b953c49f-3033-4323-9247-af07c52c26a3', '170d49e5-208e-4e13-ae2c-29297b56cdff', '5a7a82c5-f751-4545-8b8b-7b115488b795', '3f098653-c29e-4d5c-9f11-e9b04c3f6477', '3743eccd-fc1e-4b3b-b323-4fe323b4b0cf'];
-const roleLabel = p => ADMIN_IDS.includes(p?.id) ? 'Admin' : ROLE_LABEL[p?.role];
+// App-Admin: DVLP mit profiles.is_admin (Update 16), wird statt «DVLP» als «Admin» angezeigt
+const roleLabel = p => p?.role==='dvlp' && p?.is_admin ? 'Admin' : ROLE_LABEL[p?.role];
 
 /* ══════════════════════════════════════════════════════════════════════
    HILFSFUNKTIONEN UI
@@ -2258,7 +2266,7 @@ function renderPushBanner(){
 function pushLater(){ try { localStorage.setItem('nw-push-later', '1'); } catch {} renderPushBanner(); }
 
 const isPreview = () => !!ST.realMe && ST.realMe.id !== ST.me?.id;
-const realAdmin = () => { const r = ST.realMe || ST.me; return !!r && (ADMIN_IDS.includes(r.id) || (DEMO && r.role==='dvlp')); };
+const realAdmin = () => { const r = ST.realMe || ST.me; return !!r && r.role==='dvlp' && r.is_admin===true; };
 function viewSwitch(){
   if (!realAdmin()) return '';
   const r = ST.realMe || ST.me, by = role => ST.profiles.filter(p => p.role===role && p.name !== 'ZZ Test Athlet').sort((a,b) => a.name.localeCompare(b.name));
@@ -2304,7 +2312,7 @@ function renderChrome(){
     <button class="iconbtn logout-btn" onclick="logout()" title="Log out"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg><span>Log out</span></button>`;
   const tabs = [['assessment','Assessment'], ['skills','Skills-Check']];
   // Reihenfolge: Skills-Check-Teil │ Session-Erfassung
-  if (isStaff()) tabs.push(['reviews','Reviews'], ['team','Team'], ...(isAdmin() ? [['selection','Selection']] : []), ['|'], ['session','Session'], ['reports','Reports'], ['monitoring','Monitoring']);
+  if (isStaff()) tabs.push(['reviews','Reviews'], ['team','Team'], ...(ST.me.role==='dvlp' ? [['selection','Selection']] : []), ['|'], ['session','Session'], ['reports','Reports'], ['monitoring','Monitoring']);
   const pend = isStaff() ? pendingForMe().length : 0;
   const bn = $('#bottom-nav'); bn.hidden = false;
   const ms = $('#mode-sw');
@@ -2678,6 +2686,7 @@ async function submitForm(mode){
 function upsertLocal(row){ ST._rev = (ST._rev||0) + 1; _evalCache.clear(); const i = ST.entries.findIndex(x => x.id===row.id); if (i >= 0) ST.entries[i] = row; else ST.entries.unshift(row); }
 
 async function deleteEntry(id){
+  if (!canDelete()) return;
   const e = ST.entries.find(x => x.id===id);
   if (!confirm(`Delete «${e.label}»?`)) return;
   try { await Store.deleteEntry(id); ST.entries = ST.entries.filter(x => x.id!==id); toast('Deleted'); render(); }
@@ -2787,7 +2796,7 @@ function entryRow(e, opts2={}){
       ${staff ? `<button class="btn ${e.status==='pending'?'red':'ghost'} sm" onclick="openReview('${e.id}')">${e.status==='reviewed'?'Edit rating':'Rate'}</button>` : ''}${kudosBtn(e, 'sm')}
       ${!staff && e.status==='goal' ? `<button class="btn red sm" onclick="submitGoal('${e.id}')">Submit for review</button>` : ''}
       ${e.status==='reviewed' && e.discipline ? `<button class="btn ghost sm" onclick="newAttempt('${e.id}')" title="Show that you improved: upload a new video, your coach rates it again">⬆ New attempt</button>` : `<button class="btn ${!staff && e.status==='rework'?'red':'ghost'} sm" onclick="pickVideo('${e.id}')">⬆ ${e.video_path ? (e.status==='rework' ? 'New video' : 'Replace video') : 'Upload video'}</button>`}
-      ${canEdit ? `<button class="btn ghost sm" onclick="openForm('${e.id}')">Edit</button><button class="btn ghost sm" onclick="deleteEntry('${e.id}')" title="Delete">🗑</button>` : ''}
+      ${canEdit ? `<button class="btn ghost sm" onclick="openForm('${e.id}')">Edit</button>${canDelete() ? `<button class="btn ghost sm" onclick="deleteEntry('${e.id}')" title="Delete">🗑</button>` : ''}` : ''}
     </div>
   </div>`;
 }
@@ -2818,7 +2827,7 @@ function asRow(e){
         ${e.status==='reviewed' ? `<button class="btn ghost xs" onclick="newAttempt('${e.id}')" title="Show that you improved: upload a new video, your coach rates it again">⬆ New attempt</button>` : `<button class="btn ${!staff && e.status==='rework'?'red':'ghost'} xs" onclick="pickVideo('${e.id}')">⬆ ${e.video_path ? (e.status==='rework' ? 'New video' : 'Replace video') : 'Video'}</button>`}
       </div>
     </div>
-    ${canEdit ? `<button class="icon-btn" onclick="openForm('${e.id}')" title="Edit">✏️</button><button class="icon-btn del" onclick="deleteEntry('${e.id}')" title="Remove">✕</button>` : ''}
+    ${canEdit ? `<button class="icon-btn" onclick="openForm('${e.id}')" title="Edit">✏️</button>${canDelete() ? `<button class="icon-btn del" onclick="deleteEntry('${e.id}')" title="Remove">✕</button>` : ''}` : ''}
   </div>`;
 }
 function asList(items, emptyMsg){
@@ -2964,6 +2973,13 @@ function pathTotals(ath, ents = entriesOf(ath.id)){
     return parts.length ? Math.round(parts.reduce((x, y) => x + y, 0) / parts.length * 100) : 0; };
   const lv = {}; for (const l of ['T1','T2','T3','T4']) lv[l] = avg(r => r.lv[l]);
   return {by, incl, lv, pct: avg(r => r)};
+}
+// Selektion zählt nur Bewertungen mit Video (wie renderSelection). Zeigt der Athlet:in, was davon zählt.
+function selNote(ath, level, tot){
+  const st = levelTotals(ath, level, entriesOf(ath.id).filter(e => e.status!=='reviewed' || e.video_path));
+  return st.pct === tot.pct
+    ? `<div class="sel-note ok">For selection: ${st.pct}% · all rated tricks have a video</div>`
+    : `<div class="sel-note">For selection: ${st.pct}% · only tricks rated with video count</div>`;
 }
 function levelTotals(ath, level, ents = entriesOf(ath.id)){
   if (!HAS_SC) return null;
@@ -3212,7 +3228,7 @@ function renderSkills(){
       <div class="kpi"><div class="k">Total</div><div class="lvtag">Your level ${level}</div><div class="v">${tot.pct}<small>%</small></div>
         <div class="bar"><i class="b-done" style="width:${tot.pct}%"></i></div>
         <div class="tiny muted" style="margin-top:6px">${tot.incl.length===3 ? 'Jumps, Rails & Halfpipe count ⅓ each' : `Focus: ${FOCUS[ath.focus]}`}</div>
-        <div class="tiny muted">${tot.done} of ${tot.n} fully achieved${tot.pending?` · ${tot.pending} waiting`:''}</div>${pathLine(path.pct, path.lv)}</div>
+        <div class="tiny muted">${tot.done} of ${tot.n} fully achieved${tot.pending?` · ${tot.pending} waiting`:''}</div>${level===ath.level ? selNote(ath, level, tot) : ''}${pathLine(path.pct, path.lv)}</div>
       ${DISCS.map(d => { const e2 = tot.by[d], on = tot.incl.includes(d); return `<div class="kpi click ${d===disc?'sel':''}" style="${on?'':'opacity:.45'}" onclick="ST.disc='${d}';renderSkills()">
         <div class="k">${DISC_LABEL[d]} · ${on ? ['','1','½','⅓'][tot.incl.length] : 'not in focus'}</div><div class="lvtag">Your level ${level}</div><div class="v">${pct(e2.pts, e2.max)}<small>% · ${e2.pts}/${e2.max} pts</small></div>${progressBar(e2)}
         <div class="tiny muted" style="margin-top:6px">${e2.done}/${e2.n} achieved${e2.pending?` · ${e2.pending} ⏳`:''}</div>${pathLine(pct(path.by[d].pts, path.by[d].max), discLv(d))}</div>`; }).join('')}
@@ -3323,7 +3339,7 @@ async function saveReview(kind){
    ══════════════════════════════════════════════════════════════════════ */
 function renderTeam(){
   const root = $('#page-team');
-  const dv = ST.me.role==='dvlp';
+  const dv = ST.me.role==='dvlp', ad = isAdmin();   // dv: sieht alle · ad: darf Profile, Logins und Staff ändern (Update 16)
   const TF = ST.teamFilter || (ST.teamFilter = {sex:'', level:'', sort:'name'});
   const all = visibleAthletes();
   // Filter (Geschlecht, Stufe) und Sortierung (Name oder Stärke)
@@ -3341,30 +3357,30 @@ function renderTeam(){
     const pend = entriesOf(a.id).filter(e => e.status==='pending').length;
     const cell = d => !t ? '–' : t.incl.includes(d) ? `${pct(t.by[d].pts, t.by[d].max)}% <span class="tiny muted">${t.by[d].pts}/${t.by[d].max}</span>` : '<span class="tiny muted">not in focus</span>';
     return `<tr class="click" onclick="if(event.target.closest('select,input'))return;ST.athleteId='${a.id}';ST.level=null;go('skills')">
-      <td>${dv ? `<input type="text" class="name-in" value="${esc(a.name)}" onchange="setProfile('${a.id}','name',this.value.trim())" title="Edit name">` : `<div class="name-ro">${esc(a.name)}</div>`}<div class="tiny muted">${a.birthdate ? a.birthdate.slice(0,4) + ' · ' : ''}${a.user_id || DEMO ? '<span style="color:var(--green)">✓ login</span>' : 'no login yet'}${dv ? ' · ' + esc(groupName(a.group_id)) : ''}</div>
-        ${dv && !DEMO ? `<div class="tiny muted">${a.username ? `<span>Username</span>: <b>${esc(a.username)}</b>` : '<span>Username after «Create accounts»</span>'}${a.user_id ? ` · <a href="#" onclick="event.stopPropagation();resetStartPassword('${a.id}');return false">New start password</a>` : ''}</div>` : ''}</td>
-      <td class="c-sel" data-l="Sex">${dv ? `<select onchange="setProfile('${a.id}','gender',this.value)"><option value="">–</option>${opts([['W','W'],['M','M']], a.gender)}</select>` : `<b>${esc(a.gender || '–')}</b>`}</td>
-      <td class="c-sel c-focus" data-l="Focus">${a.level==='T4' ? `<select onchange="setProfile('${a.id}','focus',this.value)">${opts([['','All'],['park','Jumps & Rails'],['hp','Halfpipe']], a.focus||'')}</select>` : '<span class="tiny muted">all (T1–T3)</span>'}</td>
-      ${dv ? `<td class="c-sel c-group" data-l="Group"><select onchange="setProfile('${a.id}','group_id',this.value)"><option value="">–</option>${ST.groups.map(g => `<option value="${g.id}" ${a.group_id===g.id?'selected':''}>${esc(g.name)}</option>`).join('')}</select></td>` : ''}
+      <td>${ad ? `<input type="text" class="name-in" value="${esc(a.name)}" onchange="setProfile('${a.id}','name',this.value.trim())" title="Edit name">` : `<div class="name-ro">${esc(a.name)}</div>`}<div class="tiny muted">${a.birthdate ? a.birthdate.slice(0,4) + ' · ' : ''}${a.user_id || DEMO ? '<span style="color:var(--green)">✓ login</span>' : 'no login yet'}${dv ? ' · ' + esc(groupName(a.group_id)) : ''}</div>
+        ${ad && !DEMO ? `<div class="tiny muted">${a.username ? `<span>Username</span>: <b>${esc(a.username)}</b>` : '<span>Username after «Create accounts»</span>'}${a.user_id ? ` · <a href="#" onclick="event.stopPropagation();resetStartPassword('${a.id}');return false">New start password</a>` : ''}</div>` : ''}</td>
+      <td class="c-sel" data-l="Sex">${ad ? `<select onchange="setProfile('${a.id}','gender',this.value)"><option value="">–</option>${opts([['W','W'],['M','M']], a.gender)}</select>` : `<b>${esc(a.gender || '–')}</b>`}</td>
+      <td class="c-sel c-focus" data-l="Focus">${a.level==='T4' && dv && !ad ? `<b>${esc({'':'All', park:'Jumps & Rails', hp:'Halfpipe'}[a.focus||''] || a.focus)}</b>` : a.level==='T4' ? `<select onchange="setProfile('${a.id}','focus',this.value)">${opts([['','All'],['park','Jumps & Rails'],['hp','Halfpipe']], a.focus||'')}</select>` : '<span class="tiny muted">all (T1–T3)</span>'}</td>
+      ${dv && !ad ? `<td class="c-group" data-l="Group">${esc(groupName(a.group_id))}</td>` : ''}${ad ? `<td class="c-sel c-group" data-l="Group"><select onchange="setProfile('${a.id}','group_id',this.value)"><option value="">–</option>${ST.groups.map(g => `<option value="${g.id}" ${a.group_id===g.id?'selected':''}>${esc(g.name)}</option>`).join('')}</select></td>` : ''}
       <td class="num c-d" data-l="Jumps">${cell('Jump')}</td><td class="num c-d" data-l="Rails">${cell('Rail')}</td><td class="num c-d" data-l="HP">${cell('Halfpipe')}</td>
       <td class="num c-tot" data-l="Total"><b>${t ? `${t.pct}%` : '–'}</b>${t ? `<span class="minibar"><i style="width:${t.pct}%"></i></span>` : ''}</td>
       <td class="num c-pend">${pend ? `<span class="chip blue">${pend} ⏳</span>` : ''}</td></tr>`;
   }).join('');
-  const staffList = dv ? ST.profiles.filter(p => p.role!=='athlete').sort((a,b) => a.role.localeCompare(b.role) || a.name.localeCompare(b.name)) : [];
+  const staffList = ad ? ST.profiles.filter(p => p.role!=='athlete').sort((a,b) => a.role.localeCompare(b.role) || a.name.localeCompare(b.name)) : [];
   root.innerHTML = `
     <div class="row team-filters" style="margin-bottom:18px;flex-wrap:wrap;gap:8px">${dv ? groupFilterSelect() : ''}
       <select onchange="setTeamFilter('sex',this.value)">${opts([['','All sexes'],['W','Women only'],['M','Men only']], TF.sex)}</select>
       <select onchange="setTeamFilter('sort',this.value)">${opts([['name','Sort: name A–Z'],['total_desc','Total: highest first'],['total_asc','Total: lowest first'],['jump','Jumps: highest first'],['rail','Rails: highest first'],['hp','Halfpipe: highest first']], TF.sort)}</select>
       ${filtered || TF.sort!=='name' ? `<button class="btn ghost sm" onclick="ST.teamFilter=null;renderTeam()">Reset filters</button>` : ''}
-      <span class="grow"></span><button class="btn ghost" onclick="teamSkillsPdf()">📄 PDF</button><button class="btn red" onclick="openAddAthlete()">+ Add athlete</button></div>
+      <span class="grow"></span><button class="btn ghost" onclick="teamSkillsPdf()">📄 PDF</button>${dv && !ad ? '' : `<button class="btn red" onclick="openAddAthlete()">+ Add athlete</button>`}</div>
     <div class="card"><h2>${dv ? 'All athletes' : esc(groupName(myGid()))} <span class="muted" style="letter-spacing:0;font-weight:600">${filtered ? `${aths.length} / ${all.length}` : aths.length}</span></h2>
       <ul class="hints"><li>Skills-Check T4</li><li>Total = Jumps, Rails and Halfpipe, ⅓ each</li><li>Focus possible: Halfpipe only, or Jumps & Rails only</li><li>Click a row to open the Skills-Check</li></ul>
       <div class="scroll-x"><table class="tbl team-tbl"><thead><tr><th>Athlete</th><th>Sex</th><th>Focus</th>${dv?'<th>Group</th>':''}<th class="num">Jumps</th><th class="num">Rails</th><th class="num">HP</th><th class="num">Total</th><th></th></tr></thead>
       <tbody>${rows || `<tr><td colspan="10" class="empty">${filtered ? 'No athletes match the filter.' : 'No athletes.'}</td></tr>`}</tbody></table></div></div>
-    ${dv && !DEMO && !isPreview() ? loginsCard() : ''}
-    ${dv ? `<div class="card"><h2>Coaches & staff</h2><div class="scroll-x"><table class="tbl staff-tbl"><thead><tr><th>Name</th><th>Role</th><th>Group</th><th>Extra athletes</th></tr></thead><tbody>
+    ${ad && !DEMO && !isPreview() ? loginsCard() : ''}
+    ${ad ? `<div class="card"><h2>Coaches & staff</h2><div class="scroll-x"><table class="tbl staff-tbl"><thead><tr><th>Name</th><th>Role</th><th>Group</th><th>Extra athletes</th></tr></thead><tbody>
       ${staffList.map(p => `<tr><td class="c-name"><input type="text" class="name-in" value="${esc(p.name)}" onchange="setProfile('${p.id}','name',this.value.trim())" title="Edit name"><div class="tiny muted">${esc(p.email||'')}</div></td>
-        <td class="c-sel" data-l="Role"><select onchange="setProfile('${p.id}','role',this.value)" ${p.id===ST.me.id?'disabled':''}>${opts([['athlete','Athlete'],['coach','Coach'],['dvlp', ADMIN_IDS.includes(p.id) ? 'Admin' : 'DVLP']], p.role)}</select></td>
+        <td class="c-sel" data-l="Role"><select onchange="setProfile('${p.id}','role',this.value)" ${p.id===ST.me.id?'disabled':''}>${opts([['athlete','Athlete'],['coach','Coach'],['dvlp', p.is_admin ? 'Admin' : 'DVLP']], p.role)}</select></td>
         <td class="c-sel" data-l="Group">${p.role==='coach' ? `<select onchange="setProfile('${p.id}','group_id',this.value)"><option value="">–</option>${ST.groups.map(g => `<option value="${g.id}" ${p.group_id===g.id?'selected':''}>${esc(g.name)}</option>`).join('')}</select>` : '<span class="muted">all</span>'}</td>
         <td class="c-extra" data-l="Extra athletes">${p.role==='coach' ? extraAthletesCell(p) : ''}</td></tr>`).join('')}
       </tbody></table></div>
@@ -3498,7 +3514,7 @@ async function loadSelectionSnapshot(){
 }
 async function renderSelection(){
   const root = $('#page-selection');
-  if (!isAdmin()){ root.innerHTML = '<div class="card"><div class="empty">Admins only.</div></div>'; return; }
+  if (ST.me.role !== 'dvlp'){ root.innerHTML = '<div class="card"><div class="empty">Admins only.</div></div>'; return; }
   if (!HAS_SC){ root.innerHTML = `<div class="card"><h2>Selection</h2><div class="empty">The Snowboard ranking needs the Snowboard Skills-Check. It will be available as soon as the requirements are defined.</div></div>`; return; }
   if (!ST.sel || ST.sel.rev !== ST._rev){ root.innerHTML = '<div class="card"><div class="empty">Loading…</div></div>'; await loadSelectionSnapshot(); ST.sel.rev = ST._rev; }
   const F = ST.selF || (ST.selF = {level:'T4', sex:'W'});
@@ -3525,7 +3541,7 @@ async function renderSelection(){
       <ul class="hints"><li>Ranking by Skills-Check total, tie-break: stomp rate from sessions</li><li>Only tricks rated with video count</li><li>Stomp rate is shown from 5 attempts</li><li>«All levels» (T1–T4 together) is shown for information only and does not count for the ranking</li></ul>
       <div class="scroll-x"><table class="tbl sel-tbl"><thead><tr><th>#</th><th>Athlete</th><th class="num">Jumps</th><th class="num">Rails</th><th class="num">HP</th><th class="num">Total</th><th class="num">All levels</th><th class="num">Videos</th><th class="num">Stomp rate</th></tr></thead>
       <tbody>${rows.map((r, i) => `<tr class="click" onclick="ST.athleteId='${r.a.id}';ST.level=null;go('skills')"><td class="num"><b>${i + 1}</b></td><td><b>${esc(r.a.name)}</b><div class="tiny muted">${esc(groupName(r.a.group_id))}</div></td>${[dc(r.t,'Jump'), dc(r.t,'Rail'), dc(r.t,'Halfpipe'), pdfPctCell(r.t.pct, 70, 40)].map((h, k) => h.replace('<td class="num"', `<td class="num" data-l="${['Jumps','Rails','HP','Total'][k]}"`)).join('')}<td class="num" data-l="All levels"><b style="color:#396FA8">${r.path ? r.path.pct + '%' : '–'}</b>${r.path ? `<div class="tiny muted" style="line-height:1.35">T1 ${r.path.lv.T1}% · T2 ${r.path.lv.T2}%<br>T3 ${r.path.lv.T3}% · T4 ${r.path.lv.T4}%</div>` : ''}</td><td class="num" data-l="Videos">${r.vids}/${r.rated}</td><td class="num" data-l="Stomp rate">${r.stomp==null ? `<span class="tiny muted">${r.n} att.</span>` : r.stomp + '%'}</td></tr>`).join('') || '<tr><td colspan="9" class="empty">No athletes.</td></tr>'}</tbody></table></div></div>
-    ${cleanupCard()}`;
+    ${isAdmin() ? cleanupCard() : ''}`;
 }
 /* ── Video-Aufräumen (jährlich ab 31. Mai, nach Selektion und Rekursfrist):
    Videos von Tricks, die auf der aktuellen Stufe der Athlet:in nicht mehr explizit verlangt sind,
@@ -3565,7 +3581,7 @@ async function dropOldVideo(entryId, oldPath){
   } catch (e){ console.warn('old video', e); }
 }
 async function autoVideoCleanup(){
-  if (DEMO || !ST.me || ST.me.role !== 'dvlp') return;
+  if (DEMO || !ST.me || !isAdmin()) return;
   const cd = cleanupDate().getTime(), now = Date.now(), end = Date.UTC(new Date(cd).getUTCFullYear(), 7, 1);
   if (now < cd || now >= end) return;
   // höchstens einmal pro Tag und Gerät
@@ -4910,6 +4926,38 @@ function goalLandedHint(e){
 /* ══════════════════════════════════════════════════════════════════════
    MODAL
    ══════════════════════════════════════════════════════════════════════ */
+/* ── Datenschutzhinweis (Emilie 12.11.2026). Kontaktadresse und Serverstandort vor dem Launch prüfen. ── */
+const PRIVACY = {
+de: `<div class="privacy"><h3>Datenschutz</h3>
+<p>Der Trick Collector ist eine Web-App von Swiss-Ski für den Skills-Check Technik im Nachwuchs Freeski und Snowboard.</p>
+<h4>Welche Daten?</h4><p>Name, Benutzername bzw. E-Mail, Geburtsjahr, Geschlecht, Trainingsgruppe und Stufe; Trick-Videos, Bewertungen und Kommentare der Coaches; Auswertungen aus Trainings-Sessions.</p>
+<h4>Wozu?</h4><p>Nur für Trainingssteuerung und Selektionen im Nachwuchs von Swiss-Ski. Die Daten werden nicht veröffentlicht und nicht an Dritte für eigene Zwecke weitergegeben.</p>
+<h4>Wer sieht sie?</h4><p>Die Athlet:in selbst, ihre Coaches sowie Nachwuchsverantwortliche und Admins von Swiss-Ski.</p>
+<h4>Wo und wie lange?</h4><p>Die Daten liegen bei den Cloud-Anbietern Supabase (Datenbank, Videos) und Netlify (Webseite). Videos, die auf der neuen Stufe nicht mehr verlangt sind, werden jeweils ab dem 31. Mai gelöscht. Die übrigen Daten löschen wir auf Anfrage.</p>
+<h4>Deine Rechte</h4><p>Du kannst jederzeit Auskunft, Berichtigung oder Löschung deiner Daten verlangen und eine Einwilligung widerrufen. Melde dich dafür bei deinem Coach oder bei Swiss-Ski.</p></div>`,
+fr: `<div class="privacy"><h3>Protection des données</h3>
+<p>Le Trick Collector est une app web de Swiss-Ski pour le Skills-Check technique de la relève freeski et snowboard.</p>
+<h4>Quelles données ?</h4><p>Nom, nom d’utilisateur ou e-mail, année de naissance, sexe, groupe d’entraînement et niveau ; vidéos des tricks, évaluations et commentaires des coachs ; analyses des sessions d’entraînement.</p>
+<h4>Dans quel but ?</h4><p>Uniquement pour le pilotage de l’entraînement et les sélections de la relève de Swiss-Ski. Les données ne sont ni publiées ni transmises à des tiers pour leurs propres fins.</p>
+<h4>Qui les voit ?</h4><p>L’athlète, ses coachs ainsi que les responsables de la relève et les admins de Swiss-Ski.</p>
+<h4>Où et combien de temps ?</h4><p>Les données sont hébergées chez les fournisseurs cloud Supabase (base de données, vidéos) et Netlify (site web). Les vidéos qui ne sont plus exigées au nouveau niveau sont supprimées chaque année dès le 31 mai. Les autres données sont supprimées sur demande.</p>
+<h4>Tes droits</h4><p>Tu peux à tout moment demander l’accès, la rectification ou la suppression de tes données et retirer un consentement. Adresse-toi à ton coach ou à Swiss-Ski.</p></div>`,
+it: `<div class="privacy"><h3>Protezione dei dati</h3>
+<p>Il Trick Collector è un’app web di Swiss-Ski per lo Skills-Check tecnico delle nuove leve freeski e snowboard.</p>
+<h4>Quali dati?</h4><p>Nome, nome utente o e-mail, anno di nascita, sesso, gruppo di allenamento e livello; video dei trick, valutazioni e commenti dei coach; analisi delle sessioni di allenamento.</p>
+<h4>A che scopo?</h4><p>Solo per la gestione dell’allenamento e le selezioni delle nuove leve di Swiss-Ski. I dati non vengono pubblicati né trasmessi a terzi per scopi propri.</p>
+<h4>Chi li vede?</h4><p>L’atleta, i suoi coach e i responsabili delle nuove leve e gli admin di Swiss-Ski.</p>
+<h4>Dove e per quanto tempo?</h4><p>I dati sono salvati presso i fornitori cloud Supabase (banca dati, video) e Netlify (sito web). I video non più richiesti al nuovo livello vengono eliminati ogni anno dal 31 maggio. Gli altri dati vengono eliminati su richiesta.</p>
+<h4>I tuoi diritti</h4><p>Puoi chiedere in ogni momento informazioni, rettifica o cancellazione dei tuoi dati e revocare un consenso. Rivolgiti al tuo coach o a Swiss-Ski.</p></div>`,
+en: `<div class="privacy"><h3>Privacy</h3>
+<p>The Trick Collector is a Swiss-Ski web app for the technical Skills-Check of youth freeski and snowboard athletes.</p>
+<h4>Which data?</h4><p>Name, username or e-mail, year of birth, sex, training group and level; trick videos, coach ratings and comments; evaluations from training sessions.</p>
+<h4>What for?</h4><p>Only for training management and youth selections at Swiss-Ski. The data are not published and not passed on to third parties for their own purposes.</p>
+<h4>Who sees them?</h4><p>The athlete, their coaches, and Swiss-Ski youth managers and admins.</p>
+<h4>Where and how long?</h4><p>The data are stored with the cloud providers Supabase (database, videos) and Netlify (website). Videos no longer required at the new level are deleted every year from 31 May. Other data are deleted on request.</p>
+<h4>Your rights</h4><p>You can ask at any time for access to, correction or deletion of your data and withdraw your consent. Contact your coach or Swiss-Ski.</p></div>`
+};
+function showPrivacy(){ modal(`${PRIVACY[LANG] || PRIVACY.en}<div class="btnrow"><button class="btn ghost" onclick="closeModal()">Close</button></div>`); }
 function modal(html){ $('#modal-root').innerHTML = `<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal">${html}</div></div>`; document.body.style.overflow = 'hidden'; }
 function closeModal(){ $('#modal-root').innerHTML = ''; document.body.style.overflow = ''; RV = null; }
 document.addEventListener('keydown', e => { if (e.key==='Escape' && $('#modal-root').innerHTML) closeModal(); });
@@ -4946,7 +4994,8 @@ function showLoginGate(msg){
       <div class="small" id="lg-msg" style="margin-top:10px;min-height:18px;color:var(--red)">${esc(msg||'')}</div>
       <div class="btnrow"><button class="btn red" onclick="doLogin()">Log in</button></div>
       <div class="small" style="margin-top:14px;text-align:center"><a href="#" onclick="authForgotPassword();return false">Forgot password?</a> <span class="muted">·</span> <a href="#" onclick="authHaveCode();return false">Have a code?</a></div>
-      <div class="first-time"><b>First time here?</b><span>Your coach or Swiss-Ski has registered your e-mail. Enter it above and activate your account.</span><button class="btn ghost" onclick="authActivate()">Activate account</button></div></div>`);
+      <div class="first-time"><b>First time here?</b><span>Your coach or Swiss-Ski has registered your e-mail. Enter it above and activate your account.</span><button class="btn ghost" onclick="authActivate()">Activate account</button></div>
+      <div class="small privacy-link"><a href="#" onclick="showPrivacy();return false">Privacy</a></div></div>`);
   $('#gate').hidden = false; $('#app').hidden = true;
 }
 // Athlet:innen melden sich mit Benutzername an (Update 15): intern <benutzername>@login.trick-collector.invalid

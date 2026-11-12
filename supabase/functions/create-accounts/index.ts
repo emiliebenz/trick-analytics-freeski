@@ -41,8 +41,9 @@ Deno.serve(async (req) => {
     const token = (req.headers.get("Authorization") ?? "").replace(/^Bearer /, "");
     const { data: u } = await admin.auth.getUser(token);
     if (!u?.user) return json({ error: "not logged in" }, 401);
-    const { data: me } = await admin.from("profiles").select("role").eq("user_id", u.user.id).maybeSingle();
-    if (me?.role !== "dvlp") return json({ error: "admins only" }, 403);
+    const { data: me } = await admin.from("profiles").select("role,is_admin").eq("user_id", u.user.id).maybeSingle();
+    // Nur Admins (DVLP mit is_admin, Update 16) dürfen Konten anlegen und Startpasswörter setzen
+    if (me?.role !== "dvlp" || me?.is_admin !== true) return json({ error: "admins only" }, 403);
 
     const body = await req.json().catch(() => ({}));
     // Admins (dvlp) nur einzeln über ids (Passwort einer bestimmten Person), nie in der Sammel-Aktion
