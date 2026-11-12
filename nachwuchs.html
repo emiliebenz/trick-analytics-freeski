@@ -1091,7 +1091,7 @@ const I18N_PAT = [
   [/^Available from (.+)$/, (m, i) => [`Verfügbar ab ${m[1]}`, `Disponible dès le ${m[1]}`, `Disponibile dal ${m[1]}`][i]],
   [/^Delete (\d+) videos permanently\? Entries and ratings stay\.$/, (m, i) => [`${m[1]} Videos endgültig löschen? Einträge und Bewertungen bleiben.`, `Supprimer définitivement ${m[1]} vidéos ? Les entrées et évaluations restent.`, `Eliminare definitivamente ${m[1]} video? Voci e valutazioni restano.`][i]],
   [/^(\d+) videos deleted$/, (m, i) => [`${m[1]} Videos gelöscht`, `${m[1]} vidéos supprimées`, `${m[1]} video eliminati`][i]],
-  [/^Selection deadline 30 April: (\d+) days left, upload your tricks with video\.$/, (m, i) => [`Selektions-Stichtag 30. April: noch ${m[1]} Tage, lade deine Tricks mit Video hoch.`, `Date limite de sélection 30 avril : encore ${m[1]} jours, télécharge tes tricks avec vidéo.`, `Scadenza selezione 30 aprile: ancora ${m[1]} giorni, carica i tuoi trick con video.`][i]],
+  [/^Selection deadline 15 April: (\d+) days left, upload your tricks with video\.$/, (m, i) => [`Selektions-Stichtag 15. April: noch ${m[1]} Tage, lade deine Tricks mit Video hoch.`, `Date limite de sélection 15 avril : encore ${m[1]} jours, télécharge tes tricks avec vidéo.`, `Scadenza selezione 15 aprile: ancora ${m[1]} giorni, carica i tuoi trick con video.`][i]],
   [/^Frozen as of (.+)$/, (m, i) => [`Eingefroren per ${m[1]}`, `Figé au ${m[1]}`, `Congelato al ${m[1]}`][i]],
   [/^Deadline (\d.+)$/, (m, i) => [`Stichtag ${m[1]}`, `Date limite ${m[1]}`, `Scadenza ${m[1]}`][i]],
   [/^(\d+) days left · live status, freezes automatically at the deadline$/, (m, i) => [`noch ${m[1]} Tage · aktueller Stand, wird am Stichtag automatisch eingefroren`, `encore ${m[1]} jours · état actuel, figé automatiquement à la date limite`, `ancora ${m[1]} giorni · stato attuale, congelato automaticamente alla scadenza`][i]],
@@ -2336,7 +2336,7 @@ function toggleNotifs(ev){
   dd.innerHTML = ST.notes.length ? ST.notes.slice().sort((a,b) => b.created_at.localeCompare(a.created_at)).map(n => `
     <div class="n ${n.read_at?'':'unread'}" onclick="openNotif(${JSON.stringify(n.id)})">
       <div>${n.kind==='submitted'?'📥 New trick to review':n.kind==='rework'?'↺ Coach asks for a new video':n.kind==='kudos'?`<span>${kudosLabel(String(n.text).split('|')[0])}</span> · <span>Shout-out from your coach</span>`:n.kind==='review'?'Your season review is here':'⭐ Your trick was rated'}</div>
-      <div style="font-weight:600;color:var(--char)">${esc(n.kind==='kudos' ? String(n.text).split('|').slice(1).filter(Boolean).join(' · ') : n.kind==='reminder' ? `Selection deadline 30 April: ${String(n.text).replace('deadline:', '')} days left, upload your tricks with video.` : n.kind==='cleanup' ? 'Video clean-up: from today you can delete videos that are no longer required in the Selection tab.' : n.text)}</div><div class="d">${fmtAgo(n.created_at)}</div></div>`).join('')
+      <div style="font-weight:600;color:var(--char)">${esc(n.kind==='kudos' ? String(n.text).split('|').slice(1).filter(Boolean).join(' · ') : n.kind==='reminder' ? `Selection deadline 15 April: ${String(n.text).replace('deadline:', '')} days left, upload your tricks with video.` : n.kind==='cleanup' ? 'Video clean-up: from today you can delete videos that are no longer required in the Selection tab.' : n.text)}</div><div class="d">${fmtAgo(n.created_at)}</div></div>`).join('')
     : '<div class="empty">No notifications</div>';
   dd.hidden = false;
   const ids = ST.notes.filter(n => !n.read_at).map(n => n.id);
@@ -3481,13 +3481,13 @@ function teamSkillsPdf(){
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   SELEKTION (nur Admin): Rangliste pro Stufe und Geschlecht, Stichtag 30. April
+   SELEKTION (Admin, DVLP lesend): Rangliste pro Stufe und Geschlecht, Stichtag 15. April (Emilie 12.11.2026, vorher 30.4.)
    Vor dem Stichtag: aktueller Stand. Danach: eingefrorener Stand per Stichtag
    (aus dem Änderungsverlauf; ohne Verlauf: Bewertungen bis zum Stichtag).
    ══════════════════════════════════════════════════════════════════════ */
 function selectionDeadline(d = new Date()){
-  const y = d.getMonth() >= 7 ? d.getFullYear() + 1 : d.getFullYear();   // Saison Aug–Jul → Stichtag 30.4. im Saison-Endjahr
-  return new Date(Date.UTC(y, 3, 30, 21, 59, 59));   // 30.4. 23:59:59 Schweizer Zeit (MESZ)
+  const y = d.getMonth() >= 7 ? d.getFullYear() + 1 : d.getFullYear();   // Saison Aug–Jul → Stichtag 15.4. im Saison-Endjahr
+  return new Date(Date.UTC(y, 3, 15, 21, 59, 59));   // 15.4. 23:59:59 Schweizer Zeit (MESZ); Selektion wird bis 30.4. mitgeteilt
 }
 const selFrozen = () => Date.now() > selectionDeadline().getTime();
 function logHtml(log){

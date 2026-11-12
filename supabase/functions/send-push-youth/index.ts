@@ -46,10 +46,10 @@ const T: Record<string, Record<Lang, (x: string) => [string, string]>> = {
     it: () => ["Il tuo riepilogo della stagione è pronto", "Guarda cosa hai raggiunto questa stagione."], en: () => ["Your season review is here", "See what you achieved this season."],
   },
   reminder: {
-    de: (x) => ["Selektions-Stichtag 30. April", `Noch ${x} ${x === "1" ? "Tag" : "Tage"}: lade deine Tricks mit Video hoch.`],
-    fr: (x) => ["Date limite de sélection : 30 avril", `Encore ${x} jour${x === "1" ? "" : "s"} : télécharge tes tricks avec vidéo.`],
-    it: (x) => ["Scadenza selezione: 30 aprile", `Ancora ${x} giorn${x === "1" ? "o" : "i"}: carica i tuoi trick con video.`],
-    en: (x) => ["Selection deadline 30 April", `${x} day${x === "1" ? "" : "s"} left: upload your tricks with video.`],
+    de: (x) => ["Selektions-Stichtag 15. April", `Noch ${x} ${x === "1" ? "Tag" : "Tage"}: lade deine Tricks mit Video hoch.`],
+    fr: (x) => ["Date limite de sélection : 15 avril", `Encore ${x} jour${x === "1" ? "" : "s"} : télécharge tes tricks avec vidéo.`],
+    it: (x) => ["Scadenza selezione: 15 aprile", `Ancora ${x} giorn${x === "1" ? "o" : "i"}: carica i tuoi trick con video.`],
+    en: (x) => ["Selection deadline 15 April", `${x} day${x === "1" ? "" : "s"} left: upload your tricks with video.`],
   },
 };
 
