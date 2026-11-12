@@ -2065,15 +2065,22 @@ function srNiveauHtml(dz, ev, name) {
   const ss = dz === 'SS', rails = z => (z.rails || []).map(srEsc).join('<br>') || '–';
   const ph = N.phase === 'semifinal' ? 'semifinal' : 'qualification';
   const kach = (v, l) => `<div><b>${v}</b><span>${l}</span></div>`;
-  const heats = N.heats.map(h => `<div class="sr-niv-cut">${N.heats.length > 1 ? `<b>Heat ${srEsc(h.heat)}</b> · ` : ''}${h.n_final} of ${h.n} to the final · cut <b>${pt(h.cut)}</b>${h.erster_aus != null ? ` <span class="gedaempft">(first out ${pt(h.erster_aus)})</span>` : ''}
+  const heats = N.heats.map(h => `<div class="sr-niv-cut">${N.heats.length > 1 ? `<b>Heat ${srEsc(String(h.heat ?? '').replace(/^H(?=\d)/, ''))}</b> · ` : ''}${h.n_final} of ${h.n} to the final · cut <b>${pt(h.cut)}</b>${h.erster_aus != null ? ` <span class="gedaempft">(first out ${pt(h.erster_aus)})</span>` : ''}
       <div class="gedaempft">Last qualifier: ${srEsc(h.cut_name)} (${srEsc(h.cut_nsa)}), biggest ${rot(h.cut_rot)}${(h.cut_tricks || []).length ? ': ' + h.cut_tricks.map(srEsc).join(' · ') : ''}${ss && (h.cut_rails || []).length ? `<br>Rails: ${h.cut_rails.map(srEsc).join(' · ')}` : ''}</div></div>`).join('');
   const zeile = z => `<tr class="${istIch(z) ? 'ich' : ''}"><td>${z.rang ?? '–'}</td><td><b>${srEsc(z.name)}</b> <span class="gedaempft">${srEsc(z.nsa)}</span></td><td class="num">${pt(z.total)}</td><td class="num">${rot(z.rot)}</td><td>${(z.tricks || []).map(srEsc).join('<br>') || '–'}</td>${ss ? `<td>${rails(z)}</td>` : ''}</tr>`;
-  const tab = (titel, L, rk) => L.length ? `<div class="sr-sub" style="margin-top:12px;">${titel}</div><div class="sr-niv-tw"><table class="sr-niv-t"><thead><tr><th>${rk}</th><th>Athlete</th><th class="num">Total</th><th class="num">Biggest</th><th>${ss ? 'Jumps of the best run' : `Tricks (${was})`}</th>${ss ? '<th>Rails of the best run</th>' : ''}</tr></thead><tbody>${L.map(zeile).join('')}</tbody></table></div>` : '';
+  // mehrere Heats: Finalist:innen pro Heat gruppiert, mit deutlicher Zwischenzeile (Wunsch Emilie 12.11.2026)
+  const nSp = ss ? 6 : 5, hn = h => srEsc(String(h ?? '').replace(/^H(?=\d)/, ''));
+  const koerper = (L, nachHeat) => {
+    if (!nachHeat || N.heats.length < 2) return L.map(zeile).join('');
+    return N.heats.map(h => { const HL = L.filter(z => (z.heat ?? '') === (h.heat ?? '')); if (!HL.length) return '';
+      return `<tr class="heat"><td colspan="${nSp}">Heat ${hn(h.heat)} <span>${h.n_final} of ${h.n} to the final · cut ${pt(h.cut)}</span></td></tr>${HL.map(zeile).join('')}`; }).join('');
+  };
+  const tab = (titel, L, rk, nachHeat) => L.length ? `<div class="sr-sub" style="margin-top:12px;">${titel}</div><div class="sr-niv-tw"><table class="sr-niv-t"><thead><tr><th>${rk}</th><th>Athlete</th><th class="num">Total</th><th class="num">Biggest</th><th>${ss ? 'Jumps of the best run' : `Tricks (${was})`}</th>${ss ? '<th>Rails of the best run</th>' : ''}</tr></thead><tbody>${koerper(L, nachHeat)}</tbody></table></div>` : '';
   return `<details class="sr-niv"><summary>Level of this contest</summary><div class="sr-niv-in">
     <div class="sr-kpis sr-niv-k">${kach(pt(Math.min(...N.heats.map(h => h.cut))), 'lowest total that made the final')}${kach(rot(N.fin_rot_min), 'smallest biggest rotation of a finalist')}${kach(rot(N.fin_rot_median), 'typical biggest rotation of the finalists')}${kach(pt(N.fin_total_median), 'typical total of the finalists')}</div>
     <div class="sr-sub" style="margin-top:12px;">What it took to make the final (${ph})</div>${heats}
     ${tab('Podium (final)', N.podium || [], 'Rank')}
-    ${tab(`All finalists in the ${ph}`, N.finalisten || [], 'Rank')}
+    ${tab(`All finalists in the ${ph}`, N.finalisten || [], N.heats.length > 1 ? 'Rank in heat' : 'Rank', true)}
     <div class="gedaempft" style="font-size:11px;margin-top:8px;">Biggest = largest rotation among the counting ${dz === 'SS' ? 'jumps' : 'tricks'}. Typical = median. Source: FIS result lists and Results Analysis.</div>
   </div></details>`;
 }

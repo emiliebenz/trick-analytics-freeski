@@ -779,3 +779,6 @@ header h1 .dot{color:#E2001A}
 .sr-niv-t td { padding: 5px 6px; border-bottom: 1px solid var(--border); vertical-align: top; }
 .sr-niv-t .num { text-align: right; white-space: nowrap; }
 .sr-niv-t tr.ich { background: #FFF1F2; }
+.sr-niv-t tr.heat td { background: #3A3A3A; color: #fff; font-weight: 800; font-size: 12px; letter-spacing: .3px; padding: 7px 8px; border-top: 10px solid #fff; }
+.sr-niv-t tr.heat td span { font-weight: 600; opacity: .85; margin-left: 8px; }
+@media (max-width:768px){ table.m-cards tr.heat { display: block !important; padding: 0 !important; border: 0 !important; } table.m-cards tr.heat td { grid-column: 1/-1; } table.m-cards tr.heat td::before { content: none !important; } }
