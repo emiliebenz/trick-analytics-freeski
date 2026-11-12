@@ -1898,12 +1898,13 @@ const SR_STATUS = {
   coach:    {label:'Coach judgement', color:'#8E5BB8'},   // Stufe oder Kriterium hängt am Trainerurteil (Annex B), kein Knopf
 };
 const SR_GUT = '#3E8E5A', SR_SCHLECHT = '#e2001a', SR_GRAU = '#C9BFB9', SR_MITTEL = '#E08A1E';   // Mittel = Final erreicht, Podium nicht
-// Balkenfarbe = Wertung, überall gleich: grün ab Referenz, rot darunter, grau bei zu wenig Werten oder ohne Wertung (siehe srLegende)
+// Balkenfarbe = Wertung, überall gleich: grün ab Referenz, rot darunter, grau nur ohne Wertung (siehe srLegende); wenige Werte werden
+// seit 12.11.2026 trotzdem farbig gezeigt (Wunsch Emilie), mit «n = …» neben der Bezeichnung
 const srListe = items => `<ul style="margin:4px 0 0 16px;padding:0;">${items.filter(Boolean).map(x => `<li style="margin:2px 0;">${x}</li>`).join('')}</ul>`;
 function srLegende(saison, sektionen) {
   return `<div class="sr-fuss" style="margin:0 0 8px;">${srListe([
     `<b>Final</b> = the athletes who just made the final (the last qualifiers), <b>Podium</b> = the podium runs of the finals; both season averages ${saison} from the same rounds one level up. Slopestyle sections: Final = all finalists in their qualification runs.`,
-    `<b>Judged against</b> Podium after reaching a final, otherwise against Final (see the line next to the discipline); the <b>grey line</b> on the bar marks the Final level, the <b>black line</b> the Podium level. <b style="color:${SR_GUT};">Green</b> at or above both, <b style="color:${SR_MITTEL};">orange</b> at or above Final but below Podium, <b style="color:${SR_SCHLECHT};">red</b> below both, <b style="color:var(--muted);">grey</b> fewer than 5 values${sektionen ? ' (sections: fewer than 10)' : ''}. `,
+    `<b>Judged against</b> Podium after reaching a final, otherwise against Final (see the line next to the discipline); the <b>grey line</b> on the bar marks the Final level, the <b>black line</b> the Podium level. <b style="color:${SR_GUT};">Green</b> at or above both, <b style="color:${SR_MITTEL};">orange</b> at or above Final but below Podium, <b style="color:${SR_SCHLECHT};">red</b> below both. With few values (fewer than 5${sektionen ? ', sections fewer than 10' : ''}) the number is shown as «n = …» next to the label: read these bars with care. `,
     `<b>Grey zone:</b> the span between the two levels, its edges are the Final and Podium values from the columns. Bar ending before the zone: below the Final level; inside: between Final and Podium; beyond: above the Podium level.`])}</div>`;
 }
 // Saison wie im Monitoring: ab 1. Mai zählt die neue Saison
@@ -2117,7 +2118,7 @@ function srCompHtml(name, dz) {
 // ─── Comp overview: Übersicht ───
 // Konzept 2.11.2026 (Entscheid Emilie): die Punktebänder des FIS Judges Handbook als Verteilung (Athlet:in, Final-Stufe und Podium-Stufe
 // als gestapelte Balken), alle Kennzahlen mit «mehr = besser» als Zonen-Balken: graue Zone von Final bis Podium, schwarzer Strich =
-// gewertete Stufe, dünner Balken = Athlet:in (grün ab der gewerteten Stufe, rot darunter, grau bei zu wenig Werten), daneben die Spalten
+// gewertete Stufe, dünner Balken = Athlet:in (grün ab der gewerteten Stufe, rot darunter, auch bei wenigen Werten farbig), daneben die Spalten
 // Athlete | Final | Podium mit der gewerteten Spalte fett. Die Stufen heissen Final (letzte Qualifizierte) und Podium; «Cut-off» kommt
 // in der App nicht mehr vor (die Daten liefern rot_lab «Final cut-off»/«Cut level» und ref_label «cut»; beides wird hier nur als Flag gelesen).
 const SR_BAND = [['fall', 'Fall 1–30', '#E8A09B', '#1d1d1f'], ['mid', 'Average or below 30–65', '#C5D5E4', '#1d1d1f'], ['good', 'Good 65–85', '#8DB4D9', '#1d1d1f'], ['excellent', 'Excellent 85–100', '#0B2E59', '#fff']];
@@ -2129,7 +2130,7 @@ function srZeile(lab, wert, fin, pod, max, fmt, podJ, gut, wenig) {
   const pct = v => v == null ? null : Math.max(0, Math.min(100, v / max * 100));
   const w = pct(wert), f = pct(fin), p = pct(pod), j = podJ ? p : f;
   // Farbe (Wunsch Emilie 12.11.2026): unter Final und Podium = rot, Final erreicht aber nicht Podium = orange, beides erreicht = grün
-  const grau = wenig || wert == null || (fin == null && pod == null);
+  const grau = wert == null || (fin == null && pod == null);   // wenige Werte: trotzdem farbig (12.11.2026), Hinweis n = … steht im Label
   const okF = fin == null || wert >= fin, okP = pod == null || wert >= pod;
   const farbe = grau ? SR_GRAU : okF && okP ? SR_GUT : okF || okP ? SR_MITTEL : SR_SCHLECHT, col = grau ? 'var(--muted)' : farbe;
   const zone = f != null && p != null ? `<div class="z" style="left:${Math.min(f, p)}%;width:${Math.abs(f - p)}%;"></div>` : '';
@@ -2145,7 +2146,7 @@ function srVerteilung(titel, b, finB, podB, einheit) {
     return `<div class="sr-vs">${SR_BAND.map(([k, l, c, tc]) => { const v = (B[k] || 0) / tot * 100, r = Math.round((B[k] || 0) * 100); return `<div style="width:${v}%;background:${c};color:${tc};" title="${l}: ${r} %">${r >= 8 ? r + ' %' : ''}</div>`; }).join('')}</div>`; };
   const zeile = (lab, B, a) => B && B.n !== 0 ? `<div class="sr-vt"><span${a ? ' class="a"' : ''}>${lab}</span>${seg(B)}</div>` : '';
   return `<div class="sr-sub" style="margin-top:12px;">${titel} <span class="gedaempft" style="font-weight:400;">share of ${einheit} per band of the FIS Judges Handbook</span></div>
-    ${zeile(`Athlete (${b.n} ${b.n === 1 ? einheit.replace(/s$/, '') : einheit}${b.n < 5 ? ', too few to judge' : ''})`, b, true)}${zeile('Final level', finB)}${zeile('Podium level', podB)}
+    ${zeile(`Athlete (${b.n} ${b.n === 1 ? einheit.replace(/s$/, '') : einheit}${b.n < 5 ? ', few values' : ''})`, b, true)}${zeile('Final level', finB)}${zeile('Podium level', podB)}
     <div class="sr-vl">${SR_BAND.map(([, l, c]) => `<span><i style="background:${c};"></i>${l}</span>`).join('')}</div>`;
 }
 // Kachel «Best score»: Final und Podium sind Saison-Mediane (Final: Punktzahl der letzten Qualifizierten über alle Qualis, Podium: 3. Platz
@@ -2571,7 +2572,7 @@ function srSelektionVergangenHtml(name, S, saison) {
 function srTrendHtml(name, saisonen) {
   const revs = srReviews(name), zeilen = [];
   const zelle = (wert, ref, gut, wenig, txt, rtxt) => wert == null ? '<span class="gedaempft">–</span>'
-    : `<b style="color:${ref == null ? 'var(--text)' : wenig ? 'var(--muted)' : gut ? SR_GUT : SR_SCHLECHT};">${txt}</b> <span class="gedaempft">${ref == null ? 'no comparable ref.' : rtxt}</span>`;
+    : `<b style="color:${ref == null ? 'var(--text)' : gut ? SR_GUT : SR_SCHLECHT};">${txt}</b> <span class="gedaempft">${ref == null ? 'no comparable ref.' : rtxt}</span>`;
   Object.keys(revs).filter(sa => revs[sa].uebersicht && (!saisonen || saisonen.includes(sa))).sort().reverse().forEach(sa => {
     Object.entries(revs[sa].uebersicht.disz).forEach(([k, d]) => {
       zeilen.push(`<tr onclick="srOpenSaison('${sa}', '${k}')" title="Open the events"><td>${sa}</td><td>${d.name}</td><td>${d.n_events}</td><td>${d.finals}</td>
