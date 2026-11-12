@@ -8,9 +8,9 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Trick Collector">
-<link rel="manifest" href="manifest-youth.webmanifest?v=3">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon-youth.png?v=3">
-<link rel="icon" type="image/png" href="icons/icon-youth-192.png?v=3">
+<link rel="manifest" href="manifest-youth.webmanifest?v=4">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon-youth.png?v=4">
+<link rel="icon" type="image/png" href="icons/icon-youth-192.png?v=4">
 <title>Trick Collector</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/tus-js-client@4/dist/tus.min.js"></script>
@@ -22,7 +22,7 @@
 .tbl td.num,.kpi .v,.sb-ov-num,.chip,.statbox b,.mon-card .big,.score-big{font-variant-numeric:tabular-nums}
 /* Trick Collector (Youth-App): Aussehen nach dem Dashboard «Auswertung Wettkampfdaten» (Swiss-Ski CI). */
 :root{
-  --red:#E2001A; --char:#3E3E3F; --blue:#004877; --redd:#8B0E13; --cyan:#148FA0;
+  --red:#E2001A; --char:#3E3E3F; --blue:#004877; --redd:#8B0E13; --cyan:#39C3D4; --ice-bg:#EAF8FA;
   --bg:#faf7f6; --paper:#ffffff; --ink:#2c2c2e; --muted:#6b6b70; --line:#e7e3e1; --soft:#f4efed;
   --green:#3E8E5A; --green-bg:#EAF4EE; --gold:#B08D1E; --gold-bg:#F8F1DC;
   --cblue:#396FA8; --cblue-bg:#E8F0F8; --cred:#D64545; --cred-bg:#FBE9E9;
@@ -37,7 +37,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 
 /* Header wie Wettkampfdaten-Dashboard */
 header{position:relative;overflow:hidden;background:var(--soft);border-bottom:1px solid var(--line)}
-header::after{content:"";position:absolute;right:-12%;top:-60%;width:60%;height:240%;pointer-events:none;
+header::after{display:none;content:"";position:absolute;right:-12%;top:-60%;width:60%;height:240%;pointer-events:none;
   background:radial-gradient(closest-side,rgba(226,0,26,.55),rgba(226,0,26,.12),transparent 70%);transform:rotate(8deg)}
 .hd{position:relative;z-index:1;display:flex;justify-content:space-between;align-items:flex-start;gap:24px;padding:30px 24px 22px;max-width:1180px;margin:0 auto}
 h1{font-size:var(--fs-app);font-weight:800;letter-spacing:-.5px;color:var(--char);margin:0;line-height:1.1}
@@ -118,7 +118,7 @@ textarea{min-height:64px;resize:vertical}
 .empty{padding:22px;text-align:center;color:var(--muted);font-size:var(--fs-meta)}
 
 /* Skills-Check */
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:18px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:18px}.kpis>*{min-width:0}
 .kpi{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:16px 18px;cursor:default}
 .kpi.click{cursor:pointer}
 .kpi.sel{border-color:var(--char);box-shadow:inset 0 0 0 1px var(--char)}
@@ -300,15 +300,15 @@ textarea{min-height:64px;resize:vertical}
 .critstar{border:1px solid var(--line);background:#fff;border-radius:10px;padding:10px 6px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px}
 .critstar .st{font-size:24px;filter:grayscale(1);opacity:.35}
 .critstar .nm{font-size:var(--fs-label);line-height:1.25;font-weight:700;color:var(--muted);text-align:center}
-.critstar.on{border-color:var(--cyan);background:#eef8f9}
+.critstar.on{border-color:var(--cyan);background:var(--ice-bg)}
 .critstar.on .st{filter:none;opacity:1}
-.critstar.on .nm{color:var(--cyan)}
+.critstar.on .nm{color:var(--char)}
 .failchips{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 12px}
 .failchip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:8px 14px;font-weight:700;font-size:var(--fs-meta);color:var(--char);cursor:pointer}
 .failchip.on{border-color:var(--red);background:rgba(226,0,26,.12);color:var(--red)}
-.failchip.add{border:1px dashed var(--cyan);color:var(--cyan)}
+.failchip.add{border:1px dashed var(--cyan);color:var(--char)}
 .btn.land{background:var(--green);border-color:var(--green)}
-.btn.stomp{background:var(--cyan);border-color:var(--cyan)}
+.btn.stomp{background:var(--cyan);border-color:var(--cyan);color:var(--char)}
 .statbox{text-align:center;padding:4px 10px;border-left:1px solid var(--line)}
 .statbox b{display:block;font-size:18px;color:var(--char)}
 .statbox span{font-size:var(--fs-label);letter-spacing:1px;text-transform:uppercase;color:var(--muted);font-weight:700}
@@ -330,7 +330,7 @@ textarea{min-height:64px;resize:vertical}
 .rbtn{width:36px;height:34px;border-radius:8px;border:1.5px solid var(--line);background:#fff;font-weight:800;cursor:pointer;flex-shrink:0}
 .rbtn.f.on{background:var(--red);border-color:var(--red);color:#fff}
 .rbtn.l.on{background:var(--green);border-color:var(--green);color:#fff}
-.rbtn.s.on{background:var(--cyan);border-color:var(--cyan);color:#fff}
+.rbtn.s.on{background:var(--cyan);border-color:var(--cyan);color:var(--char)}
 .contest-row{padding:8px 0;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:6px}
 
 .rc-row{display:flex;gap:10px;align-items:center;padding:7px 0;border-top:1px solid var(--line);font-size:var(--fs-meta);cursor:pointer}
@@ -340,13 +340,13 @@ textarea{min-height:64px;resize:vertical}
 .mon-head .mon-title{font-size:var(--fs-page);font-weight:800;color:var(--char)}
 .typechips{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
 .typechip{border:1.5px solid var(--line);background:#fff;color:var(--muted);border-radius:999px;padding:6px 13px;font-size:var(--fs-label);font-weight:700;cursor:pointer}
-.typechip.on{border-color:var(--cyan);background:#e6f4f6;color:var(--cyan)}
+.typechip.on{border-color:var(--cyan);background:var(--ice-bg);color:var(--char)}
 .sec-lbl{font-size:var(--fs-label);font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--char);margin:20px 0 10px}
 .mon-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
 .mon-tile{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px;cursor:pointer}
 .mon-tile:hover,.mon-card:hover{border-color:#cfc8c5;box-shadow:0 2px 10px rgba(0,0,0,.05)}
 .mon-tile .t,.mon-card .t{font-weight:700;color:var(--char);font-size:var(--fs-meta);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.avatar.sm{width:34px;height:34px;font-size:var(--fs-label);background:#e6f4f6;color:var(--cyan)}
+.avatar.sm{width:34px;height:34px;font-size:var(--fs-label);background:var(--ice-bg);color:var(--char)}
 .ringwrap{position:relative;width:92px;height:92px;margin:14px auto 10px}
 .ringlbl{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
 .ringlbl b{font-size:17px;font-weight:800;color:var(--char)}
@@ -354,7 +354,7 @@ textarea{min-height:64px;resize:vertical}
 .tri{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--line);padding-top:8px;text-align:center}
 .tri b{display:block;font-size:15px;font-weight:800}
 .tri span{font-size:var(--fs-label);color:var(--muted)}
-.mon-tile .more{text-align:center;font-size:var(--fs-label);color:var(--cyan);font-weight:700;margin-top:8px}
+.mon-tile .more{text-align:center;font-size:var(--fs-label);color:var(--red);font-weight:700;margin-top:8px}
 .mon-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
 .mon-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:13px 14px;cursor:pointer}
 .mon-card.is-crit{border-color:rgba(214,69,69,.5)}
@@ -507,7 +507,7 @@ details summary{cursor:pointer;font-size:var(--fs-label);font-weight:700;color:v
   .modal{padding:18px 16px}
   .dropdown{right:16px}
   main.wrap{padding-top:20px}
-  .kpis{grid-template-columns:1fr 1fr}
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
   .kpis .kpi:first-child{grid-column:1/-1}
   .kpi .v{font-size:var(--fs-kpi)}
 }
@@ -613,8 +613,8 @@ main svg text{font-size:var(--fs-label)}
 @keyframes pop{0%{transform:scale(.3)}70%{transform:scale(1.12)}100%{transform:scale(1)}}
 .season-banner{display:flex;gap:12px;align-items:center;margin-bottom:16px;padding:14px 16px;border-radius:14px;cursor:pointer;color:#fff;background:linear-gradient(135deg,#E2001A,#B30015)}
 .season-banner div{display:grid;gap:2px}.season-banner span{opacity:.9;font-size:var(--fs-meta)}
-.season-card{border-radius:18px;padding:20px;color:#fff;background:linear-gradient(150deg,#E2001A 0%,#B30015 55%,#3A3A3A 100%)}
-.season-card .sr-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}.season-card .sr-logo svg{width:84px;height:auto}.season-card .sr-logo svg path{fill:#fff}
+.season-card{border-radius:18px;padding:20px;color:#fff;background:var(--red)}
+.season-card .sr-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}.season-card .sr-logo{background:#fff;border-radius:8px;padding:7px 10px}.season-card .sr-logo svg{width:84px;height:auto;display:block}
 .season-card .sr-k{font-size:12px;letter-spacing:1px;text-transform:uppercase;opacity:.85;font-weight:700}.season-card .sr-name{font-size:22px;font-weight:800;margin-top:2px}
 .season-card .sr-big{display:flex;align-items:baseline;gap:8px;margin:16px 0 12px}.season-card .sr-big b{font-size:54px;line-height:1}.season-card .sr-big span{font-weight:700;opacity:.9}
 .season-card .sr-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
@@ -628,7 +628,7 @@ main svg text{font-size:var(--fs-label)}
   .sport-bar .sport-sw{width:100%}
   .sport-bar .sport-sw button{flex:1;padding:7px 8px;font-size:12px}
 }
-.gate a{color:var(--cyan);font-weight:600;text-decoration:none}.gate a:hover{text-decoration:underline}
+.gate a{color:var(--red);font-weight:600;text-decoration:none}.gate a:hover{text-decoration:underline}
 .rv-log ul{list-style:none;padding:0;margin:8px 0 0}
 .rv-log li{padding:8px 10px;border:1px solid var(--line);border-radius:10px;margin-bottom:6px;background:#fff}
 .rv-log li.cur{border-color:var(--green);background:var(--green-bg)}
@@ -2803,7 +2803,7 @@ function entryRow(e, opts2={}){
 
 // Assessment-Übersicht wie Freeski: Spalten «Learned Tricks | Goals», gruppiert nach Richtung
 const AS_DIR_ORDER = ['Left','Right','Switch Left','Switch Right','Frontside','Backside','Switch Frontside','Switch Backside','Forward','Switch','Halfpipe','Rails','Other'];
-const AS_DIR_COL = {'Left':'#148FA0','Right':'#396FA8','Switch Left':'#8E5BB8','Switch Right':'#C96A1F','Frontside':'#148FA0','Backside':'#396FA8','Switch Frontside':'#8E5BB8','Switch Backside':'#C96A1F','Forward':'#1F9E93','Switch':'#B08D1E','Halfpipe':'#3E3E3F','Rails':'#3E3E3F','Other':'#8a8a8f'};
+const AS_DIR_COL = {'Left':'#39C3D4','Right':'#396FA8','Switch Left':'#8E5BB8','Switch Right':'#C96A1F','Frontside':'#39C3D4','Backside':'#396FA8','Switch Frontside':'#8E5BB8','Switch Backside':'#C96A1F','Forward':'#1F9E93','Switch':'#B08D1E','Halfpipe':'#3E3E3F','Rails':'#3E3E3F','Other':'#8a8a8f'};
 const asDir = e => e.discipline==='Rail' ? 'Rails' : e.discipline==='Halfpipe' ? 'Halfpipe' : (DIRN[e.trick?.dir] || 'Other');
 function asRow(e){
   const ath = prof(e.athlete_id), staff = isStaff();
@@ -2850,7 +2850,7 @@ function asList(items, emptyMsg){
 // (Snowboard: Frontside / Backside / Switch …), 180 innen, höchste Rotation aussen.
 // Eine Linie pro Disziplin im Fokus = höchste gelernte Rotation in dieser Richtung (aus dem Assessment).
 const DIR_ORDER = ['L', 'R', 'SR', 'SL'];   // oben links, oben rechts, unten rechts, unten links (Left-Seite links, Right-Seite rechts)
-const RADAR_LINES = {Jump:'#E2001A', Rail:'#148FA0', Halfpipe:'#3A3A3A'};
+const RADAR_LINES = {Jump:'#E2001A', Rail:'#39C3D4', Halfpipe:'#3A3A3A'};
 const degOf = v => +((/(\d{3,4})/.exec(String(v || '')) || [])[1] || 0);
 // Richtung und Rotation eines Tricks (null = keine Rotation, z.B. Flip ohne Spin oder Slide)
 function dirRot(disc, t){
@@ -3056,14 +3056,14 @@ const BADGES = [
   {id:'t4learn50', ic:'star',     col:'#E2001A', name:'50 tricks',               how:'50 confirmed tricks',                                  test:c => c.length >= 50},
   {id:'t4perf5',   ic:'trophy',   col:'#3E8E5A', name:'5 perfect tricks',        how:'5 tricks with full points',                            test:c => c.filter(isFull).length >= 5},
   {id:'t4perf15',  ic:'trophy',   col:'#E2001A', name:'15 perfect tricks',       how:'15 tricks with full points',                           test:c => c.filter(isFull).length >= 15},
-  {id:'t4dirs',    ic:'compass',  col:'#148FA0', name:'Off-axis in all 4 directions', how:'A confirmed off-axis trick in every direction (Left, Right, Switch Left, Switch Right)', test:c => D4.every(d => airC(c).some(e => dirOf(e)===d && isOff(e.trick || {})))},
+  {id:'t4dirs',    ic:'compass',  col:'#39C3D4', name:'Off-axis in all 4 directions', how:'A confirmed off-axis trick in every direction (Left, Right, Switch Left, Switch Right)', test:c => D4.every(d => airC(c).some(e => dirOf(e)===d && isOff(e.trick || {})))},
   {id:'t4switch',  ic:'swap',     col:'#8E5BB8', name:'Switch specialist',       how:'5 confirmed switch tricks',                            test:c => airC(c).filter(e => e.discipline==='Halfpipe' ? e.trick?.sw : isSw(e.trick || {})).length >= 5},
   {id:'t4axes',    ic:'axis',     col:'#C96A1F', name:'Axis variety',            how:'Confirmed tricks on 3 different off-axis axes',        test:c => new Set(airC(c).filter(e => isOff(e.trick || {})).map(e => e.trick.axis)).size >= 3},
   {id:'t4double',  ic:'flip',     col:'#3A3A3A', name:'Doubles in two directions', how:'Confirmed doubles in 2 different directions',        test:c => new Set(airC(c).filter(e => +e.trick?.flips >= 2).map(dirOf)).size >= 2},
   {id:'t4grabs',   ic:'check',    col:'#396FA8', name:'Grab variety',            how:'8 different grabs in confirmed tricks',                test:c => new Set(c.map(e => e.trick?.grab).filter(Boolean)).size >= 8},
   {id:'t4creative',ic:'up',       col:'#1F9E93', name:'Creative take-off',       how:'A confirmed trick with a creative take-off (e.g. butter, N\'Ollie)', test:c => c.some(e => e.trick?.takeoff && !BASIC_TO.includes(e.trick.takeoff))},
   {id:'t4railtypes', ic:'rail',   col:'#1F9E93', name:'Rail all-rounder',        how:'Confirmed rail tricks on 4 different rail types',      disc:'Rail', test:c => new Set(c.filter(e => e.discipline==='Rail').map(e => e.trick?.railType).filter(Boolean)).size >= 4},
-  {id:'t4spinonout', ic:'spin',   col:'#148FA0', name:'Spin on, spin out',       how:'A confirmed rail trick with a spin on and a spin out', disc:'Rail', test:c => c.some(e => e.discipline==='Rail' && railSpinOnOut(e.trick || {}))},
+  {id:'t4spinonout', ic:'spin',   col:'#39C3D4', name:'Spin on, spin out',       how:'A confirmed rail trick with a spin on and a spin out', disc:'Rail', test:c => c.some(e => e.discipline==='Rail' && railSpinOnOut(e.trick || {}))},
   {id:'t4alleyoop',  ic:'pipe',   col:'#396FA8', name:'Alley-oop',               how:'A confirmed alley-oop in the halfpipe',                disc:'Halfpipe', test:c => c.some(e => e.discipline==='Halfpipe' && e.trick?.ao)},
   {id:'t4pipeoff',   ic:'pipe',   col:'#E2001A', name:'Off-axis in the pipe',    how:'A confirmed off-axis trick in the halfpipe',           disc:'Halfpipe', test:c => c.some(e => e.discipline==='Halfpipe' && isOff(e.trick || {}))},
   {id:'t4sc50',    ic:'mountain', col:'#C96A1F', name:'Halfway there',           how:'50 % of your Skills-Check',                            sc:true, test:(c, all, ath) => (scTot(ath)?.pct || 0) >= 50},
@@ -4212,7 +4212,7 @@ function renderEditAttempt(){
     <div class="bigbtns" style="${EA.hasCrit ? '' : 'grid-template-columns:1fr 1fr 1fr'}">
       <button class="bigbtn fail ${EA.oc==='failed'?'on':''}" onclick="EA.oc='failed';renderEditAttempt()">✗<br>FAILED</button>
       <button class="bigbtn land ${EA.oc!=='failed' && (EA.hasCrit || EA.oc==='landed')?'on':''}" onclick="EA.oc='landed';renderEditAttempt()">✓<br>LANDED</button>
-      ${EA.hasCrit ? '' : `<button class="bigbtn land ${EA.oc==='stomped'?'on':''}" style="border-color:var(--cyan);color:var(--cyan)" onclick="EA.oc='stomped';renderEditAttempt()">★<br>STOMPED</button>`}
+      ${EA.hasCrit ? '' : `<button class="bigbtn land ${EA.oc==='stomped'?'on':''}" style="border-color:var(--cyan);color:var(--char)" onclick="EA.oc='stomped';renderEditAttempt()">★<br>STOMPED</button>`}
     </div>
     ${EA.oc!=='failed' && EA.hasCrit ? `<div class="disclose"><div class="row"><b style="color:var(--char)">Criteria met</b><span class="grow"></span><b>${score}/${set.length}</b></div>
       <div class="critstars">${set.map(c => `<button class="critstar ${EA.crit[c.k]?'on':''}" onclick="EA.crit['${c.k}']=!EA.crit['${c.k}'];renderEditAttempt()"><span class="st">⭐</span><span class="nm">${esc(c.name)}</span></button>`).join('')}</div></div>` : ''}
@@ -4416,8 +4416,8 @@ async function deleteReport(id){
    ══════════════════════════════════════════════════════════════════════ */
 const MON_ST = {ready:{c:'#3E8E5A', l:'Ready'}, building:{c:'#C96A1F', l:'Building'}, critical:{c:'#D64545', l:'Critical'}, lowdata:{c:'#8a8a8f', l:'Low data'}};
 // Stomped = bestes Ergebnis → Grün; Landed → Türkis; Failed → Rot
-const OC = {stomped:'#3E8E5A', landed:'#148FA0', failed:'#D64545', volume:'#396FA8', good:'#3E8E5A'};
-const MON_DIR_COL = {'Left':'#148FA0', 'Right':'#396FA8', 'Switch Left':'#8E5BB8', 'Switch Right':'#C96A1F', 'Frontside':'#148FA0', 'Backside':'#396FA8', 'Switch Frontside':'#8E5BB8', 'Switch Backside':'#C96A1F', 'Forward':'#1F9E93', 'Switch':'#B08D1E', 'Rails':'#3E3E3F', 'Basics':'#6b6b70', 'Other':'#8a8a8f'};
+const OC = {stomped:'#3E8E5A', landed:'#39C3D4', failed:'#D64545', volume:'#396FA8', good:'#3E8E5A'};
+const MON_DIR_COL = {'Left':'#39C3D4', 'Right':'#396FA8', 'Switch Left':'#8E5BB8', 'Switch Right':'#C96A1F', 'Frontside':'#39C3D4', 'Backside':'#396FA8', 'Switch Frontside':'#8E5BB8', 'Switch Backside':'#C96A1F', 'Forward':'#1F9E93', 'Switch':'#B08D1E', 'Rails':'#3E3E3F', 'Basics':'#6b6b70', 'Other':'#8a8a8f'};
 const MON_DIR_ORDER = ['Left','Right','Switch Left','Switch Right','Forward','Switch','Rails','Basics','Other'];
 const MON_PLATEAU_TOL = 5;
 const monStatus = (n, s) => n < 5 ? 'lowdata' : s / n >= .7 ? 'ready' : s / n >= .4 ? 'building' : 'critical';
@@ -4799,7 +4799,7 @@ function rawEntriesCard(){
    ══════════════════════════════════════════════════════════════════════ */
 function monCommentsCard(){
   return `<div class="card"><div class="row" style="gap:10px"><div class="tiny muted" style="font-weight:800;letter-spacing:1px;text-transform:uppercase">Coach comment · current status</div>
-      <span class="chip blue" id="mon-cmt-ai" hidden>AI summary</span><span class="grow"></span><a href="#" class="tiny" id="mon-cmt-hl" style="color:var(--cyan);font-weight:700" onclick="MONC.hist=!MONC.hist;renderMonComments();return false"></a></div>
+      <span class="chip blue" id="mon-cmt-ai" hidden>AI summary</span><span class="grow"></span><a href="#" class="tiny" id="mon-cmt-hl" style="color:var(--red);font-weight:700" onclick="MONC.hist=!MONC.hist;renderMonComments();return false"></a></div>
     <div id="mon-cmt-status" class="small" style="margin-top:8px">Loading…</div>
     <div id="mon-cmt-hist"></div>
     <div class="row" style="margin-top:12px;flex-wrap:nowrap"><textarea id="mon-cmt-input" placeholder="Add new comment" style="min-height:44px"></textarea><button class="btn red sm" onclick="addMonComment()">Save</button></div>
