@@ -942,7 +942,7 @@ const I18N = {
   'Trick status (stomp rate)':['Trick-Status (Stomp-Rate)','Statut du trick (taux de stomp)','Stato del trick (stomp rate)'], '< 5 attempts':['< 5 Versuche','< 5 essais','< 5 tentativi'], 'Stomped = all criteria met':['Stomped = alle Kriterien erfüllt','Stomped = tous les critères remplis','Stomped = tutti i criteri soddisfatti'],
   'Send now':['Jetzt senden','Envoyer','Invia ora'],
   'Selection':['Selektion','Sélection','Selezione'], 'Admins only.':['Nur für Admins.','Réservé aux admins.','Solo per admin.'], 'History':['Verlauf','Historique','Cronologia'], 'Submitted':['Eingereicht','Envoyé','Inviato'], 'Deleted':['Gelöscht','Supprimé','Eliminato'],
-  'Selection status at the deadline. Later ratings do not count.':['Selektionsstand am Stichtag. Spätere Bewertungen zählen nicht.','État de la sélection à la date limite. Les évaluations ultérieures ne comptent pas.','Stato della selezione alla scadenza. Le valutazioni successive non contano.'],
+  'Status at the JWM deadline. Uploads stay open, later ratings count only for the April deadline.':['Stand am JWM-Stichtag. Uploads bleiben offen, spätere Bewertungen zählen nur für den Stichtag im April.','État à la date limite CMJ. Les uploads restent ouverts, les évaluations ultérieures comptent seulement pour la date limite d’avril.','Stato alla scadenza CMJ. I caricamenti restano aperti, le valutazioni successive contano solo per la scadenza di aprile.'], 'Selection deadline 25 April':['Selektions-Stichtag 25. April','Date limite de sélection 25 avril','Scadenza selezione 25 aprile'], 'Selection status at the deadline. Later ratings do not count.':['Selektionsstand am Stichtag. Spätere Bewertungen zählen nicht.','État de la sélection à la date limite. Les évaluations ultérieures ne comptent pas.','Stato della selezione alla scadenza. Le valutazioni successive non contano.'],
   '(History not yet active: ratings up to the deadline.)':['(Verlauf noch nicht aktiv: Bewertungen bis zum Stichtag.)','(Historique pas encore actif : évaluations jusqu’à la date limite.)','(Cronologia non ancora attiva: valutazioni fino alla scadenza.)'],
   'Ranking by Skills-Check total, tie-break: stomp rate from sessions':['Rangierung nach Skills-Check-Total, bei Gleichstand: Stomp-Rate aus den Sessions','Classement selon le total Skills-Check, en cas d’égalité : stomp rate des sessions','Classifica per totale Skills-Check, in caso di parità: stomp rate delle sessioni'],
   'Only tricks rated with video count':['Es zählen nur mit Video bewertete Tricks','Seuls les tricks évalués avec vidéo comptent','Contano solo i trick valutati con video'], 'Stomp rate is shown from 5 attempts':['Stomp-Rate ab 5 Versuchen','Stomp rate à partir de 5 essais','Stomp rate da 5 tentativi'],
@@ -1095,7 +1095,11 @@ const I18N_PAT = [
   [/^Available from (.+)$/, (m, i) => [`Verfügbar ab ${m[1]}`, `Disponible dès le ${m[1]}`, `Disponibile dal ${m[1]}`][i]],
   [/^Delete (\d+) videos permanently\? Entries and ratings stay\.$/, (m, i) => [`${m[1]} Videos endgültig löschen? Einträge und Bewertungen bleiben.`, `Supprimer définitivement ${m[1]} vidéos ? Les entrées et évaluations restent.`, `Eliminare definitivamente ${m[1]} video? Voci e valutazioni restano.`][i]],
   [/^(\d+) videos deleted$/, (m, i) => [`${m[1]} Videos gelöscht`, `${m[1]} vidéos supprimées`, `${m[1]} video eliminati`][i]],
-  [/^Selection deadline 15 April: (\d+) days left, upload your tricks with video\.$/, (m, i) => [`Selektions-Stichtag 15. April: noch ${m[1]} Tage, lade deine Tricks mit Video hoch.`, `Date limite de sélection 15 avril : encore ${m[1]} jours, télécharge tes tricks avec vidéo.`, `Scadenza selezione 15 aprile: ancora ${m[1]} giorni, carica i tuoi trick con video.`][i]],
+  [/^JWM selection: status on 31 January counts, (\d+) days left\. Upload your tricks with video\.$/, (m, i) => [`JWM-Selektion: Es zählt der Stand am 31. Januar, noch ${m[1]} Tage. Lade deine Tricks mit Video hoch.`, `Sélection CMJ : l’état au 31 janvier compte, encore ${m[1]} jours. Télécharge tes tricks avec vidéo.`, `Selezione CMJ: conta lo stato al 31 gennaio, ancora ${m[1]} giorni. Carica i tuoi trick con video.`][i]],
+  [/^Selection deadline 25 April: (\d+) days left, upload your tricks with video\.$/, (m, i) => [`Selektions-Stichtag 25. April: noch ${m[1]} Tage, lade deine Tricks mit Video hoch.`, `Date limite de sélection 25 avril : encore ${m[1]} jours, télécharge tes tricks avec vidéo.`, `Scadenza selezione 25 aprile: ancora ${m[1]} giorni, carica i tuoi trick con video.`][i]],
+  [/^(\d+) days left · live status, uploads stay open after the date$/, (m, i) => [`noch ${m[1]} Tage · aktueller Stand, Uploads bleiben danach offen`, `encore ${m[1]} jours · état actuel, les uploads restent ouverts ensuite`, `ancora ${m[1]} giorni · stato attuale, i caricamenti restano aperti dopo`][i]],
+  [/^JWM: U18 \(born (\d{4})\+\) · 31 January$/, (m, i) => [`JWM: U18 (Jahrgang ${m[1]}+) · 31. Januar`, `CMJ : U18 (nés en ${m[1]}+) · 31 janvier`, `CMJ: U18 (nati nel ${m[1]}+) · 31 gennaio`][i]],
+  [/^JWM U18 Selection (T\d) (Women|Men)$/, (m, i) => [`JWM U18 Selektion ${m[1]} ${m[2]==='Women'?'Frauen':'Männer'}`, `CMJ U18 Sélection ${m[1]} ${m[2]==='Women'?'Femmes':'Hommes'}`, `CMJ U18 Selezione ${m[1]} ${m[2]==='Women'?'Donne':'Uomini'}`][i]],
   [/^Frozen as of (.+)$/, (m, i) => [`Eingefroren per ${m[1]}`, `Figé au ${m[1]}`, `Congelato al ${m[1]}`][i]],
   [/^Deadline (\d.+)$/, (m, i) => [`Stichtag ${m[1]}`, `Date limite ${m[1]}`, `Scadenza ${m[1]}`][i]],
   [/^(\d+) days left · live status, freezes automatically at the deadline$/, (m, i) => [`noch ${m[1]} Tage · aktueller Stand, wird am Stichtag automatisch eingefroren`, `encore ${m[1]} jours · état actuel, figé automatiquement à la date limite`, `ancora ${m[1]} giorni · stato attuale, congelato automaticamente alla scadenza`][i]],
@@ -2340,7 +2344,7 @@ function toggleNotifs(ev){
   dd.innerHTML = ST.notes.length ? ST.notes.slice().sort((a,b) => b.created_at.localeCompare(a.created_at)).map(n => `
     <div class="n ${n.read_at?'':'unread'}" onclick="openNotif(${JSON.stringify(n.id)})">
       <div>${n.kind==='submitted'?'📥 New trick to review':n.kind==='rework'?'↺ Coach asks for a new video':n.kind==='kudos'?`<span>${kudosLabel(String(n.text).split('|')[0])}</span> · <span>Shout-out from your coach</span>`:n.kind==='review'?'Your season review is here':'⭐ Your trick was rated'}</div>
-      <div style="font-weight:600;color:var(--char)">${esc(n.kind==='kudos' ? String(n.text).split('|').slice(1).filter(Boolean).join(' · ') : n.kind==='reminder' ? `Selection deadline 15 April: ${String(n.text).replace('deadline:', '')} days left, upload your tricks with video.` : n.kind==='cleanup' ? 'Video clean-up: from today you can delete videos that are no longer required in the Selection tab.' : n.text)}</div><div class="d">${fmtAgo(n.created_at)}</div></div>`).join('')
+      <div style="font-weight:600;color:var(--char)">${esc(n.kind==='kudos' ? String(n.text).split('|').slice(1).filter(Boolean).join(' · ') : n.kind==='reminder' ? (String(n.text).startsWith('jwm:') ? `JWM selection: status on 31 January counts, ${String(n.text).replace('jwm:', '')} days left. Upload your tricks with video.` : `Selection deadline 25 April: ${String(n.text).replace('deadline:', '')} days left, upload your tricks with video.`) : n.kind==='cleanup' ? 'Video clean-up: from today you can delete videos that are no longer required in the Selection tab.' : n.text)}</div><div class="d">${fmtAgo(n.created_at)}</div></div>`).join('')
     : '<div class="empty">No notifications</div>';
   dd.hidden = false;
   const ids = ST.notes.filter(n => !n.read_at).map(n => n.id);
@@ -3485,14 +3489,21 @@ function teamSkillsPdf(){
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   SELEKTION (Admin, DVLP lesend): Rangliste pro Stufe und Geschlecht, Stichtag 15. April (Emilie 12.11.2026, vorher 30.4.)
+   SELEKTION (Admin, DVLP lesend): Rangliste pro Stufe und Geschlecht, Stichtag 25. April (Emilie 13.11.2026, vorher 15.4.); JWM-Ansicht U18 per 31. Januar
    Vor dem Stichtag: aktueller Stand. Danach: eingefrorener Stand per Stichtag
    (aus dem Änderungsverlauf; ohne Verlauf: Bewertungen bis zum Stichtag).
    ══════════════════════════════════════════════════════════════════════ */
 function selectionDeadline(d = new Date()){
-  const y = d.getMonth() >= 7 ? d.getFullYear() + 1 : d.getFullYear();   // Saison Aug–Jul → Stichtag 15.4. im Saison-Endjahr
-  return new Date(Date.UTC(y, 3, 15, 21, 59, 59));   // 15.4. 23:59:59 Schweizer Zeit (MESZ); Selektion wird bis 30.4. mitgeteilt
+  const y = d.getMonth() >= 7 ? d.getFullYear() + 1 : d.getFullYear();   // Saison Aug–Jul → Stichtag 25.4. im Saison-Endjahr
+  return new Date(Date.UTC(y, 3, 25, 21, 59, 59));   // 25.4. 23:59:59 Schweizer Zeit (MESZ); Selektion wird bis 30.4. mitgeteilt
 }
+// JWM-Selektion: Stand per 31. Januar für U18 (Jahrgang 2009 und jünger, Saison 2026/27). Sperrt nichts, Uploads bleiben möglich.
+function jwmDeadline(d = new Date()){
+  const y = d.getMonth() >= 7 ? d.getFullYear() + 1 : d.getFullYear();
+  return new Date(Date.UTC(y, 0, 31, 22, 59, 59));   // 31.1. 23:59:59 Schweizer Zeit (MEZ)
+}
+const jwmMinYear = (d = new Date()) => (d.getMonth() >= 7 ? d.getFullYear() + 1 : d.getFullYear()) - 18;   // 2027 → Jahrgang 2009+
+const selCutDate = () => ST.selCut==='jwm' ? jwmDeadline() : selectionDeadline();
 const selFrozen = () => Date.now() > selectionDeadline().getTime();
 function logHtml(log){
   const nm = id => prof(id)?.name || '–';
@@ -3505,8 +3516,8 @@ function logHtml(log){
       ${crits(r) ? `<div class="lg-cs">${crits(r)}</div>` : ''}${r.review_note ? `<div class="lg-n">${esc(r.review_note)}</div>` : ''}</li>`).join('')}</ul></details>`;
 }
 async function loadSelectionSnapshot(){
-  const dl = selectionDeadline();
-  if (!selFrozen()){ ST.sel = {frozen:false, ents:ST.entries}; return; }
+  const dl = selCutDate(), cut = ST.selCut || 'final';
+  if (Date.now() <= dl.getTime()){ ST.sel = {frozen:false, ents:ST.entries, cut}; return; }
   const log = await Store.entryLog({until:dl.toISOString()});
   let ents;
   if (log){
@@ -3514,18 +3525,18 @@ async function loadSelectionSnapshot(){
     ents = [...last.values()].filter(r => r.action!=='delete').map(r => ({id:r.entry_id, athlete_id:r.athlete_id, discipline:r.discipline, label:r.label, status:r.status, crit:r.crit, score:r.score, video_path:r.video_path,
       trick:ST.entries.find(e => e.id===r.entry_id)?.trick || null})).filter(e => e.trick);
   } else ents = ST.entries.filter(e => e.status==='reviewed' && e.reviewed_at && e.reviewed_at <= dl.toISOString());
-  ST.sel = {frozen:true, ents, fromLog:!!log};
+  ST.sel = {frozen:true, ents, fromLog:!!log, cut};
 }
 async function renderSelection(){
   const root = $('#page-selection');
   if (ST.me.role !== 'dvlp'){ root.innerHTML = '<div class="card"><div class="empty">Admins only.</div></div>'; return; }
   if (!HAS_SC){ root.innerHTML = `<div class="card"><h2>Selection</h2><div class="empty">The Snowboard ranking needs the Snowboard Skills-Check. It will be available as soon as the requirements are defined.</div></div>`; return; }
-  if (!ST.sel || ST.sel.rev !== ST._rev){ root.innerHTML = '<div class="card"><div class="empty">Loading…</div></div>'; await loadSelectionSnapshot(); ST.sel.rev = ST._rev; }
+  if (!ST.sel || ST.sel.rev !== ST._rev || ST.sel.cut !== (ST.selCut || 'final')){ root.innerHTML = '<div class="card"><div class="empty">Loading…</div></div>'; await loadSelectionSnapshot(); ST.sel.rev = ST._rev; }
   const F = ST.selF || (ST.selF = {level:'T4', sex:'W'});
-  const dl = selectionDeadline(), frozen = ST.sel.frozen;
+  const dl = selCutDate(), frozen = ST.sel.frozen, jwm = ST.selCut==='jwm';
   const days = Math.ceil((dl.getTime() - Date.now()) / 86400000);
   const atts = ST.attempts.filter(a => !frozen || a.created_at <= dl.toISOString());
-  const rows = ST.profiles.filter(p => p.role==='athlete' && p.level===F.level && p.gender===F.sex).map(a => {
+  const rows = ST.profiles.filter(p => p.role==='athlete' && p.level===F.level && p.gender===F.sex && (!jwm || (p.birthdate && +p.birthdate.slice(0, 4) >= jwmMinYear()))).map(a => {
     const ents = ST.sel.ents.filter(e => e.athlete_id===a.id && (e.status!=='reviewed' || e.video_path));   // Selektion: nur Bewertungen mit Video
     const t = levelTotals(a, a.level, ents), path = pathTotals(a, ents);   // path = alle Stufen, nur Info (zählt nicht für die Rangierung)
     const vids = ents.filter(e => e.status==='reviewed' && e.video_path).length, rated = ents.filter(e => e.status==='reviewed').length;
@@ -3536,9 +3547,10 @@ async function renderSelection(){
   ST._selRows = rows;
   root.innerHTML = `
     <div class="sel-banner ${frozen ? 'frozen' : ''}">${frozen
-      ? `<b>Frozen as of ${fmtDate(dl.toISOString())}</b><span>Selection status at the deadline. Later ratings do not count.</span>${ST.sel.fromLog ? '' : '<span>(History not yet active: ratings up to the deadline.)</span>'}`
-      : `<b>Deadline ${fmtDate(dl.toISOString())}</b><span>${days} days left · live status, freezes automatically at the deadline</span>`}</div>
+      ? `${jwm ? '<b>JWM U18</b> ' : ''}<b>Frozen as of ${fmtDate(dl.toISOString())}</b><span>${jwm ? 'Status at the JWM deadline. Uploads stay open, later ratings count only for the April deadline.' : 'Selection status at the deadline. Later ratings do not count.'}</span>${ST.sel.fromLog ? '' : '<span>(History not yet active: ratings up to the deadline.)</span>'}`
+      : `${jwm ? '<b>JWM U18</b> ' : ''}<b>Deadline ${fmtDate(dl.toISOString())}</b><span>${days} days left · live status${jwm ? ', uploads stay open after the date' : ', freezes automatically at the deadline'}</span>`}</div>
     <div class="row team-filters" style="margin:14px 0 16px;gap:8px">
+      <select onchange="ST.selCut=this.value;renderSelection()">${opts([['final','Selection deadline 25 April'],['jwm',`JWM: U18 (born ${jwmMinYear()}+) · 31 January`]], ST.selCut || 'final')}</select>
       <select onchange="ST.selF.sex=this.value;renderSelection()">${opts([['W','Women'],['M','Men']], F.sex)}</select>
       <span class="grow"></span><button class="btn ghost" onclick="selectionPdf()">📄 PDF</button></div>
     <div class="card"><h2>Ranking ${F.level} ${F.sex==='W' ? 'Women' : 'Men'} <span class="muted" style="letter-spacing:0;font-weight:600">${rows.length}</span></h2>
@@ -3617,9 +3629,9 @@ async function runVideoCleanup(){
   } catch (err){ console.error(err); toast('Could not delete: ' + (err.message || err), true); }
 }
 function selectionPdf(){
-  const F = ST.selF, rows = ST._selRows || [], dl = selectionDeadline();
+  const F = ST.selF, rows = ST._selRows || [], dl = selCutDate();
   const tbl = document.querySelector('#page-selection .sel-tbl')?.outerHTML || '';
-  openPrintWindow(`Selection ${F.level} ${F.sex==='W' ? 'Women' : 'Men'}`, `${ST.sel?.frozen ? 'Frozen as of' : 'Live status, deadline'} ${fmtDate(dl.toISOString())} · ${rows.length} athletes`, `<div class="card">${tbl}</div>`);
+  openPrintWindow(`${ST.selCut==='jwm' ? 'JWM U18 ' : ''}Selection ${F.level} ${F.sex==='W' ? 'Women' : 'Men'}`, `${ST.sel?.frozen ? 'Frozen as of' : 'Live status, deadline'} ${fmtDate(dl.toISOString())} · ${rows.length} athletes`, `<div class="card">${tbl}</div>`);
 }
 function setTeamFilter(k, v){ (ST.teamFilter ||= {sex:'', level:'', sort:'name'})[k] = v; renderTeam(); }
 function openAddAthlete(){

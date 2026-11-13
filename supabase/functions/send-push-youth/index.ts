@@ -46,10 +46,16 @@ const T: Record<string, Record<Lang, (x: string) => [string, string]>> = {
     it: () => ["Il tuo riepilogo della stagione è pronto", "Guarda cosa hai raggiunto questa stagione."], en: () => ["Your season review is here", "See what you achieved this season."],
   },
   reminder: {
-    de: (x) => ["Selektions-Stichtag 15. April", `Noch ${x} ${x === "1" ? "Tag" : "Tage"}: lade deine Tricks mit Video hoch.`],
-    fr: (x) => ["Date limite de sélection : 15 avril", `Encore ${x} jour${x === "1" ? "" : "s"} : télécharge tes tricks avec vidéo.`],
-    it: (x) => ["Scadenza selezione: 15 aprile", `Ancora ${x} giorn${x === "1" ? "o" : "i"}: carica i tuoi trick con video.`],
-    en: (x) => ["Selection deadline 15 April", `${x} day${x === "1" ? "" : "s"} left: upload your tricks with video.`],
+    de: (x) => ["Selektions-Stichtag 25. April", `Noch ${x} ${x === "1" ? "Tag" : "Tage"}: lade deine Tricks mit Video hoch.`],
+    fr: (x) => ["Date limite de sélection : 25 avril", `Encore ${x} jour${x === "1" ? "" : "s"} : télécharge tes tricks avec vidéo.`],
+    it: (x) => ["Scadenza selezione: 25 aprile", `Ancora ${x} giorn${x === "1" ? "o" : "i"}: carica i tuoi trick con video.`],
+    en: (x) => ["Selection deadline 25 April", `${x} day${x === "1" ? "" : "s"} left: upload your tricks with video.`],
+  },
+  jwm: {
+    de: (x) => ["JWM-Selektion: Stand am 31. Januar", `Noch ${x} ${x === "1" ? "Tag" : "Tage"}: lade deine Tricks mit Video hoch. Danach kannst du weiter hochladen.`],
+    fr: (x) => ["Sélection CMJ : état au 31 janvier", `Encore ${x} jour${x === "1" ? "" : "s"} : télécharge tes tricks avec vidéo. Tu pourras continuer ensuite.`],
+    it: (x) => ["Selezione CMJ: stato al 31 gennaio", `Ancora ${x} giorn${x === "1" ? "o" : "i"}: carica i tuoi trick con video. Dopo puoi continuare a caricare.`],
+    en: (x) => ["JWM selection: status on 31 January", `${x} day${x === "1" ? "" : "s"} left: upload your tricks with video. You can keep uploading afterwards.`],
   },
 };
 
@@ -67,8 +73,9 @@ Deno.serve(async (req) => {
     let sent = 0;
     for (const s of subs ?? []) {
       const lang = (["de", "fr", "it", "en"].includes(s.lang) ? s.lang : "de") as Lang;
-      const arg = n.kind === "reminder" ? String(n.text).replace(/^deadline:/, "") : String(n.text);
-      const [title, text] = (T[n.kind]?.[lang] ?? ((x: string) => ["Trick Collector", x]))(arg);
+      const jwm = n.kind === "reminder" && String(n.text).startsWith("jwm:");
+      const arg = n.kind === "reminder" ? String(n.text).replace(/^(deadline|jwm):/, "") : String(n.text);
+      const [title, text] = (T[jwm ? "jwm" : n.kind]?.[lang] ?? ((x: string) => ["Trick Collector", x]))(arg);
       try {
         await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
           JSON.stringify({ title, body: text, tag: n.entry_id ?? n.kind, url: "./" }));
