@@ -1316,7 +1316,7 @@ function sbMonBack() {
   sbMonView = sbMonView.level === 'trick'
     ? {level:'athlete', athlete:sbMonView.athlete, trick:null}
     : {level:'team', athlete:null, trick:null};
-  if (sbMonView.level === 'team') {               // aus der Athlete overview geöffnet → dorthin zurück; «Comp overview» gibt es nur pro Athlet:in
+  if (sbMonView.level === 'team') {               // aus der Athlete overview geöffnet → dorthin zurück; «Season & career» gibt es nur pro Athlet:in
     if (_srZurueck) { sbMonTyp = _srZurueck; _srZurueck = null; } else if (sbMonTyp === SR_TAB) sbMonTyp = '';
   }
   renderMonitoring();
@@ -1876,7 +1876,7 @@ function sbVideoBtn(e) {
 //   Bag, BA/SS/HP Train, All: nur das Training (wie bisher).
 //   BA/SS/HP Comp: nur die Wettkämpfe aus den FIS-Daten: pro Event Runde, Rang, jeder Sprung oder Run mit vollem Trickname
 //                  und Note; dazu Europacup und weitere FIS-Rennen mit Rang. Die Wettkampf-Einträge der App bleiben weg.
-//   Comp overview: Übersicht (wie die erste Folie des Athletenfeedbacks), Karriere (alle Saisons), Athletenweg, fehlende
+//   Season & career: Übersicht (wie die erste Folie des Athletenfeedbacks), Karriere (alle Saisons), Athletenweg, fehlende
 //                  Podiums-Tricks mit «Set as goal», Selektion und Coach-Eingabe, für die gewählte Saison.
 // Inhalte aus der Wettkampf-Auswertung (Tabellen season_review und selection_check). Sie kommen per SQL aus der Pipeline
 // (skripte_coachdecks/season_review_export.py) und liegen NICHT im Repo, weil das Repo öffentlich ist.
@@ -1998,7 +1998,7 @@ function srTeamLine(names) {
   if (!mit.length) return '';
   const fertig = mit.filter(srHatInput).length;
   const col = fertig === mit.length ? '#3E8E5A' : '#C96A1F';
-  return `<div class="sr-team"><b>Comp overview</b><span>target and plan ${SR_JETZT} entered for <b style="color:${col};">${fertig} of ${mit.length}</b> athletes · open the athlete, tab «Comp overview»</span></div>`;
+  return `<div class="sr-team"><b>Season &amp; career</b><span>target and plan ${SR_JETZT} entered for <b style="color:${col};">${fertig} of ${mit.length}</b> athletes · open the athlete, tab «Season & career»</span></div>`;
 }
 function srTeamChip(name) {
   if (!srHatInhalt(name) || srHatInput(name)) return '';
@@ -2006,7 +2006,7 @@ function srTeamChip(name) {
 }
 
 // ── Athlet:innen-Ebene ──
-// Tab «Comp overview» neben den Typ-Filtern (nur auf der Athlet:innen-Seite); roter Punkt, solange Ziel und Plan fehlen
+// Tab «Season & career» neben den Typ-Filtern (nur auf der Athlet:innen-Seite); roter Punkt, solange Ziel und Plan fehlen
 function srChipHtml() {
   if (sbMonView.level === 'team') return srTeamChipHtml();     // Team-Ebene: Chip «Athlete overview»
   if (sbMonView.level !== 'athlete') return '';
@@ -2014,16 +2014,16 @@ function srChipHtml() {
   const name = sbMonView.athlete;
   if (!srHatInhalt(name)) return '';
   const on = sbMonTyp === SR_TAB;
-  return `<button class="sr-tabchip ${on ? 'on' : ''}" onclick="sbMonSetTyp('${SR_TAB}')">Comp overview${srHatInput(name) ? '' : '<i title="Target and plan missing"></i>'}</button>`;
+  return `<button class="sr-tabchip ${on ? 'on' : ''}" onclick="sbMonSetTyp('${SR_TAB}')">Season &amp; career${srHatInput(name) ? '' : '<i title="Target and plan missing"></i>'}</button>`;
 }
 
-// Inhalt statt der Trainingskarten: Comp overview oder Wettkämpfe; null = normale Trainingsansicht
+// Inhalt statt der Trainingskarten: Season & career oder Wettkämpfe; null = normale Trainingsansicht
 function srAthleteHtml(name) {
   const comp = SR_COMP[sbMonTyp];
   if (sbMonTyp !== SR_TAB && !comp) return null;
   srEnsure();
   if (!_srData) return '<div class="loading"><span class="spinner"></span></div>';
-  if (_srData.fehlt) return sbMonTyp === SR_TAB ? '<div class="leer-schmal">Comp overview not available.</div>' : null;
+  if (_srData.fehlt) return sbMonTyp === SR_TAB ? '<div class="leer-schmal">Season &amp; career not available.</div>' : null;
   _srCur = {name, saison: null, items: []};
   return comp ? srCompHtml(name, comp) : srReviewTabHtml(name);
 }
@@ -2066,6 +2066,9 @@ function srNiveauHtml(dz, ev, name) {
   const ss = dz === 'SS', rails = z => (z.rails || []).map(srEsc).join('<br>') || '–';
   const ph = N.phase === 'semifinal' ? 'semifinal' : 'qualification';
   const kach = (v, l) => `<div><b>${v}</b><span>${l}</span></div>`;
+  // ohne Trick-Codierung gibt es keine Rotationen: Hinweis statt «–» (Wunsch Emilie 13.11.2026)
+  const ohneRot = N.fin_rot_min == null && N.fin_rot_median == null;
+  const kachRot = (v, l) => ohneRot ? `<div class="ohne"><b>tricks not coded</b><span>${l}</span></div>` : kach(rot(v), l);
   const heats = N.heats.map(h => `<div class="sr-niv-cut">${N.heats.length > 1 ? `<b>Heat ${srEsc(String(h.heat ?? '').replace(/^H(?=\d)/, ''))}</b> · ` : ''}${h.n_final} of ${h.n} to the final · cut <b>${pt(h.cut)}</b>${h.erster_aus != null ? ` <span class="gedaempft">(first out ${pt(h.erster_aus)})</span>` : ''}
       <div class="gedaempft">Last qualifier: ${srEsc(h.cut_name)} (${srEsc(h.cut_nsa)}), biggest ${rot(h.cut_rot)}${(h.cut_tricks || []).length ? ': ' + h.cut_tricks.map(srEsc).join(' · ') : ''}${ss && (h.cut_rails || []).length ? `<br>Rails: ${h.cut_rails.map(srEsc).join(' · ')}` : ''}</div></div>`).join('');
   const zeile = z => `<tr class="${istIch(z) ? 'ich' : ''}"><td>${z.rang ?? '–'}</td><td><b>${srEsc(z.name)}</b> <span class="gedaempft">${srEsc(z.nsa)}</span></td><td class="num">${pt(z.total)}</td><td class="num">${rot(z.rot)}</td><td>${(z.tricks || []).map(srEsc).join('<br>') || '–'}</td>${ss ? `<td>${rails(z)}</td>` : ''}</tr>`;
@@ -2078,7 +2081,7 @@ function srNiveauHtml(dz, ev, name) {
   };
   const tab = (titel, L, rk, nachHeat) => L.length ? `<div class="sr-sub" style="margin-top:12px;">${titel}</div><div class="sr-niv-tw"><table class="sr-niv-t"><thead><tr><th>${rk}</th><th>Athlete</th><th class="num">Total</th><th class="num">Biggest</th><th>${ss ? 'Jumps of the best run' : `Tricks (${was})`}</th>${ss ? '<th>Rails of the best run</th>' : ''}</tr></thead><tbody>${koerper(L, nachHeat)}</tbody></table></div>` : '';
   return `<details class="sr-niv"><summary>Level of this contest</summary><div class="sr-niv-in">
-    <div class="sr-kpis sr-niv-k">${kach(pt(Math.min(...N.heats.map(h => h.cut))), 'lowest total that made the final')}${kach(rot(N.fin_rot_min), 'smallest biggest rotation of a finalist')}${kach(rot(N.fin_rot_median), 'typical biggest rotation of the finalists')}${kach(pt(N.fin_total_median), 'typical total of the finalists')}</div>
+    <div class="sr-kpis sr-niv-k">${kach(pt(Math.min(...N.heats.map(h => h.cut))), 'lowest total that made the final')}${kachRot(N.fin_rot_min, 'smallest biggest rotation of a finalist')}${kachRot(N.fin_rot_median, 'typical biggest rotation of the finalists')}${kach(pt(N.fin_total_median), 'typical total of the finalists')}</div>
     <div class="sr-sub" style="margin-top:12px;">What it took to make the final (${ph})</div>${heats}
     ${tab('Podium (final)', N.podium || [], 'Rank')}
     ${tab(`All finalists in the ${ph}`, N.finalisten || [], N.heats.length > 1 ? 'Rank in heat' : 'Rank', true)}
@@ -2115,7 +2118,7 @@ function srCompHtml(name, dz) {
     <details class="sr-info"><summary>How to read</summary><div class="sr-fuss">${srListe([`<b>Source:</b> FIS result lists and Results Analysis (World Cup, Worlds, Olympics): rank per round, every ${dz === 'BA' ? 'jump' : 'run'} with the full trick name from the FIS trick code and its score${dz === 'BA' ? '; the two counting jumps are marked' : dz === 'SS' ? '; sections with their score and maximum' : ''}.`, 'Older seasons: some lists give only the best score and no trick codes.', 'Europa Cup and other FIS races: rank only.', 'The competition entries logged in the app are not shown here.'])}</div></details></div>`;
 }
 
-// ─── Comp overview: Übersicht ───
+// ─── Season & career: Übersicht ───
 // Konzept 2.11.2026 (Entscheid Emilie): die Punktebänder des FIS Judges Handbook als Verteilung (Athlet:in, Final-Stufe und Podium-Stufe
 // als gestapelte Balken), alle Kennzahlen mit «mehr = besser» als Zonen-Balken: graue Zone von Final bis Podium, schwarzer Strich =
 // gewertete Stufe, dünner Balken = Athlet:in (grün ab der gewerteten Stufe, rot darunter, auch bei wenigen Werten farbig), daneben die Spalten
@@ -2216,7 +2219,7 @@ function srUebersichtHtml(U, saison) {
       `<b>Seasons:</b> 2025/26 with the same figures and texts as in the athlete feedback; earlier seasons: the key figures only.`])}</div></details></div>`;
 }
 
-// ─── Comp overview: Athletenweg ───
+// ─── Season & career: Athletenweg ───
 function srWegHtml(W) {
   if (!W) return '';
   const a0 = 13, a1 = Math.max(24, W.jetzt + 1), n = a1 - a0 + 1;
@@ -2245,7 +2248,7 @@ function srWegHtml(W) {
     </div></div>`;
 }
 
-// ─── Comp overview: fehlende Podiums-Tricks ───
+// ─── Season & career: fehlende Podiums-Tricks ───
 function srItems(R) { return R && R.fehlend ? R.fehlend.map(it => ({...it, p: srParse(it.fam)})) : []; }
 
 // Trainingsstand eines Podiums-Tricks: derselbe Trick (Richtung inkl. Seite, Flips, Rotation), sonst der nächstgrössere
@@ -2299,7 +2302,7 @@ async function srSetGoal(i) {
   const btn = document.getElementById('sr-goal-' + i); if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
   const row = {athlet: name, datum: new Date().toISOString().split('T')[0], disziplin: it.goal.disziplin, drehrichtung: it.goal.drehrichtung,
                flips: it.goal.flips || null, rotation: it.goal.rotation, status: 'goal',
-               notiz: `Comp overview ${_srCur.saison}: podium trick ${SR_DN[it.disz]} (${it.pod} podium place${it.pod === 1 ? '' : 's'})`};
+               notiz: `Season & career ${_srCur.saison}: podium trick ${SR_DN[it.disz]} (${it.pod} podium place${it.pod === 1 ? '' : 's'})`};
   row.trick_label = trickDesc(row);
   const {data, error} = await db.from('standort').insert(row).select();
   if (error) { showToast('Error: ' + error.message, 'error'); if (btn) { btn.disabled = false; btn.textContent = 'Set as goal'; } return; }
@@ -2361,7 +2364,7 @@ function srTricksHtml(name, R, saison) {
   </div>`;
 }
 
-// ─── Comp overview: Coach-Eingaben ───
+// ─── Season & career: Coach-Eingaben ───
 let _srSpeichern = {};
 function srSaveInput(name, saison, feld, el) {
   const wert = (el.value || '').trim();
@@ -2459,7 +2462,7 @@ function srInputHtml(name, saison, R) {
     ${saison !== SR_JETZT ? `<div class="sr-fuss">Target and plan ${SR_JETZT} are the same entries as under Current season.</div>` : ''}</div>`;
 }
 
-// ─── Comp overview: Selektion ───
+// ─── Season & career: Selektion ───
 function srAltHtml(a) {
   const st = SR_STATUS[a.status] || SR_STATUS.open;
   let det = '';
@@ -2567,7 +2570,7 @@ function srSelektionVergangenHtml(name, S, saison) {
   </div>`;
 }
 
-// ─── Comp overview: Verlauf über die Saisons (All time / eigener Zeitraum) ───
+// ─── Season & career: Verlauf über die Saisons (All time / eigener Zeitraum) ───
 // Jede Saison gegen ihre eigenen Referenzwerte: nicht zusammengelegt, weil Podestnoten und Rotationen jedes Jahr ändern.
 function srTrendHtml(name, saisonen) {
   const revs = srReviews(name), zeilen = [];
@@ -2591,7 +2594,7 @@ function srTrendHtml(name, saisonen) {
     <details class="sr-info"><summary>How to read</summary><div class="sr-fuss">${srListe(['<b>Reference per season:</b> every season is compared with the reference values of the same season (podium mark or cut, landing rate of the rounds one level up, rotation of the podium or of the cut). Seasons are not pooled, because the podium marks and rotations change from year to year.', '<b>Colours:</b> green at or above the reference, red below, grey: fewer than 5 values.', '<b>Best clean run (Ø):</b> average rotation of the jumps in the best clean run (Big Air: the counting jumps of the best round, all landed, one or two depending on the format) against the average podium or cut jump.', '<b>Highest good rotation:</b> largest single rotation scored 65 or more (trick codes from 2017/18), against the biggest jump of the podium or cut runs where the season data has it, otherwise against the average jump.', '<b>Big Air:</b> «Best jump» where only one jump was scored.'])}</div></details></div>`;
 }
 
-// ─── Comp overview: Karriere (alle Saisons in den Daten) ───
+// ─── Season & career: Karriere (alle Saisons in den Daten) ───
 function srOpenSaison(sa, dz) {
   const y = +sa.slice(0, 4);
   sbMonRange = y === +SR_JETZT.slice(0, 4) ? 'season' : y === +SR_JETZT.slice(0, 4) - 1 ? 'last' : 'y:' + y;
@@ -2801,7 +2804,7 @@ function srTeamUrteilZeilen(runde, alle) {
   }));
   return out;
 }
-// Zeile anklicken: Athlet:in öffnen (Überblick: Trainingsansicht; Coach judgement: Comp overview mit aufgeklapptem Urteil); «Back» zurück zur Übersicht
+// Zeile anklicken: Athlet:in öffnen (Überblick: Trainingsansicht; Coach judgement: Season & career mit aufgeklapptem Urteil); «Back» zurück zur Übersicht
 function srTeamUrteilOpen(i) {
   _srZurueck = SR_UT_TAB;
   if (_srOvAnsicht === 'urteil') { sbMonTyp = SR_TAB; _srUrteilOffen = true; } else sbMonTyp = '';
@@ -2888,7 +2891,7 @@ function srTeamUrteilCsv(runde) {
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
-// ─── Comp overview: der ganze Tab für die gewählte Saison ───
+// ─── Season & career: der ganze Tab für die gewählte Saison ───
 function srReviewTabHtml(name) {
   const sl = srSaisonen(name);
   const revs = srReviews(name), sels = srSelections(name);

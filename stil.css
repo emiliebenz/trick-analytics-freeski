@@ -772,6 +772,7 @@ header h1 .dot{color:#E2001A}
 .sr-niv[open] > summary { background: var(--surface2); }
 .sr-niv-in { padding: 0 12px 12px; }
 .sr-niv-k { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)) !important; }
+.sr-niv-k .ohne b { font-size: 14px; font-weight: 600; color: var(--muted); padding: 3px 0 2px; }
 .sr-niv-cut { font-size: 12px; margin: 4px 0 8px; }
 .sr-niv-tw { overflow-x: auto; }
 .sr-niv-t { width: 100%; border-collapse: collapse; font-size: 12px; }
