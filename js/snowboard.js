@@ -377,7 +377,7 @@ async function rebuildReportFromTimestamps(id, silent=false) {
   if (error || !entries) { showToast('Error: '+(error?.message||'no data'), 'error'); return; }
 
   const athleteEntries = {};
-  entries.forEach(e => {
+  sbAttSort(entries).forEach(e => {
     const name = e.athlet;
     if (!athleteEntries[name]) athleteEntries[name] = [];
     const result = e.outcome === 'stomped' ? 'perfect' : e.outcome === 'failed' ? 'miss'
@@ -387,7 +387,7 @@ async function rebuildReportFromTimestamps(id, silent=false) {
       kpis: e.kpis||null, fail: e.fail_grund||null,
       sterne: typeof e.sterne==='number' ? e.sterne : null,
       time: e.created_at ? new Date(e.created_at).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) : null,
-      comment: e.kommentar||'', ...(r => r ? {run: r.run, runPos: r.pos} : {})(sbAttRun({comment: e.kommentar}))});
+      comment: e.kommentar||'', ...(r => r ? {run: r.run, runPos: r.pos} : {})(sbAttRun({comment: e.kommentar})), ...sbAttExtra(e)});
   });
 
   const existingNotes = {};
@@ -408,7 +408,7 @@ async function rebuildReportFromTimestamps(id, silent=false) {
       sterne: e.sterne, kpis: e.kpis, fail: e.fail, time: e.time,
       dbId: e.dbId || null,
       comment: e.comment || undefined,
-      ...(e.run ? {run: e.run, runPos: e.runPos} : {})}));
+      ...(e.run ? {run: e.run, runPos: e.runPos} : {}), ...sbAttKeep(e)}));
     const exs = existingScores[shortName(name)] || {};
     return {athlet: shortName(name), totalAtt, totalLand, tricks: trickList, note, trickIds, attempts,
       quali_scores: exs.q ?? null, final_scores: exs.f ?? null, contest_rank: exs.r ?? null};
@@ -2127,7 +2127,7 @@ function sbRVShowDetail(ai, ti, i) {
   }
   if (a.comment) txt += `<div class="att-c">${a.comment}</div>`;
   const meta = [a.time ? `<span class="att-t">${a.time}</span>` : '', (_sbRVEditable && _sbRV.report && _sbRV.report.id && a.dbId) ? `<button class="att-edit" onclick="sbRVEditStart(${ai},${ti},${i})">✏️ Edit</button>` : ''].join('');
-  el.innerHTML = `<div class="att-det">${txt}${meta ? `<div class="att-h" style="margin-top:6px">${meta}</div>` : ''}</div>`;
+  el.innerHTML = `<div class="att-det">${txt}${meta ? `<div class="att-h" style="margin-top:6px">${meta}</div>` : ''}${sbAttMetaHtml(ai, ti, i)}</div>`;
 }
 
 // Inline onclick handlers run in global scope and can't see _sbRV — go through this instead.
@@ -2368,6 +2368,7 @@ ${report.comments ? `<div style="background:var(--surface2);border-left:3px soli
       <span><span style="display:inline-block;width:10px;height:10px;background:#e2001a;border-radius:2px;vertical-align:-1px;"></span> Failed</span>
       <span><span style="display:inline-block;width:14px;height:2px;background:#8a8a8f;vertical-align:3px;"></span> running stomp rate (0–100%)</span>
     </div>
+    ${sbRepTeamHtml(report)}
     ${sections}`;
 }
 

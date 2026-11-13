@@ -571,7 +571,7 @@ async function rebuildReportFromTimestamps(id, silent=false) {
     ? report.trick_data.flatMap(t => Array.isArray(t.trickIds) ? t.trickIds : [])
     : [];
 
-  let query = db.from('tricks').select('id,athlet,trickaufbau,gelandet,gesamt,kommentar,created_at');
+  let query = db.from('tricks').select('id,athlet,trickaufbau,gelandet,gesamt,kommentar,created_at,' + SB_ATT_COLS);
   query = storedIds.length
     ? query.in('id', storedIds)
     : query.eq('datum', report.datum).in('athlet', athletes);
@@ -586,7 +586,7 @@ async function rebuildReportFromTimestamps(id, silent=false) {
   });
 
   const athleteEntries = {};
-  entries.forEach(e => {
+  sbAttSort(entries).forEach(e => {
     const name = e.athlet;
     if (!athleteEntries[name]) athleteEntries[name] = [];
     const result = (e.gesamt||0) >= 10 ? 'perfect' : e.gelandet==='Yes' ? 'landed' : 'miss';
@@ -597,6 +597,7 @@ async function rebuildReportFromTimestamps(id, silent=false) {
       // Kommentar ohne QoE-Teil und ohne Run-Markierung (die steht in run/runPos)
       comment: (e.kommentar||'').split(' | ').slice(1).filter(x => x.trim() && !/^Run \d+ · /.test(x) && !/^(Takeoff|Grab|Trick|Landing):/.test(x)).join(' | ').trim() || undefined,
       ...(r => r ? {run: r.run, runPos: r.pos} : {})(sbAttRun({comment: e.kommentar})),
+      ...sbAttExtra(e),
       dbId: e.id
     });
   });
@@ -611,7 +612,7 @@ async function rebuildReportFromTimestamps(id, silent=false) {
     const attempts = ents.map(e => ({trick: e.trick, result: e.result,
       takeoff: e.takeoff||null, grab: e.grab||null, trick_r: e.trick_r||null, land: e.land||null,
       time: e.time||null, dbId: e.dbId||null, comment: e.comment,
-      ...(e.run ? {run: e.run, runPos: e.runPos} : {})}));
+      ...(e.run ? {run: e.run, runPos: e.runPos} : {}), ...sbAttKeep(e)}));
     const exs = existingScores[shortName(name)] || {};
     return {athlet: shortName(name), totalAtt, totalLand, qualityPct, tricks: trickList, note, trickIds, attempts,
       quali_scores: exs.q ?? null, final_scores: exs.f ?? null, contest_rank: exs.r ?? null};
@@ -4388,7 +4389,7 @@ function sbRVShowDetail(ai, ti, i) {
   const edit = (_sbRVEditable && _sbRV.report && _sbRV.report.id && a.dbId) ? `<button class="att-edit" onclick="sbRVEditStart(${ai},${ti},${i})">✏️ Edit</button>` : '';
   el.innerHTML = `<div class="att-det"><div class="att-h"><b style="color:${resCol};">Attempt ${i+1}: ${resLbl}</b><span>QoE ${q}%</span>${a.time ? `<span class="att-t">${a.time}</span>` : ''}${edit}</div>
     ${cats ? `<ul class="att-cats">${cats}</ul>` : '<div class="gedaempft">(no category data)</div>'}
-    ${a.comment ? `<div class="att-c">${a.comment}</div>` : ''}</div>`;
+    ${a.comment ? `<div class="att-c">${a.comment}</div>` : ''}${sbAttMetaHtml(ai, ti, i)}</div>`;
 }
 
 function sbRVEditStart(ai, ti, i) {
@@ -4563,6 +4564,7 @@ ${report.comments ? `<div style="background:var(--surface2);border-left:3px soli
       <span><span style="display:inline-block;width:14px;height:2px;background:#2c2c2e;vertical-align:3px;"></span> running Ø QoE</span>
       <span><b class="schlecht">✗ / red number</b> = Miss</span>
     </div>
+    ${sbRepTeamHtml(report)}
     ${sections}`;
 }
 

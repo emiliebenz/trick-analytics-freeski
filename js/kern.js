@@ -1812,6 +1812,26 @@ function sbVideoProgress(p) {
   document.getElementById('sbv-bar').style.width = p + '%';
   document.getElementById('sbv-pct').textContent = p + '%';
 }
+// Datei in den privaten Bucket laden (tus, damit grosse Dateien nach einem Unterbruch weiterlaufen); wirft bei Fehler
+async function sbVideoUploadFile(file, path) {
+  const { data:{ session } } = await db.auth.getSession();
+  if (window.tus && session) {
+    await new Promise((resolve, reject) => {
+      const up = new tus.Upload(file, {
+        endpoint: `${SUPABASE_URL}/storage/v1/upload/resumable`,
+        retryDelays: [0, 2000, 5000, 10000, 20000],
+        headers: { authorization: `Bearer ${session.access_token}`, 'x-upsert': 'false' },
+        uploadDataDuringCreation: true, removeFingerprintOnSuccess: true, chunkSize: 6 * 1024 * 1024,
+        metadata: { bucketName: TRICK_VIDEO_BUCKET, objectName: path, contentType: file.type || 'video/mp4', cacheControl: '3600' },
+        onError: reject, onProgress: (a, b) => sbVideoProgress(Math.round(a / b * 100)), onSuccess: resolve,
+      });
+      up.findPreviousUploads().then(prev => { if (prev.length) up.resumeFromPreviousUpload(prev[0]); up.start(); });
+    });
+  } else {
+    const { error } = await db.storage.from(TRICK_VIDEO_BUCKET).upload(path, file, { contentType: file.type || 'video/mp4' });
+    if (error) throw error;
+  }
+}
 function sbPickVideo(id) {
   const e = (typeof sbData !== 'undefined' ? sbData : []).find(x => x.id === id);
   if (!e) return;
@@ -1823,23 +1843,7 @@ function sbPickVideo(id) {
     const path = `${(e.athlet || 'athlete').replace(/[^\w-]+/g, '_')}/${e.id}-${Date.now()}.${ext}`;
     sbVideoProgress(0);
     try {
-      const { data:{ session } } = await db.auth.getSession();
-      if (window.tus && session) {
-        await new Promise((resolve, reject) => {
-          const up = new tus.Upload(file, {
-            endpoint: `${SUPABASE_URL}/storage/v1/upload/resumable`,
-            retryDelays: [0, 2000, 5000, 10000, 20000],
-            headers: { authorization: `Bearer ${session.access_token}`, 'x-upsert': 'false' },
-            uploadDataDuringCreation: true, removeFingerprintOnSuccess: true, chunkSize: 6 * 1024 * 1024,
-            metadata: { bucketName: TRICK_VIDEO_BUCKET, objectName: path, contentType: file.type || 'video/mp4', cacheControl: '3600' },
-            onError: reject, onProgress: (a, b) => sbVideoProgress(Math.round(a / b * 100)), onSuccess: resolve,
-          });
-          up.findPreviousUploads().then(prev => { if (prev.length) up.resumeFromPreviousUpload(prev[0]); up.start(); });
-        });
-      } else {
-        const { error } = await db.storage.from(TRICK_VIDEO_BUCKET).upload(path, file, { contentType: file.type || 'video/mp4' });
-        if (error) throw error;
-      }
+      await sbVideoUploadFile(file, path);
       const old = e.video_path;
       const { error } = await db.from('standort').update({ video_path: path }).eq('id', id);
       if (error) throw error;
@@ -1868,6 +1872,221 @@ function sbVideoBtn(e) {
   return e.video_path
     ? `<button onclick="sbPlayVideo(${e.id})" style="${st}background:rgba(62,142,90,.15);border:1px solid #3E8E5A;color:#3E8E5A;">▶ Video</button>`
     : `<button onclick="sbPickVideo(${e.id})" style="${st}background:none;border:1px solid #e7e3e1;color:#5c5c61;">⬆ Video</button>`;
+}
+
+// ═══════════════ SESSION REPORT: TEAM-ÜBERSICHT, CONTEST-SICHT, SPRUNG-NUMMER, CLIP UND VIDEO ═══════════════
+// Gemeinsam für Freeski und Snowboard (Wunsch Emilie 14.11.2026). Die Module rufen nur drei Stellen auf:
+// sbRepTeamHtml(report) oben im Report, sbAttMetaHtml(ai, ti, i) im Detail eines Versuchs, sbAttSort / sbAttExtra / sbAttKeep beim Neuaufbau.
+// Spalten tricks.versuch_nr, clip_ref, video_path (SQL: supabase/attempt_video_migration.sql). Der Report wird bei jedem Laden aus
+// der Tabelle tricks neu aufgebaut, deshalb stehen Nummer, Clip und Video dort und nicht im Report-JSON.
+const SB_ATT_COLS = 'versuch_nr,clip_ref,video_path';
+// Reihenfolge pro Athlet:in: nummerierte Versuche nach Nummer, die übrigen dahinter in der Reihenfolge der Eingabe
+function sbAttSort(entries) {
+  return entries.map((e, i) => ({e, i})).sort((x, y) => {
+    const a = x.e.versuch_nr, b = y.e.versuch_nr;
+    if (a != null && b != null) return a - b || x.i - y.i;
+    if (a != null) return -1;
+    if (b != null) return 1;
+    return x.i - y.i;
+  }).map(x => x.e);
+}
+function sbAttExtra(row) { return {...(row.clip_ref ? {clip: row.clip_ref} : {}), ...(row.video_path ? {video: row.video_path} : {})}; }
+function sbAttKeep(a) { return {...(a.clip ? {clip: a.clip} : {}), ...(a.video ? {video: a.video} : {})}; }
+// Qualität eines Versuchs, gleich für beide Sportarten: perfect (Snowboard: stomped) / landed / miss (failed)
+function sbAttQ(a) {
+  if (a.outcome) return a.outcome === 'stomped' ? 'perfect' : a.outcome === 'failed' ? 'miss' : 'landed';
+  return a.result === 'perfect' ? 'perfect' : a.result === 'miss' ? 'miss' : 'landed';
+}
+function sbAttCur(ai, ti, i) {
+  const a = _sbRV?.groups?.[ai]?.[ti]?.attempts?.[i], td = _sbRV?.report?.trick_data?.[ai];
+  if (!a || !td || !Array.isArray(td.attempts)) return null;
+  const pos = td.attempts.indexOf(a);
+  return pos < 0 ? null : {a, td, pos, n: td.attempts.length, report: _sbRV.report};
+}
+// Zeile im Detail eines Versuchs: Sprung-Nummer, Protern-Clip, Video
+function sbAttMetaHtml(ai, ti, i) {
+  const c = sbAttCur(ai, ti, i); if (!c) return '';
+  const {a, pos, n} = c, kann = !!(_sbRVEditable && c.report.id && a.dbId);
+  const bt = 'border-radius:999px;padding:3px 10px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;';
+  const fe = 'padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;font-family:inherit;';
+  const arg = `${ai},${ti},${i}`;
+  const nr = a.run ? '' : kann
+    ? `<span>Jump <input id="sbatt-nr" type="number" min="1" max="${n}" value="${pos + 1}" style="${fe}width:56px;"> of ${n} <button onclick="sbAttMove(${arg})" style="${bt}background:none;border:1px solid var(--border);color:var(--muted);">Move</button></span>`
+    : `<span>Jump ${pos + 1} of ${n}</span>`;
+  const clip = kann
+    ? `<span>Protern clip <input id="sbatt-clip" type="text" value="${srEsc(a.clip || '')}" placeholder="clip name or time" style="${fe}width:150px;"> <button onclick="sbAttClipSave(${arg})" style="${bt}background:none;border:1px solid var(--border);color:var(--muted);">Save</button></span>`
+    : (a.clip ? `<span>Protern clip <b class="haupttext">${srEsc(a.clip)}</b></span>` : '');
+  const video = a.video
+    ? `<button onclick="sbAttPlay(${arg})" style="${bt}background:rgba(62,142,90,.15);border:1px solid #3E8E5A;color:#3E8E5A;">▶ Video</button>`
+    : (kann ? `<button onclick="sbAttPickVideo(${arg})" style="${bt}background:none;border:1px solid #e7e3e1;color:#5c5c61;">⬆ Video</button>` : '');
+  const teile = [nr, clip, video].filter(Boolean);
+  return teile.length ? `<div class="sbatt-meta">${teile.join('')}</div>` : '';
+}
+// Nach einer Änderung in tricks: Report neu aus der Tabelle aufbauen und die Ansicht an derselben Stelle wieder öffnen
+async function sbAttReload(report) {
+  if (report.id) await rebuildReportFromTimestamps(report.id, true);
+  sbMonRows = null;
+  if (_sbRepSelIdx >= 0) { const sy = window.scrollY; await sbOpenReportInline(_sbRepSelIdx); window.scrollTo(0, sy); }
+}
+async function sbAttMove(ai, ti, i) {
+  const c = sbAttCur(ai, ti, i); if (!c) return;
+  const ziel = parseInt(document.getElementById('sbatt-nr')?.value, 10);
+  if (!Number.isFinite(ziel) || ziel < 1 || ziel > c.n) { showToast(`Jump number must be between 1 and ${c.n}`, 'error'); return; }
+  if (ziel - 1 === c.pos) return;
+  const liste = c.td.attempts.slice();
+  liste.splice(c.pos, 1); liste.splice(ziel - 1, 0, c.a);
+  // alle Versuche dieser Athlet:in in dieser Session durchnummerieren, damit die Reihenfolge eindeutig bleibt
+  const res = await Promise.all(liste.map((x, k) => x.dbId ? db.from('tricks').update({versuch_nr: k + 1}).eq('id', x.dbId) : {error: null}));
+  const err = res.find(r => r.error);
+  if (err) showToast(/versuch_nr|column/i.test(err.error.message || '') ? 'Jump number column missing: please run supabase/attempt_video_migration.sql' : 'Error saving: ' + err.error.message, 'error');
+  await sbAttReload(c.report);
+  if (!err) showToast(`Moved to jump ${ziel}`, 'success');
+}
+async function sbAttClipSave(ai, ti, i) {
+  const c = sbAttCur(ai, ti, i); if (!c || !c.a.dbId) return;
+  const v = (document.getElementById('sbatt-clip')?.value || '').trim();
+  const {error} = await db.from('tricks').update({clip_ref: v || null}).eq('id', c.a.dbId);
+  if (error) { showToast(/clip_ref|column/i.test(error.message || '') ? 'Clip column missing: please run supabase/attempt_video_migration.sql' : 'Error saving: ' + error.message, 'error'); return; }
+  await sbAttReload(c.report);
+  showToast(v ? 'Clip saved' : 'Clip removed', 'success');
+}
+function sbAttPickVideo(ai, ti, i) {
+  const c = sbAttCur(ai, ti, i); if (!c || !c.a.dbId) return;
+  const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'video/*';
+  inp.onchange = async () => {
+    const file = inp.files[0]; if (!file) return;
+    if (await sbVideoIsLow(file)) { alert('The quality of this video is too low (below 720p). Please choose a clip in at least 720p.'); return; }
+    const ext = ((file.name.split('.').pop() || 'mp4').toLowerCase().replace(/[^a-z0-9]/g, '') || 'mp4').slice(0, 5);
+    const path = `${(c.td.athlet || 'athlete').replace(/[^\w-]+/g, '_')}/att-${c.a.dbId}-${Date.now()}.${ext}`;
+    sbVideoProgress(0);
+    try {
+      await sbVideoUploadFile(file, path);
+      const old = c.a.video;
+      const {error} = await db.from('tricks').update({video_path: path}).eq('id', c.a.dbId);
+      if (error) throw error;
+      if (old) db.storage.from(TRICK_VIDEO_BUCKET).remove([old]);
+      sbVideoOverlay(`<div style="font-weight:700;font-size:16px;">✓ Video uploaded</div><div style="margin-top:14px;text-align:right;"><button class="btn btn-primary" onclick="document.getElementById('sbv-modal').remove()">OK</button></div>`);
+      await sbAttReload(c.report);
+    } catch (err) {
+      console.error(err); document.getElementById('sbv-modal')?.remove();
+      showToast(/video_path|column/i.test(err.message || '') ? 'Video column missing: please run supabase/attempt_video_migration.sql' : 'Upload failed: ' + (err.message || err), 'error');
+    }
+  };
+  inp.click();
+}
+async function sbAttPlayPath(path, titel, ersetzen) {
+  const {data, error} = await db.storage.from(TRICK_VIDEO_BUCKET).createSignedUrl(path, 3600);
+  if (error) { showToast('Could not load video: ' + error.message, 'error'); return; }
+  const zu = `document.getElementById('sbv-modal').remove()`;
+  sbVideoOverlay(`<div style="font-weight:700;font-size:16px;margin-bottom:10px;">${srEsc(titel || '')}</div>
+    <video src="${data.signedUrl}" controls playsinline autoplay style="width:100%;max-height:70vh;border-radius:10px;background:#000;"></video>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">${ersetzen ? `<button class="btn btn-secondary" onclick="${zu};sbAttPickVideo(${ersetzen})">Replace video</button>` : ''}<button class="btn btn-primary" onclick="${zu}">Close</button></div>`);
+}
+function sbAttPlay(ai, ti, i) {
+  const c = sbAttCur(ai, ti, i); if (!c || !c.a.video) return;
+  const kann = _sbRVEditable && c.report.id && c.a.dbId;
+  sbAttPlayPath(c.a.video, `${c.td.athlet} · ${c.a.trick || ''}`, kann ? `${ai},${ti},${i}` : '');
+}
+// Video aus der Contest-Sicht: Athlet:in (Index) und Position des Versuchs
+function sbRepPlay(ai, pos) {
+  const td = _sbRV?.report?.trick_data?.[ai], a = td?.attempts?.[pos];
+  if (a?.video) sbAttPlayPath(a.video, `${td.athlet} · ${a.trick || ''}`, '');
+}
+
+// ── Team-Übersicht und Contest-Sicht oben im Report ──
+const SB_REP_JUMP = /Big Air|Jump|Bag/i;     // Session-Typen mit einzelnen Sprüngen
+// Median als echter Wert aus der Liste (bei gerader Anzahl der untere der beiden mittleren), damit immer eine wirkliche Rotation dasteht
+function sbRepMedian(v) { const s = v.slice().sort((a, b) => a - b); return s.length ? s[(s.length - 1) >> 1] : null; }
+// Niveau der Weltcup-Finals im Big Air pro Geschlecht, aus der letzten Saison mit codierten Tricks (Daten der Season & career)
+function sbRepFinalLevel() {
+  if (!_srData || _srData.fehlt) return {};
+  const ev = {};     // g → saison → 'datum|event' → niveau
+  Object.values(_srData.review).forEach(S => {
+    const g = (Object.values(S).find(R => R && R.g) || {}).g; if (!g) return;
+    Object.entries(S).forEach(([sa, R]) => (((R || {}).wettkampf || {}).BA || []).forEach(e => {
+      const N = e.niveau; if (!N || N.fin_rot_min == null) return;
+      ((ev[g] = ev[g] || {})[sa] = ev[g][sa] || {})[e.datum + '|' + e.event] = N;
+    }));
+  });
+  const out = {};
+  Object.entries(ev).forEach(([g, S]) => {
+    const sa = Object.keys(S).sort().pop(), L = Object.values(S[sa]);
+    out[g] = {saison: sa, n: L.length, min: sbRepMedian(L.map(N => N.fin_rot_min)), typ: sbRepMedian(L.map(N => N.fin_rot_median).filter(v => v != null))};
+  });
+  return out;
+}
+function sbRepGender(kurz, report) {
+  if (!_srData || _srData.fehlt) return null;
+  const namen = (Array.isArray(report.athletes) ? report.athletes : []).concat(SESS_ALL_ATHLETES.map(a => a.name));
+  const voll = namen.find(n => shortName(n) === kurz || n === kurz); if (!voll) return null;
+  return (Object.values(srReviews(voll)).find(R => R && R.g) || {}).g || null;
+}
+// Die zwei besten gelandeten Sprünge in unterschiedlicher Drehrichtung (wie im Big Air: zwei Sprünge zählen).
+// «Bester» = grösste Rotation, dann mehr Flips, dann bessere Qualität. Keine Richternote: es ist eine Einordnung nach Schwierigkeit.
+function sbRepContest(td) {
+  const V = (td.attempts || []).map((a, pos) => ({a, pos, q: sbAttQ(a), p: srParse(a.trick)})).filter(x => x.p);
+  const gleich = (x, y) => x.p.dir === y.p.dir && x.p.rot === y.p.rot && (x.p.flips || 0) === (y.p.flips || 0);
+  const rang = (x, y) => y.p.rot - x.p.rot || (y.p.flips || 0) - (x.p.flips || 0) || (y.q === 'perfect') - (x.q === 'perfect') || !!y.a.video - !!x.a.video || x.pos - y.pos;
+  const L = V.filter(x => x.q !== 'miss').sort(rang);
+  const j1 = L[0] || null, j2 = j1 ? L.find(x => x.p.dir !== j1.p.dir) || null : null;
+  const quote = j => { if (!j) return null; const G = V.filter(x => gleich(x, j)); return {n: G.length, l: G.filter(x => x.q !== 'miss').length}; };
+  return {jumps: [j1, j2].map(j => j ? {...j, quote: quote(j)} : null), max: j1 ? j1.p.rot : null, summe: (j1 ? j1.p.rot : 0) + (j2 ? j2.p.rot : 0), zwei: !!j2};
+}
+// Eigene Styles im Markup, weil derselbe Report auch im Druckfenster (PDF) ohne stil.css gezeigt wird
+const SB_REP_CSS = `<style>
+.sbrep-team{border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:18px;background:var(--surface);}
+.sbrep-h{font-size:13px;font-weight:800;color:var(--text);margin:0 0 6px;}
+.sbrep-tw{overflow-x:auto;}
+.sbrep-t{width:100%;border-collapse:collapse;font-size:12px;}
+.sbrep-t th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);padding:4px 6px;border-bottom:1px solid var(--border);font-weight:600;}
+.sbrep-t td{padding:6px;border-bottom:1px solid var(--border);vertical-align:top;}
+.sbrep-t .num{text-align:right;white-space:nowrap;}
+.sbrep-t td:first-child{white-space:nowrap;}
+.sbrep-t.breit{min-width:640px;}
+.sbrep-g{color:var(--muted);font-weight:400;}
+.sbrep-fuss{font-size:11px;margin-top:6px;line-height:1.45;}
+.sbrep-bar{display:flex;height:14px;border-radius:4px;overflow:hidden;min-width:14px;}
+.sbrep-bar i{display:block;height:100%;}
+.sbrep-leg{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin-top:6px;}
+.sbrep-leg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px;}
+.sbrep-play{border-radius:999px;padding:1px 8px;font-size:11px;font-weight:700;cursor:pointer;background:rgba(62,142,90,.15);border:1px solid #3E8E5A;color:#3E8E5A;font-family:inherit;}
+body > .sbrep-team .sbrep-play{display:none;}
+.sbatt-meta{display:flex;gap:8px 16px;flex-wrap:wrap;align-items:center;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:12px;color:var(--muted);}
+</style>`;
+function sbRepTeamHtml(report) {
+  const TD = (Array.isArray(report.trick_data) ? report.trick_data : []).map((td, ai) => ({td, ai})).filter(x => Array.isArray(x.td.attempts) && x.td.attempts.length);
+  if (!TD.length) return '';
+  if (!_srData) srLoad().then(() => { const el = document.getElementById('sbrep-team'); if (el && _sbRV && _sbRV.report === report) el.outerHTML = sbRepTeamHtml(report); });
+  const stomp = TD.some(x => x.td.attempts.some(a => a.outcome));
+  const lP = stomp ? 'stomped' : 'perfect', lL = stomp ? 'landed' : 'landed, not perfect', lM = stomp ? 'failed' : 'miss';
+  // 1) Übersicht: wer hat wie viele Versuche gemacht, in welcher Qualität
+  const Z = TD.map(({td, ai}) => { const q = td.attempts.map(sbAttQ); return {td, ai, n: q.length, p: q.filter(v => v === 'perfect').length, l: q.filter(v => v === 'landed').length, m: q.filter(v => v === 'miss').length}; })
+    .sort((a, b) => b.n - a.n);
+  const maxN = Math.max(...Z.map(z => z.n));
+  const seg = (k, c, n) => k ? `<i style="width:${k / n * 100}%;background:${c};" title="${k}"></i>` : '';
+  const uebersicht = `<table class="sbrep-t"><thead><tr><th>Athlete</th><th class="num">Attempts</th><th style="width:45%;">Quality</th><th class="num">Landed</th><th class="num">${lP}</th></tr></thead><tbody>${Z.map(z =>
+    `<tr><td><b>${srEsc(z.td.athlet)}</b></td><td class="num">${z.n}</td><td><div class="sbrep-bar" style="width:${Math.max(8, z.n / maxN * 100)}%;">${seg(z.p, '#148FA0', z.n)}${seg(z.l, '#3E8E5A', z.n)}${seg(z.m, '#e2001a', z.n)}</div></td><td class="num">${z.p + z.l} of ${z.n}</td><td class="num">${z.p}</td></tr>`).join('')}</tbody></table>
+    <div class="sbrep-leg"><span><i style="background:#148FA0;"></i>${lP}</span><span><i style="background:#3E8E5A;"></i>${lL}</span><span><i style="background:#e2001a;"></i>${lM}</span></div>`;
+  // 2) Contest-Sicht: nur für Sprung-Sessions
+  let contest = '';
+  if (SB_REP_JUMP.test(report.session_type || '')) {
+    const F = sbRepFinalLevel();
+    const C = TD.map(({td, ai}) => ({td, ai, c: sbRepContest(td), g: sbRepGender(td.athlet, report)})).sort((a, b) => b.c.zwei - a.c.zwei || b.c.summe - a.c.summe);
+    const jump = (x, ai) => !x ? '<span class="sbrep-g">–</span>'
+      : `<b>${srEsc(x.a.trick)}</b>${x.a.video ? ` <button class="sbrep-play" onclick="sbRepPlay(${ai},${x.pos})">▶</button>` : ''}<br><span class="sbrep-g">${x.q === 'perfect' ? lP : 'landed'} · ${x.quote.l} of ${x.quote.n} landed</span>`;
+    const stufe = (c, g) => {
+      const f = g && F[g]; if (!c.max) return '<span class="sbrep-g">–</span>';
+      if (!f) return `<b>${c.max}°</b>`;
+      const d = c.max - f.min, col = d >= 0 ? SR_GUT : SR_SCHLECHT;
+      return `<b>${c.max}°</b> <span style="color:${col};font-weight:700;">${d >= 0 ? (d ? '+' + d + '°' : 'at final level') : '−' + (-d) + '°'}</span><br><span class="sbrep-g">final from ${f.min}°${f.typ != null ? ' · typical ' + f.typ + '°' : ''}</span>`;
+    };
+    const ref = Object.entries(F).sort().map(([g, f]) => `${g === 'W' ? 'Women' : g === 'M' ? 'Men' : srEsc(g)}: final from ${f.min}°${f.typ != null ? ', typical finalist ' + f.typ + '°' : ''} (${f.n} World Cup Big Air${f.n === 1 ? '' : 's'} ${srEsc(f.saison)})`).join(' · ');
+    contest = `<div class="sbrep-h" style="margin-top:14px;">If today had been a contest</div>
+      <div class="sbrep-tw"><table class="sbrep-t breit"><thead><tr><th>Athlete</th><th>Best jump</th><th>Second jump, other direction</th><th>Biggest landed vs. World Cup final</th></tr></thead><tbody>${C.map(x =>
+        `<tr><td><b>${srEsc(x.td.athlet)}</b></td><td>${jump(x.c.jumps[0], x.ai)}</td><td>${jump(x.c.jumps[1], x.ai)}</td><td>${stufe(x.c, x.g)}</td></tr>`).join('')}</tbody></table></div>
+      <div class="sbrep-g sbrep-fuss">The two biggest landed rotations in different spin directions, as two jumps count in Big Air. Sorted by rotation, not by a judges' score. «x of y landed» = all attempts of this trick today.${ref ? `<br>World Cup final = smallest biggest rotation of a finalist, median over the season. ${ref}.` : (_srData ? '' : '<br>Loading World Cup final level…')}</div>`;
+  }
+  return `<div id="sbrep-team" class="sbrep-team">${SB_REP_CSS}<div class="sbrep-h">Team overview</div><div class="sbrep-tw">${uebersicht}</div>${contest}</div>`;
 }
 
 // ═══════════════ SEASON REVIEW & WETTKÄMPFE (Monitoring, Athlet:innen-Ebene) ═══════════════
