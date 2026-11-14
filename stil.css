@@ -890,3 +890,12 @@ body.rep-feed-open .toast { z-index: 3100; }
 .rep-ath-name { flex: 1; min-width: 0; color: var(--text); }
 .rep-ath-v { color: var(--success); font-size: 12px; font-weight: 700; white-space: nowrap; }
 .rep-ath-trick b { font-variant-numeric: tabular-nums; color: var(--text); min-width: 32px; text-align: right; }
+
+/* Video einem anderen Versuch zuordnen (Einzelvideo-Fenster und Feed, js/reports.js) */
+.rep-move { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
+.rep-move label { display: block; margin-bottom: 6px; }
+.rep-move-row { display: flex; gap: 8px; align-items: center; }
+.rep-move-row select { flex: 1; min-width: 0; padding: 8px 10px; font-size: 13px; }
+.rep-move-hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+.rep-feed .rep-move { border-top-color: rgba(255,255,255,.15); margin-top: 8px; }
+.rep-feed .rep-move label, .rep-feed .rep-move-hint { color: rgba(255,255,255,.7); }
