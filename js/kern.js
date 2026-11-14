@@ -123,10 +123,15 @@ window.addEventListener('online', () => flushOutbox());
 window.addEventListener('load', () => { renderOutboxBadge(); setTimeout(flushOutbox, 3000); });
 setInterval(flushOutbox, 30000);
 
-// ═══════════════ AUTH (Coach-Login) + Gruppen-Filter ═══════════════
+// ═══════════════ AUTH (Coach- und Athlet:innen-Login) + Gruppen-Filter ═══════════════
 const AUTH_ENABLED = true;
 let AUTH_USER = null;
 let COACH_SQUAD = null;                       // squad key from the coaches table, null = unknown
+// Athlet:innen-Konten (Tabelle athlete_accounts, nur Freeski): Login mit Benutzername statt E-Mail.
+// Gesetzt, wenn das angemeldete Konto ein Athlet:innen-Konto ist; dann sieht man nur Assessment und Run-Check.
+const ATHLETE_LOGIN_DOMAIN = 'login.trick-analyses.invalid';
+let ATHLETE_NAME = null;
+let IS_ADMIN = false;                         // Tabelle app_admins: darf Athlet:innen-Konten verwalten
 let GROUP_FILTER = 'all';
 const ALL_SQUADS = CFG.squads.map(s => ({...s})); // unfiltered copy for the selector
 // Selector entries; a value can combine several squad keys (joined with '+')
@@ -139,9 +144,9 @@ function showAuthGate(msg) {
   gate.style.cssText = 'position:fixed;inset:0;background:var(--bg);z-index:5000;display:flex;align-items:center;justify-content:center;padding:20px;';
   gate.innerHTML = `<form id="auth-form" style="width:100%;max-width:360px;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;">
     <div style="font-size:20px;font-weight:800;color:var(--text);margin-bottom:2px;">${CFG.title}</div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:20px;">Coach login</div>
-    <label style="display:block;margin-bottom:4px;">E-Mail</label>
-    <input type="email" id="auth-email" autocomplete="username" required style="margin-bottom:12px;">
+    <div style="font-size:12px;color:var(--muted);margin-bottom:20px;">Login for coaches and athletes</div>
+    <label style="display:block;margin-bottom:4px;">E-mail or username</label>
+    <input type="text" id="auth-email" autocomplete="username" autocapitalize="off" spellcheck="false" required style="margin-bottom:12px;">
     <label style="display:block;margin-bottom:4px;">Password</label>
     <input type="password" id="auth-pass" autocomplete="current-password" required style="margin-bottom:6px;">
     <div id="auth-err" style="min-height:16px;font-size:12px;color:#e2001a;margin-bottom:10px;">${msg||''}</div>
@@ -154,7 +159,7 @@ function showAuthGate(msg) {
     const btn = e.target.querySelector('button[type=submit]');
     btn.disabled = true; btn.textContent = 'Signing in…';
     const {error} = await db.auth.signInWithPassword({
-      email: document.getElementById('auth-email').value.trim(),
+      email: authLoginEmail(document.getElementById('auth-email').value),
       password: document.getElementById('auth-pass').value,
     });
     if (error) {
@@ -164,6 +169,12 @@ function showAuthGate(msg) {
       location.reload();
     }
   });
+}
+
+// Benutzername (vorname.nachname) → internes Login der Athlet:innen; E-Mails bleiben, wie sie sind
+function authLoginEmail(v) {
+  const s = String(v || '').trim().toLowerCase();
+  return s.includes('@') ? s : `${s}@${ATHLETE_LOGIN_DOMAIN}`;
 }
 
 function showSetPasswordGate() {
@@ -190,9 +201,11 @@ function showSetPasswordGate() {
     const btn = e.target.querySelector('button[type=submit]');
     btn.disabled = true; btn.textContent = 'Saving…';
     const {error} = await db.auth.updateUser({password: p1});
-    if (error) {
+    // Athlet:innen: Startpasswort ist ersetzt, beim nächsten Login nicht mehr fragen
+    const done = (!error && ATHLETE_NAME) ? (await db.rpc('athlete_password_changed')).error : null;
+    if (error || done) {
       btn.disabled = false; btn.textContent = 'Save password';
-      err.textContent = 'Error: ' + error.message;
+      err.textContent = 'Error: ' + (error || done).message;
     } else {
       history.replaceState(null, '', location.pathname + location.search);
       location.reload();
@@ -206,6 +219,7 @@ async function authForgotPassword() {
   const email = (document.getElementById('auth-email')?.value || '').trim();
   const err = document.getElementById('auth-err');
   if (!email) { err.textContent = 'Enter your e-mail above first, then tap the link again.'; return; }
+  if (!email.includes('@')) { err.textContent = 'Athletes: please ask your coach for a new start password.'; return; }
   err.style.color = 'var(--muted)';
   err.textContent = 'Sending code…';
   const {error} = await db.auth.resetPasswordForEmail(email);
@@ -222,6 +236,7 @@ function authHaveCode() {
   const email = (document.getElementById('auth-email')?.value || '').trim();
   const err = document.getElementById('auth-err');
   if (!email) { err.textContent = 'Enter your e-mail above first, then tap the link again.'; return; }
+  if (!email.includes('@')) { err.textContent = 'Athletes: please ask your coach for a new start password.'; return; }
   showOtpGate(email);
 }
 
@@ -274,11 +289,34 @@ async function initAuth() {
     return false;
   }
   AUTH_USER = session.user;
+  // Rolle bestimmen. Im Snowboard-Projekt gibt es die Tabellen noch nicht: Fehler = Coach, kein Admin.
+  try {
+    const [acc, adm] = await Promise.all([
+      db.from('athlete_accounts').select('athlet,must_change_pw').eq('user_id', AUTH_USER.id).maybeSingle(),
+      db.from('app_admins').select('user_id').eq('user_id', AUTH_USER.id).maybeSingle(),
+    ]);
+    ATHLETE_NAME = acc.data ? acc.data.athlet : null;
+    IS_ADMIN = !!adm.data;
+    if (acc.data && acc.data.must_change_pw) { showSetPasswordGate(); return false; }
+  } catch (e) { console.error(e); }
+  if (ATHLETE_NAME) return true;
   try {
     const {data} = await db.from('coaches').select('squad').eq('email', AUTH_USER.email).maybeSingle();
     COACH_SQUAD = data && data.squad ? data.squad : null;
   } catch (e) { COACH_SQUAD = null; }
   return true;
+}
+
+// Athlet:innen: nur Assessment (eigenes, nur lesen) und Run-Check. Die Datenbank (RLS) erzwingt das ohnehin,
+// hier wird nur die Oberfläche passend gemacht. Ausblenden über body.role-athlete in stil.css.
+function applyAthleteMode() {
+  document.body.classList.add('role-athlete');
+  const sel = document.getElementById('sb-athlet');
+  if (!sel) return;
+  const o = document.createElement('option'); o.textContent = ATHLETE_NAME;
+  sel.innerHTML = ''; sel.appendChild(o); sel.value = ATHLETE_NAME; sel.disabled = true;
+  loadStandort();
+  if (typeof updateSbDisciplines === 'function') updateSbDisciplines();
 }
 
 function authLogout() {
@@ -1254,6 +1292,7 @@ function showPage(id, btn) {
   if (id === 'erfassen') initSessionSetup();
   if (id === 'monitoring') loadMonitoring();
   if (id === 'sessionreport') loadReportsTab();
+  if (id === 'runcheck' && typeof loadRunCheck === 'function') loadRunCheck();
   if (typeof updateMobileNav === 'function') updateMobileNav(id);
 }
 

@@ -20,14 +20,27 @@ klassische `<script src>`-Tags in fester Reihenfolge:
 | `js/kern.js` | gemeinsamer Kern: alles, was in beiden Sportarten identisch ist |
 | `js/snowboard.js` | `SnowboardModule` - nur, was sich von Freeski unterscheidet |
 | `js/freeski.js` | `FreeskiModule` - dito |
+| `js/runcheck.js` | Reiter «Run-Check» (Freeski Slopestyle) und Kontenverwaltung fuer Athlet:innen, nur wo `CFG.runCheck` gesetzt ist |
+| `runcheck.css` | Aussehen des Run-Checks, alle Regeln nur innerhalb von `#page-runcheck` |
 | `js/boot.js` | waehlt beim `DOMContentLoaded` das Modul, haengt es ans `window`, fuellt Selects und Fragmente |
 | `js/nav.js` | mobile Navigationsleiste |
 
-Die Reihenfolge ist wichtig: `config.js` vor `kern.js` vor den Modulen vor `boot.js`.
+Die Reihenfolge ist wichtig: `config.js` vor `kern.js` vor den Modulen und `runcheck.js` vor `boot.js`.
 Wer eine Datei hinzufuegt, traegt sie in `index.html` **und** in den Sanity-Check
 in `.github/workflows/deploy.yml` ein.
 
 `moguls.html` bleibt eine eigenstaendige Einzeldatei.
+
+## Rollen (nur Freeski)
+
+- **Coaches** melden sich mit E-Mail an und sehen alles. Im Run-Check sehen sie die gespeicherten Runs
+  aller Athlet:innen und schreiben Feedback.
+- **Athlet:innen** melden sich mit Benutzername (`vorname.nachname`) an und sehen nur ihr eigenes
+  Assessment (nur lesen) und den Run-Check. Beim ersten Login waehlen sie ein eigenes Passwort.
+- **Admins** (Tabelle `app_admins`) legen im Run-Check unter «Konten» die Logins an. Das laeuft ueber die
+  Edge Function `athlete-accounts`; Startpasswoerter werden nirgends gespeichert.
+- Durchgesetzt wird das in der Datenbank: `supabase/runcheck_athlete_migration.sql` beschraenkt alle
+  bestehenden Policies auf Nicht-Athlet:innen und gibt Athlet:innen nur ihre eigenen Zeilen frei.
 
 ## Regeln
 

@@ -202,6 +202,7 @@ const SPORT_CONFIGS = {
   },
   freeski: {
     title: 'Trick Analyses Freeski',
+    runCheck: true,          // Reiter «Run-Check» und Athlet:innen-Logins (Snowboard folgt)
     supabaseUrl: 'https://nvibrxtqknkmsiccauzs.supabase.co',
     supabaseKey: 'sb_publishable_8RRRG5c_PhJ8Cc1rC03zJw_1W5UYkS7',
     sessionKey: 'fs_session',

@@ -12,6 +12,7 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tus-js-client@4/dist/tus.min.js"></script>
 <link rel="stylesheet" href="stil.css">
+<link rel="stylesheet" href="runcheck.css">
 </style>
 </head>
 <body>
@@ -21,12 +22,14 @@
   <nav class="nav-tabs">
     <!-- Sichtbarkeit und Reihenfolge schon im HTML wie nach init() (Assessment · Session · Reports · Monitoring), damit beim Laden
          nicht zuerst die alten Tabs (Development, Database) erscheinen; die DOM-Reihenfolge bleibt, nav.js zaehlt Indizes. -->
-    <button class="nav-tab active" style="order:0;" onclick="showPage('standort', this)">Assessment</button>
+    <button class="nav-tab active athlete-ok" style="order:0;" onclick="showPage('standort', this)">Assessment</button>
     <button class="nav-tab" style="order:1;" onclick="showPage('erfassen', this)">Session</button>
     <button class="nav-tab" style="display:none;order:4;" onclick="showPage('entwicklung', this)">Development</button>
     <button class="nav-tab" style="display:none;order:5;" onclick="showPage('datenbank', this)">Database</button>
     <button class="nav-tab" id="nav-tab-monitoring" style="order:3;" onclick="showPage('monitoring', this)">Monitoring</button>
     <button class="nav-tab" id="nav-tab-sessionreport" style="order:2;" onclick="showPage('sessionreport', this)">Reports</button>
+    <!-- Run-Check: nur wo CFG.runCheck gesetzt ist (Freeski), runcheck.js blendet den Reiter ein -->
+    <button class="nav-tab athlete-ok" id="nav-tab-runcheck" style="display:none;order:4;" onclick="showPage('runcheck', this)">Run-Check</button>
   </nav>
   <div id="auth-controls" style="display:none;align-items:center;gap:8px;margin-left:12px;flex-shrink:0;">
     <select id="group-filter-sel" class="pill-sel" onchange="setGroupFilter(this.value)"></select>
@@ -40,6 +43,8 @@
 
 
 <!-- ══════════════════════════════════════════ ERFASSEN -->
+<div class="page" id="page-runcheck"></div>
+
 <div class="page" id="page-monitoring">
   <div id="mon-root"><div class="loading"><span class="spinner"></span></div></div>
 </div>
@@ -402,6 +407,7 @@
 <script src="js/kern.js"></script>
 <script src="js/snowboard.js"></script>
 <script src="js/freeski.js"></script>
+<script src="js/runcheck.js"></script>
 <script src="js/boot.js"></script>
 
 <div id="sb-edit-overlay" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.75);align-items:center;justify-content:center;padding:20px;">
@@ -473,7 +479,7 @@
 
 
 <nav class="mobile-nav" id="mobile-nav">
-  <button class="mobile-nav-btn" style="order:0;" onclick="showPage('standort', this); updateMobileNav('standort')">
+  <button class="mobile-nav-btn athlete-ok" style="order:0;" onclick="showPage('standort', this); updateMobileNav('standort')">
     <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>
     Assessment
   </button>
@@ -496,6 +502,10 @@
   <button class="mobile-nav-btn" id="mobile-nav-sessionreport" style="order:2;" onclick="showPage('sessionreport', this); updateMobileNav('sessionreport')">
     <svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><rect x="7" y="10" width="3" height="8"/><rect x="12" y="6" width="3" height="12"/><rect x="17" y="13" width="3" height="5"/></svg>
     Reports
+  </button>
+  <button class="mobile-nav-btn athlete-ok" id="mobile-nav-runcheck" style="display:none;order:4;" onclick="showPage('runcheck', this); updateMobileNav('runcheck')">
+    <svg viewBox="0 0 24 24"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 01-2 2H6a2 2 0 01-2-2V5a2 2 0 012-2h9"/></svg>
+    Run-Check
   </button>
 </nav>
 
