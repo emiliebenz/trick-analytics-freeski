@@ -152,7 +152,7 @@ function repFeedInfoHtml(x, i) {
   const wo = x.run ? `Run ${x.run.run}${x.run.pos ? ', element ' + x.run.pos : ''}` : `Attempt ${x.pos + 1} of ${x.n}`;
   const res = x.a ? repFeedResHtml(x) : '';            // Athlet:innen-Feed hat kein a: keine Bewertung
   const cmt = x.a ? repFreeText(x.a.comment) : '';
-  const edit = F && F.edit && x.dbId ? `<button class="rep-feed-btn" onclick="repFeedEdit(${i})">✎ Edit trick / comment</button><button class="rep-feed-btn" onclick="repFeedMove(${i})">⇄ Wrong attempt?</button>` : '';
+  const edit = F && F.edit && x.dbId ? `<button class="rep-feed-btn" onclick="repFeedEdit(${i})">✎ Edit trick / comment</button><button class="rep-feed-btn" onclick="repFeedMove(${i})">⇄ Wrong attempt?</button><button class="rep-feed-btn" onclick="repFeedDelete(${i})">🗑 Delete video</button>` : '';
   return `<div class="rep-feed-meta"><b>${srEsc(x.athlet)}</b><span>${wo}${x.time ? ' · ' + srEsc(x.time) : ''}</span><span class="rep-feed-n">${i + 1} / ${n}</span></div>
     <div class="rep-feed-trick">${srEsc(x.trick)}</div>
     ${res || cmt ? `<div class="rep-feed-res">${res}${cmt ? `<span class="rep-feed-cmt">${srEsc(cmt)}</span>` : ''}</div>` : ''}
@@ -223,6 +223,34 @@ async function repVidMoveDb(dbId, zielId) {
   sbMonRows = null;
   showToast(ziel.video_path ? 'Videos swapped' : 'Video moved', 'success');
   return true;
+}
+// ═══════════════ VIDEO LÖSCHEN ═══════════════
+// Falsches Video ganz entfernen (Verweis in tricks und Datei). Danach lädt man beim Versuch ein neues hoch.
+// Die Datei wird nur gelöscht, wenn kein anderer Versuch mehr auf sie zeigt.
+async function repVidDeleteDb(dbId) {
+  const {data: row, error: e1} = await db.from('tricks').select('video_path').eq('id', dbId).maybeSingle();
+  if (e1 || !row) { showToast('Could not load the attempt: ' + ((e1 && e1.message) || 'not found'), 'error'); return false; }
+  if (!row.video_path) { showToast('This attempt has no video anymore: reload the report', 'error'); return false; }
+  const {error: e2} = await db.from('tricks').update({video_path: null}).eq('id', dbId);
+  if (e2) { showToast('Error deleting: ' + e2.message, 'error'); return false; }
+  const {data: andere} = await db.from('tricks').select('id').eq('video_path', row.video_path).limit(1);
+  if (!andere || !andere.length) {
+    const {error: e3} = await db.storage.from(TRICK_VIDEO_BUCKET).remove([row.video_path]);
+    if (e3) console.error(e3);   // Verweis ist weg, übrig bliebe nur eine verwaiste Datei
+  }
+  sbMonRows = null;
+  return true;
+}
+// Aus dem Einzelvideo-Fenster: löschen und gleich anbieten, das richtige Video hochzuladen. pos = «ai,ti,i»
+async function repVidDelete(dbId, pos) {
+  if (!confirm('Delete this video? You can upload the right one right after.')) return;
+  const report = _sbRV && _sbRV.report;
+  if (!report || !(await repVidDeleteDb(dbId))) return;
+  await sbAttReload(report);
+  const zu = `document.getElementById('sbv-modal').remove()`;
+  sbVideoOverlay(`<div style="font-weight:700;font-size:16px;">✓ Video deleted</div>
+    <div style="font-size:13px;color:var(--muted);margin-top:6px;">Upload the right video for this attempt now, or later via the attempt («⬆ Video»).</div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:14px;"><button class="btn btn-secondary" onclick="${zu}">Later</button><button class="btn btn-secondary" style="font-weight:700;" onclick="${zu};sbAttPickVideo(${pos})">⬆ Upload new video</button></div>`);
 }
 // Aus dem Einzelvideo-Fenster (sbAttPlay in kern.js)
 async function repVidMove(dbId) {
@@ -319,6 +347,18 @@ async function repFeedMoveSave(i) {
   repFeedClose(true);
   await sbAttReload(report);
   repFeedOpen(opts, zielId);
+}
+
+// Feed: Video löschen, danach weiter beim nächsten Video (das richtige lädt man beim Versuch im Report hoch)
+async function repFeedDelete(i) {
+  const F = REP_FEED, x = F && F.items[i];
+  if (!x || !x.dbId || !confirm('Delete this video? Upload the right one afterwards at the attempt in the report («⬆ Video»).')) return;
+  if (!(await repVidDeleteDb(x.dbId)) || REP_FEED !== F) return;
+  showToast('Video deleted', 'success');
+  const {opts, report} = F, weiter = (F.items[i + 1] || F.items[i - 1] || {}).dbId || null;
+  repFeedClose(true);
+  await sbAttReload(report);
+  if (repReportVidCount(_sbRV && _sbRV.report)) repFeedOpen(opts, weiter);
 }
 
 function repFeedEditCancel(i) {
