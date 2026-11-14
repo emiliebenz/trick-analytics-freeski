@@ -86,7 +86,7 @@
 #page-runcheck .coachnote .k{color:var(--blue);margin-bottom:3px}
 #page-runcheck .layout{display:grid;gap:22px;grid-template-columns:minmax(0,1fr)}
 @media(min-width:980px){#page-runcheck .layout{grid-template-columns:minmax(0,1fr) 380px;align-items:start}#page-runcheck .checkcol{position:sticky;top:64px}#page-runcheck .dock{display:none!important}}
-#page-runcheck .items{display:grid;gap:14px}
+#page-runcheck .items{display:grid;gap:14px;grid-template-columns:minmax(0,1fr)}
 #page-runcheck .item-hd{display:flex;align-items:flex-start;gap:10px;cursor:pointer}
 #page-runcheck .item-no{font-size:12px;font-weight:800;color:var(--inv);background:var(--ac,var(--char));border-radius:6px;padding:3px 8px;letter-spacing:.5px;flex:none;margin-top:1px}
 #page-runcheck .item-t{flex:1;min-width:0}
@@ -137,7 +137,7 @@
 #page-runcheck .crit.err{border-color:color-mix(in srgb,var(--red) 45%,var(--line))}
 #page-runcheck .crit.err .ic{background:var(--red)}
 #page-runcheck .crit.err .hint{color:var(--redt);font-weight:600}
-#page-runcheck .tg.err{font-weight:800}
+#page-runcheck .tg.err{font-weight:800;white-space:normal}
 #page-runcheck .crit.no .hint{color:var(--oranget);font-weight:600}
 #page-runcheck .crit.ok .tg{--ac:var(--green)} #page-runcheck .crit.no .tg:not(.soon){--ac:var(--blue)} #page-runcheck .crit.plus .tg:not(.soon){--ac:var(--blue)}
 #page-runcheck .dock{position:fixed;left:0;right:0;bottom:0;z-index:70;background:var(--blur);backdrop-filter:blur(8px);border-top:1px solid var(--line);
