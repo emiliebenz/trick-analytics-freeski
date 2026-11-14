@@ -381,7 +381,7 @@ function tabsHtml(){
   return t.map(function(x){return '<button class="tab-btn'+((S.tab===x[0]||(x[0]==='runs'&&S.tab==='build'))?' on':'')+'" data-tab="'+x[0]+'">'+x[1]+'</button>'}).join('')+'<span class="sync '+S.sync+'" id="rc-sync"><b></b>'+syncText()+'</span>'}
 function dockHtml(){
   var run=curRun();if(!run||S.tab!=='build')return null;var ev=evaluate(run);
-  return {cls:ev.complete?'ok':'open',html:'<div class="dt">'+(ev.complete?_('Run komplett'):_('Noch {n} offen',{n:ev.openN}))+'<small>'+esc(_('Notwendig {a}/{b} · Tippen für Details',{a:ev.reqOk,b:ev.req}))+'</small></div><span class="pc">'+ev.pct+'%</span>'}}
+  return {cls:ev.complete?'ok':'open',html:'<div class="dt">'+(ev.complete?_('Run komplett'):_('Noch {n} offen',{n:ev.openN}))+'<small>'+esc(_('Notwendig {a}/{b} · Tippen für Details',{a:ev.reqOk,b:ev.req}))+'</small></div>'}}   // ohne Prozentzahl (Wunsch Emilie 14.11.2026)
 function render(){
   $('#rc-tabs').innerHTML=tabsHtml();
   var v=S.loading?'<div class="loading"><span class="spinner"></span></div>':S.tab==='build'?viewBuild():S.tab==='runs'?viewRuns():S.tab==='coach'?viewCoach():viewRules();

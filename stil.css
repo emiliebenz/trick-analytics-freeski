@@ -899,3 +899,6 @@ body.rep-feed-open .toast { z-index: 3100; }
 .rep-move-hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
 .rep-feed .rep-move { border-top-color: rgba(255,255,255,.15); margin-top: 8px; }
 .rep-feed .rep-move label, .rep-feed .rep-move-hint { color: rgba(255,255,255,.7); }
+
+/* Als App vom Home-Bildschirm: kein Doppeltipp-Zoom (js/nav.js setzt html.als-app) */
+html.als-app, html.als-app body { touch-action: manipulation; }
