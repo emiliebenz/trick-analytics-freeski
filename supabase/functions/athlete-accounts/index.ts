@@ -92,6 +92,8 @@ Deno.serve(async (req) => {
       const { error } = await admin.auth.admin.updateUserById(acc.user_id, { password: pw });
       if (error) return json({ error: error.message }, 500);
       await admin.from("athlete_accounts").update({ must_change_pw: true }).eq("user_id", acc.user_id);
+      // Beim nächsten Öffnen der App muss wieder ein eigenes Passwort gesetzt werden
+      await admin.from("password_change_required").upsert({ user_id: acc.user_id });
       return json({ athlet, username: acc.username, password: pw });
     }
 
