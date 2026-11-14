@@ -1783,7 +1783,7 @@ function sbRunsSectionHtml(attempts, badgeFn, isLanded) {
         </div>
         ${r.atts.map((a, i) => `<div style="display:flex;align-items:center;gap:8px;font-size:12px;padding:2px 0;">
           <span style="color:var(--muted);font-weight:700;min-width:18px;">${i+1}.</span>
-          <span style="flex:1;min-width:0;color:var(--text);">${a.trick || '—'}</span>
+          <span style="flex:1;min-width:0;color:var(--text);">${a.trick || '—'}${a.video ? ' <span title="Video" style="color:#3E8E5A;font-weight:700;">▶</span>' : ''}</span>
           ${badgeFn(a)}
         </div>`).join('')}
       </div>`;
@@ -2051,7 +2051,11 @@ function sbAttPickVideo(ai, ti, i) {
     const file = inp.files[0]; if (!file) return;
     if (await sbVideoIsLow(file)) { alert('The quality of this video is too low (below 720p). Please choose a clip in at least 720p.'); return; }
     const ext = ((file.name.split('.').pop() || 'mp4').toLowerCase().replace(/[^a-z0-9]/g, '') || 'mp4').slice(0, 5);
-    const path = `${(c.td.athlet || 'athlete').replace(/[^\w-]+/g, '_')}/att-${c.a.dbId}-${Date.now()}.${ext}`;
+    // Ordner = voller Name wie im Assessment (td.athlet ist nur der Kurzname): nur so darf die Athlet:in das Video
+    // im Reiter Reports selbst abspielen (Policy trick_videos_select, supabase/report_videos_athlete_migration.sql)
+    const {data: zeile} = await db.from('tricks').select('athlet').eq('id', c.a.dbId).maybeSingle();
+    const voll = (zeile && zeile.athlet) || (Array.isArray(c.report.athletes) ? c.report.athletes.find(n => shortName(n) === c.td.athlet) : null) || c.td.athlet || 'athlete';
+    const path = `${voll.replace(/[^\w-]+/g, '_')}/att-${c.a.dbId}-${Date.now()}.${ext}`;
     sbVideoProgress(0);
     try {
       await sbVideoUploadFile(file, path);

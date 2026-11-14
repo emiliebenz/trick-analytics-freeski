@@ -818,3 +818,75 @@ body.role-athlete #page-standort [onclick*="cycleGrabStatus"] { pointer-events: 
 #page-accounts .acc-pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; white-space: pre-wrap; background: var(--surface2);
   border-radius: 10px; padding: 12px 14px; margin: 0 0 12px; user-select: all; }
 #page-accounts .acc-err { color: var(--danger); font-weight: 600; }
+
+/* ═══════════════ Reports: Video-Feed, Report bearbeiten, Ansicht für Athlet:innen (js/reports.js) ═══════════════ */
+body.rep-feed-open { overflow: hidden; }
+body.rep-feed-open .toast { z-index: 3100; }
+.rep-feed { position: fixed; inset: 0; z-index: 3000; background: #0b0b0c; color: #fff; display: flex; flex-direction: column; }
+.rep-feed-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 12px; padding-top: max(10px, env(safe-area-inset-top));
+  background: #161617; border-bottom: 1px solid rgba(255,255,255,.08); }
+.rep-feed-title { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 8px; overflow: hidden; white-space: nowrap; }
+.rep-feed-title b { font-size: 16px; font-weight: 800; }
+.rep-feed-title span { font-size: 13px; color: rgba(255,255,255,.65); overflow: hidden; text-overflow: ellipsis; }
+.rep-feed-btn { padding: 6px 12px; border-radius: 999px; border: 1px solid rgba(255,255,255,.28); background: rgba(255,255,255,.06); color: #fff;
+  font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.rep-feed-btn.on { background: #3E8E5A; border-color: #3E8E5A; }
+.rep-feed-x { width: 34px; height: 34px; border-radius: 50%; border: none; background: rgba(255,255,255,.12); color: #fff; font-size: 22px; line-height: 1; cursor: pointer; }
+.rep-feed-chips { flex-basis: 100%; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+.rep-feed-chips:empty { display: none; }
+.rep-feed-chip { flex-shrink: 0; padding: 5px 12px; border-radius: 999px; border: 1px solid rgba(255,255,255,.25); background: none; color: rgba(255,255,255,.85);
+  font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+.rep-feed-chip span { opacity: .6; margin-left: 2px; }
+.rep-feed-chip.on { background: #fff; color: #161617; border-color: #fff; }
+.rep-feed-list { flex: 1; min-height: 0; overflow-y: auto; scroll-snap-type: y mandatory; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+.rep-feed-load { height: 100%; display: flex; align-items: center; justify-content: center; }
+.rep-feed-item { height: 100%; scroll-snap-align: start; scroll-snap-stop: always; display: flex; flex-direction: column; max-width: 900px; margin: 0 auto; }
+.rep-feed-vid { flex: 1; min-height: 0; position: relative; display: flex; align-items: center; justify-content: center; background: #000; }
+.rep-feed-vid video { width: 100%; height: 100%; object-fit: contain; background: #000; display: block; }
+.rep-feed-miss { display: none; position: absolute; inset: 0; align-items: center; justify-content: center; color: rgba(255,255,255,.7); font-size: 14px; }
+.rep-feed-item.fehlt .rep-feed-miss { display: flex; }
+.rep-feed-item.fehlt video { visibility: hidden; }
+.rep-feed-info { flex-shrink: 0; padding: 10px 16px 14px; padding-bottom: max(14px, env(safe-area-inset-bottom)); background: #161617; max-height: 42%; overflow-y: auto; }
+.rep-feed-meta { display: flex; align-items: baseline; gap: 8px; font-size: 13px; color: rgba(255,255,255,.7); }
+.rep-feed-meta b { color: #fff; font-size: 14px; }
+.rep-feed-n { margin-left: auto; font-variant-numeric: tabular-nums; }
+.rep-feed-trick { font-size: 17px; font-weight: 800; margin: 3px 0 6px; line-height: 1.3; }
+.rep-feed-res { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; }
+.rep-feed-q { padding: 2px 10px; border-radius: 999px; font-weight: 700; font-size: 12px; color: #fff; }
+.rep-feed-cmt { color: rgba(255,255,255,.8); }
+.rep-feed-acts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.rep-feed .rep-att-edit label { color: rgba(255,255,255,.7); }
+
+/* Trick und Kommentar eines Versuchs (✎ im Report und im Feed) */
+.rep-att-edit { display: grid; grid-template-columns: auto 1fr; gap: 6px 10px; align-items: center; margin: 4px 0 10px; }
+.rep-att-edit label { margin: 0; }
+.rep-att-edit input { padding: 7px 10px; font-size: 13px; }
+
+/* Report bearbeiten */
+.rep-modal { position: fixed; inset: 0; z-index: 2500; background: rgba(0,10,20,.6); display: flex; align-items: flex-start; justify-content: center; padding: 16px; overflow-y: auto; }
+.rep-modal-box { width: 100%; max-width: 560px; margin: auto 0; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 22px; }
+.rep-modal-h { font-size: 20px; font-weight: 800; color: var(--text); margin-bottom: 14px; }
+.rep-edit-ath { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+.rep-edit-ath > span:first-child { min-width: 78px; font-size: 13px; font-weight: 700; color: var(--accent2); }
+.rep-edit-ath > input[type="text"] { flex: 1; min-width: 160px; padding: 7px 10px; font-size: 13px; }
+.rep-edit-ath em { font-style: normal; font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: .4px; text-transform: uppercase; margin-left: 4px; }
+.rep-edit-hint { font-weight: 400; text-transform: none; letter-spacing: 0; }
+.rep-num { width: 70px !important; padding: 7px 6px !important; font-size: 13px !important; text-align: center; }
+.rep-num-s { width: 56px !important; }
+.rep-modal-acts { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
+.rep-save { padding: 10px 24px; border: none; border-radius: 999px; background: var(--accent2); color: #fff; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+.rep-save:disabled { opacity: .6; cursor: default; }
+@media (max-width: 520px) { .rep-modal .form-grid { grid-template-columns: 1fr; } }
+
+/* Reports für Athlet:innen: eigene Tricks mit Anzahl und eigene Videos, ohne Bewertung */
+.rep-ath-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.rep-ath-sel { width: auto !important; padding: 8px 12px !important; font-size: 12px !important; }
+.rep-ath-sess { border-top: 1px solid var(--border); padding: 14px 0; }
+.rep-ath-sess-h { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 8px; font-size: 15px; color: var(--text); }
+.rep-ath-vid { flex-shrink: 0; padding: 7px 14px; border-radius: 999px; border: 1px solid var(--success); background: rgba(62,142,90,.13); color: var(--success);
+  font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+.rep-ath-tricks { display: flex; flex-direction: column; gap: 2px; }
+.rep-ath-trick { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 8px; background: var(--surface2); font-size: 14px; }
+.rep-ath-name { flex: 1; min-width: 0; color: var(--text); }
+.rep-ath-v { color: var(--success); font-size: 12px; font-weight: 700; white-space: nowrap; }
+.rep-ath-trick b { font-variant-numeric: tabular-nums; color: var(--text); min-width: 32px; text-align: right; }
