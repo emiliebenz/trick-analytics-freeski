@@ -783,3 +783,15 @@ header h1 .dot{color:#E2001A}
 .sr-niv-t tr.heat td { background: #3A3A3A; color: #fff; font-weight: 800; font-size: 12px; letter-spacing: .3px; padding: 7px 8px; border-top: 10px solid #fff; }
 .sr-niv-t tr.heat td span { font-weight: 600; opacity: .85; margin-left: 8px; }
 @media (max-width:768px){ table.m-cards tr.heat { display: block !important; padding: 0 !important; border: 0 !important; } table.m-cards tr.heat td { grid-column: 1/-1; } table.m-cards tr.heat td::before { content: none !important; } }
+
+/* ═══════════════ Athlet:innen-Login (body.role-athlete, siehe applyAthleteMode in kern.js) ═══════════════
+   Nur Assessment (eigenes, nur lesen) und Run-Check. Die Datenbank erlaubt Athlet:innen ohnehin nichts anderes. */
+body.role-athlete .nav-tab:not(.athlete-ok),
+body.role-athlete .mobile-nav-btn:not(.athlete-ok),
+body.role-athlete #group-filter-sel,
+body.role-athlete #sb-add-btn,
+body.role-athlete #sb-form-card,
+body.role-athlete #page-standort .btn-del,
+body.role-athlete #page-standort [onclick*="openSbEdit"],
+body.role-athlete #page-standort [onclick*="sbPickVideo"] { display: none !important; }
+body.role-athlete #page-standort [onclick*="cycleGrabStatus"] { pointer-events: none; cursor: default !important; }

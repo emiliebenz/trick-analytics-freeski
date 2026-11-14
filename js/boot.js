@@ -23,5 +23,7 @@ document.addEventListener('DOMContentLoaded', async function bootSport(){
   const cf = document.getElementById('sbe-coach-fields-placeholder');
   if (cf) cf.outerHTML = M.fragments.coachFields;
   M.init();
-  if (typeof bootOpenInitialPage === 'function') bootOpenInitialPage();
+  if (typeof runCheckBoot === 'function') runCheckBoot();
+  if (ATHLETE_NAME) applyAthleteMode();
+  else if (typeof bootOpenInitialPage === 'function') bootOpenInitialPage();
 });

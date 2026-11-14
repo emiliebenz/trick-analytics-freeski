@@ -12,18 +12,18 @@ jobs:
       - uses: actions/checkout@v4
       - name: Sanity-Check (kein Deploy bei kaputten JS-Dateien)
         run: |
-          for f in js/config.js js/kern.js js/snowboard.js js/freeski.js js/boot.js js/nav.js; do
+          for f in js/config.js js/kern.js js/snowboard.js js/freeski.js js/runcheck.js js/boot.js js/nav.js; do
             node --check "$f" || exit 1
           done
           node -e "
             const fs = require('fs');
             const html = fs.readFileSync('index.html', 'utf8');
-            for (const marker of ['js/config.js', 'js/kern.js', 'js/snowboard.js', 'js/freeski.js',
-                                  'js/boot.js', 'js/nav.js', 'stil.css', 'grab-block-placeholder']) {
+            for (const marker of ['js/config.js', 'js/kern.js', 'js/snowboard.js', 'js/freeski.js', 'js/runcheck.js',
+                                  'js/boot.js', 'js/nav.js', 'stil.css', 'runcheck.css', 'page-runcheck', 'grab-block-placeholder']) {
               if (!html.includes(marker)) throw new Error('Pflicht-Marker fehlt in index.html: ' + marker);
             }
             const paare = {'js/config.js':'SPORT_CONFIGS', 'js/snowboard.js':'SnowboardModule',
-                           'js/freeski.js':'FreeskiModule', 'js/boot.js':'bootSport'};
+                           'js/freeski.js':'FreeskiModule', 'js/runcheck.js':'runCheckBoot', 'js/boot.js':'bootSport'};
             for (const [datei, marker] of Object.entries(paare)) {
               if (!fs.readFileSync(datei, 'utf8').includes(marker)) throw new Error(marker + ' fehlt in ' + datei);
             }
