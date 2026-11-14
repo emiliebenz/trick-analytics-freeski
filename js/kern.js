@@ -1293,6 +1293,7 @@ function showPage(id, btn) {
   if (id === 'monitoring') loadMonitoring();
   if (id === 'sessionreport') loadReportsTab();
   if (id === 'runcheck' && typeof loadRunCheck === 'function') loadRunCheck();
+  if (id === 'accounts' && typeof loadAccountsPage === 'function') loadAccountsPage();
   if (typeof updateMobileNav === 'function') updateMobileNav(id);
 }
 

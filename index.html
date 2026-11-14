@@ -30,6 +30,8 @@
     <button class="nav-tab" id="nav-tab-sessionreport" style="order:2;" onclick="showPage('sessionreport', this)">Reports</button>
     <!-- Run-Check: nur wo CFG.runCheck gesetzt ist (Freeski), runcheck.js blendet den Reiter ein -->
     <button class="nav-tab athlete-ok" id="nav-tab-runcheck" style="display:none;order:4;" onclick="showPage('runcheck', this)">Run-Check</button>
+    <!-- Accounts: Logins der Athlet:innen, nur fuer Admins (accounts.js blendet den Reiter ein) -->
+    <button class="nav-tab" id="nav-tab-accounts" style="display:none;order:5;" onclick="showPage('accounts', this)">Accounts</button>
   </nav>
   <div id="auth-controls" style="display:none;align-items:center;gap:8px;margin-left:12px;flex-shrink:0;">
     <select id="group-filter-sel" class="pill-sel" onchange="setGroupFilter(this.value)"></select>
@@ -44,6 +46,8 @@
 
 <!-- ══════════════════════════════════════════ ERFASSEN -->
 <div class="page" id="page-runcheck"></div>
+
+<div class="page" id="page-accounts"><div id="acc-root"></div></div>
 
 <div class="page" id="page-monitoring">
   <div id="mon-root"><div class="loading"><span class="spinner"></span></div></div>
@@ -408,6 +412,7 @@
 <script src="js/snowboard.js"></script>
 <script src="js/freeski.js"></script>
 <script src="js/runcheck.js"></script>
+<script src="js/accounts.js"></script>
 <script src="js/boot.js"></script>
 
 <div id="sb-edit-overlay" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.75);align-items:center;justify-content:center;padding:20px;">
@@ -506,6 +511,10 @@
   <button class="mobile-nav-btn athlete-ok" id="mobile-nav-runcheck" style="display:none;order:4;" onclick="showPage('runcheck', this); updateMobileNav('runcheck')">
     <svg viewBox="0 0 24 24"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 01-2 2H6a2 2 0 01-2-2V5a2 2 0 012-2h9"/></svg>
     Run-Check
+  </button>
+  <button class="mobile-nav-btn" id="mobile-nav-accounts" style="display:none;order:5;" onclick="showPage('accounts', this); updateMobileNav('accounts')">
+    <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+    Accounts
   </button>
 </nav>
 
