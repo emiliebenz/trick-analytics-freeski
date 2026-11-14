@@ -177,20 +177,21 @@ function authLoginEmail(v) {
   return s.includes('@') ? s : `${s}@${ATHLETE_LOGIN_DOMAIN}`;
 }
 
-function showSetPasswordGate() {
+function showSetPasswordGate(note) {
   document.getElementById('auth-gate')?.remove();
   const gate = document.createElement('div');
   gate.id = 'auth-gate';
   gate.style.cssText = 'position:fixed;inset:0;background:var(--bg);z-index:5000;display:flex;align-items:center;justify-content:center;padding:20px;';
   gate.innerHTML = `<form id="setpw-form" style="width:100%;max-width:360px;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;">
     <div style="font-size:20px;font-weight:800;color:var(--text);margin-bottom:2px;">${CFG.title}</div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:20px;">Welcome! Choose your password.</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:20px;">${note || 'Welcome! Choose your password.'}</div>
     <label style="display:block;margin-bottom:4px;">New password</label>
     <input type="password" id="setpw-1" autocomplete="new-password" required minlength="8" style="margin-bottom:12px;">
     <label style="display:block;margin-bottom:4px;">Repeat password</label>
     <input type="password" id="setpw-2" autocomplete="new-password" required minlength="8" style="margin-bottom:6px;">
     <div id="setpw-err" style="min-height:16px;font-size:12px;color:#e2001a;margin-bottom:10px;"></div>
     <button type="submit" style="width:100%;padding:12px;border:none;border-radius:10px;background:#148FA0;color:#ffffff;font-family:inherit;font-size:16px;font-weight:700;cursor:pointer;">Save password</button>
+    ${AUTH_USER ? '<div style="text-align:center;margin-top:12px;"><a class="hinweis" href="#" onclick="authLogout();return false;">Log out</a></div>' : ''}
   </form>`;
   document.body.appendChild(gate);
   document.getElementById('setpw-form').addEventListener('submit', async e => {
@@ -201,12 +202,11 @@ function showSetPasswordGate() {
     const btn = e.target.querySelector('button[type=submit]');
     btn.disabled = true; btn.textContent = 'Saving…';
     const {error} = await db.auth.updateUser({password: p1});
-    // Athlet:innen: Startpasswort ist ersetzt, beim nächsten Login nicht mehr fragen
-    const done = (!error && ATHLETE_NAME) ? (await db.rpc('athlete_password_changed')).error : null;
-    if (error || done) {
+    if (error) {
       btn.disabled = false; btn.textContent = 'Save password';
-      err.textContent = 'Error: ' + (error || done).message;
+      err.textContent = 'Error: ' + error.message;
     } else {
+      await markPasswordChanged();   // Startpasswort ersetzt: beim nächsten Login nicht mehr fragen
       history.replaceState(null, '', location.pathname + location.search);
       location.reload();
     }
@@ -291,13 +291,18 @@ async function initAuth() {
   AUTH_USER = session.user;
   // Rolle bestimmen. Im Snowboard-Projekt gibt es die Tabellen noch nicht: Fehler = Coach, kein Admin.
   try {
-    const [acc, adm] = await Promise.all([
+    const [acc, adm, pwc] = await Promise.all([
       db.from('athlete_accounts').select('athlet,must_change_pw').eq('user_id', AUTH_USER.id).maybeSingle(),
       db.from('app_admins').select('user_id').eq('user_id', AUTH_USER.id).maybeSingle(),
+      // Konten mit vorgegebenem Startpasswort (Tabelle password_change_required, Coaches und Athlet:innen)
+      db.from('password_change_required').select('user_id').eq('user_id', AUTH_USER.id).maybeSingle(),
     ]);
     ATHLETE_NAME = acc.data ? acc.data.athlet : null;
     IS_ADMIN = !!adm.data;
-    if (acc.data && acc.data.must_change_pw) { showSetPasswordGate(); return false; }
+    if (pwc.data || (acc.data && acc.data.must_change_pw)) {
+      showSetPasswordGate('Please replace your start password with a password of your own.');
+      return false;
+    }
   } catch (e) { console.error(e); }
   if (ATHLETE_NAME) return true;
   try {
@@ -317,6 +322,56 @@ function applyAthleteMode() {
   sel.innerHTML = ''; sel.appendChild(o); sel.value = ATHLETE_NAME; sel.disabled = true;
   loadStandort();
   if (typeof updateSbDisciplines === 'function') updateSbDisciplines();
+}
+
+// Startpasswort ersetzt (Freeski: Tabelle password_change_required). Fehlt die Funktion (Snowboard), ohne Folgen.
+async function markPasswordChanged() {
+  try { const {error} = await db.rpc('password_changed'); if (error) console.error(error); } catch (e) { console.error(e); }
+}
+
+// Passwort ändern, für alle Konten (Knopf «Password» oben rechts). Das aktuelle Passwort wird zuerst geprüft:
+// die frische Anmeldung genügt auch, wenn Supabase für Passwortwechsel eine kürzliche Anmeldung verlangt.
+function showChangePasswordDialog() {
+  document.getElementById('pw-modal')?.remove();
+  const m = document.createElement('div');
+  m.id = 'pw-modal';
+  m.style.cssText = 'position:fixed;inset:0;z-index:6000;background:rgba(0,10,20,.55);display:flex;align-items:center;justify-content:center;padding:16px;';
+  m.innerHTML = `<form id="pw-form" style="width:100%;max-width:360px;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;">
+    <div style="font-size:20px;font-weight:800;color:var(--text);margin-bottom:16px;">Change password</div>
+    <label style="display:block;margin-bottom:4px;">Current password</label>
+    <input type="password" id="pw-old" autocomplete="current-password" required style="margin-bottom:12px;">
+    <label style="display:block;margin-bottom:4px;">New password</label>
+    <input type="password" id="pw-1" autocomplete="new-password" required minlength="8" style="margin-bottom:12px;">
+    <label style="display:block;margin-bottom:4px;">Repeat new password</label>
+    <input type="password" id="pw-2" autocomplete="new-password" required minlength="8" style="margin-bottom:6px;">
+    <div id="pw-err" style="min-height:16px;font-size:12px;color:#e2001a;margin-bottom:10px;"></div>
+    <div style="display:flex;gap:8px;">
+      <button type="button" class="btn-secondary" style="flex:1;" onclick="document.getElementById('pw-modal').remove()">Cancel</button>
+      <button type="submit" style="flex:1;padding:10px;border:none;border-radius:10px;background:#148FA0;color:#ffffff;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;">Save</button>
+    </div>
+  </form>`;
+  m.addEventListener('click', ev => { if (ev.target === m) m.remove(); });
+  document.body.appendChild(m);
+  document.getElementById('pw-old').focus();
+  document.getElementById('pw-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const old = document.getElementById('pw-old').value;
+    const p1 = document.getElementById('pw-1').value, p2 = document.getElementById('pw-2').value;
+    const err = document.getElementById('pw-err');
+    err.textContent = '';
+    if (p1 !== p2) { err.textContent = 'The new passwords do not match.'; return; }
+    if (p1 === old) { err.textContent = 'Choose a password different from the current one.'; return; }
+    const btn = e.target.querySelector('button[type=submit]');
+    btn.disabled = true; btn.textContent = 'Saving…';
+    const fail = msg => { err.textContent = msg; btn.disabled = false; btn.textContent = 'Save'; };
+    const chk = await db.auth.signInWithPassword({ email: AUTH_USER.email, password: old });
+    if (chk.error) { fail('The current password is not correct.'); return; }
+    const {error} = await db.auth.updateUser({ password: p1 });
+    if (error) { fail('Error: ' + error.message); return; }
+    await markPasswordChanged();
+    m.remove();
+    showToast('Password changed', 'success');
+  });
 }
 
 function authLogout() {
@@ -420,8 +475,7 @@ function renderAuthControls() {
   if (!wrap || !sel) return;
   sel.innerHTML = `<option value="all" ${GROUP_FILTER==='all'?'selected':''}>All</option>` +
     FILTER_GROUPS.map(g => `<option value="${g.value}" ${GROUP_FILTER===g.value?'selected':''}>${g.short}</option>`).join('');
-  const logoutBtn = wrap.querySelector('button');
-  if (logoutBtn) logoutBtn.style.display = AUTH_USER ? '' : 'none';
+  wrap.querySelectorAll('button').forEach(b => { b.style.display = AUTH_USER ? '' : 'none'; });
   wrap.style.display = 'flex';
 }
 

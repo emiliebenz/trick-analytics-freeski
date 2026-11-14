@@ -40,6 +40,10 @@ in `.github/workflows/deploy.yml` ein.
   Assessment (nur lesen) und den Run-Check. Beim ersten Login waehlen sie ein eigenes Passwort.
 - **Admins** (Tabelle `app_admins`) legen im Reiter «Accounts» die Logins an. Das laeuft ueber die
   Edge Function `athlete-accounts`; Startpasswoerter werden nirgends gespeichert.
+- **Passwort:** Alle (Coaches und Athlet:innen, auch Snowboard) koennen oben rechts mit «Password» ihr
+  Passwort aendern. Konten mit vorgegebenem Startpasswort stehen in `password_change_required` (per Trigger
+  fuer jedes neue Konto) und muessen beim ersten Oeffnen der App ein eigenes Passwort setzen.
+  SQL: `supabase/password_change_migration.sql`.
 - Durchgesetzt wird das in der Datenbank: `supabase/runcheck_athlete_migration.sql` beschraenkt alle
   bestehenden Policies auf Nicht-Athlet:innen und gibt Athlet:innen nur ihre eigenen Zeilen frei.
 
