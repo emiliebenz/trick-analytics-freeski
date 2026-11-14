@@ -13,8 +13,12 @@ const SPORT = new URLSearchParams(location.search).get('sport') === 'snowboard' 
   document.head.appendChild(manifest);
   const touchIcon = document.createElement('link');
   touchIcon.rel = 'apple-touch-icon';
-  touchIcon.href = `icons/apple-touch-icon-${SPORT}.png`;
+  touchIcon.href = `icons/apple-touch-icon-${SPORT}.png?v=2`;
   document.head.appendChild(touchIcon);
+  const favicon = document.createElement('link');   // Symbol im Browser-Tab
+  favicon.rel = 'icon';
+  favicon.href = `icons/icon-${SPORT}-192.png?v=2`;
+  document.head.appendChild(favicon);
   const appTitle = document.createElement('meta');
   appTitle.name = 'apple-mobile-web-app-title';
   appTitle.content = SPORT === 'snowboard' ? 'Snowboard' : 'Freeski';
