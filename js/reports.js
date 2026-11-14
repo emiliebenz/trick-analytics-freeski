@@ -430,8 +430,13 @@ function repAttTextFieldsHtml(a, pre) {
     <input type="text" id="${pre}-cmt" value="${srEsc(d.comment)}" oninput="repAttDraft('${pre}','comment',this.value)" placeholder="optional">
   </div>`;
 }
+// Gespeichert wird «Trick — Grab», angezeigt «Trick: Grab» (ui-regeln.js). Wer den Doppelpunkt (oder « - ») eintippt,
+// meint die Grab-Trennung: sonst stünde derselbe Trick als eigener Block im Report und im Monitoring.
+function repTrickNorm(s) {
+  return String(s || '').replace(/\s*:\s*|\s+[-–]\s+/g, ' — ').replace(/\s{2,}/g, ' ').trim();
+}
 function repAttTextValues(pre) {
-  return {trick: ((document.getElementById(pre + '-trick') || {}).value || '').trim(),
+  return {trick: repTrickNorm((document.getElementById(pre + '-trick') || {}).value),
           comment: ((document.getElementById(pre + '-cmt') || {}).value || '').trim()};
 }
 // Trick und/oder freien Kommentar in tricks ändern (Run-Markierung und Kategorien bleiben, siehe attKommentar im Modul).
