@@ -24,6 +24,7 @@ document.addEventListener('DOMContentLoaded', async function bootSport(){
   if (cf) cf.outerHTML = M.fragments.coachFields;
   M.init();
   if (typeof runCheckBoot === 'function') runCheckBoot();
+  if (typeof accountsBoot === 'function') accountsBoot();
   if (ATHLETE_NAME) applyAthleteMode();
   else if (typeof bootOpenInitialPage === 'function') bootOpenInitialPage();
 });

@@ -191,11 +191,4 @@
 /* Mobil: Dock über der Navigationsleiste der App */
 @media (max-width:768px){#page-runcheck .dock{bottom:calc(56px + env(safe-area-inset-bottom,0px));padding-bottom:10px}}
 
-/* Admin: Konten */
-#page-runcheck .acc-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 0;border-bottom:1px dashed var(--line)}
-#page-runcheck .acc-row:last-child{border-bottom:none}
-#page-runcheck .acc-row .nm{font-weight:800;color:var(--char);flex:1 1 180px;min-width:0}
-#page-runcheck .acc-row label{display:flex;gap:8px;align-items:center;cursor:pointer;margin:0;text-transform:none;letter-spacing:0;font-size:14px;color:var(--char)}
-#page-runcheck .acc-row input[type=checkbox]{width:auto;margin:0}
 #page-runcheck .btn:disabled{opacity:.5;cursor:default}
-#page-runcheck .creds{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;white-space:pre-wrap;background:var(--soft);border-radius:10px;padding:12px 14px;margin:10px 0}

@@ -795,3 +795,26 @@ body.role-athlete #page-standort .btn-del,
 body.role-athlete #page-standort [onclick*="openSbEdit"],
 body.role-athlete #page-standort [onclick*="sbPickVideo"] { display: none !important; }
 body.role-athlete #page-standort [onclick*="cycleGrabStatus"] { pointer-events: none; cursor: default !important; }
+
+/* ═══════════════ Reiter «Accounts» (js/accounts.js, nur Admins) ═══════════════ */
+#page-accounts .acc-head { margin-bottom: 16px; }
+#page-accounts .acc-title { font-size: 26px; font-weight: 800; color: var(--text); margin-bottom: 4px; }
+#page-accounts .acc-head .hinweis { font-size: 14px; max-width: 72ch; line-height: 1.5; }
+#page-accounts .acc-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+#page-accounts .acc-top { margin-bottom: 16px; }
+#page-accounts .acc-sm { padding: 7px 14px; font-size: 13px; font-weight: 700; }
+#page-accounts .acc-sm:disabled { opacity: .5; cursor: not-allowed; }
+#page-accounts .acc-strong { background: var(--red); border-color: var(--red); color: #fff; }
+#page-accounts .acc-danger:hover:not(:disabled) { border-color: var(--danger); color: var(--danger); }
+#page-accounts .acc-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 9px 0; border-bottom: 1px dashed var(--border);
+  margin: 0; font-size: 14px; color: var(--text); text-transform: none; letter-spacing: 0; font-weight: 400; cursor: default; }
+#page-accounts label.acc-row { cursor: pointer; }
+#page-accounts .acc-row:last-child { border-bottom: none; }
+#page-accounts .acc-row input[type=checkbox] { width: auto; margin: 0; accent-color: var(--red); }
+#page-accounts .acc-name { font-weight: 700; flex: 1 1 180px; min-width: 0; }
+#page-accounts .acc-chip { font-size: 12px; font-weight: 700; border-radius: 8px; padding: 3px 9px; background: var(--surface2); color: var(--muted); white-space: nowrap; }
+#page-accounts .acc-chip.ok { background: rgba(62,142,90,.13); color: var(--success); }
+#page-accounts .acc-chip.open { background: rgba(201,106,31,.13); color: var(--warn); }
+#page-accounts .acc-pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; white-space: pre-wrap; background: var(--surface2);
+  border-radius: 10px; padding: 12px 14px; margin: 0 0 12px; user-select: all; }
+#page-accounts .acc-err { color: var(--danger); font-weight: 600; }

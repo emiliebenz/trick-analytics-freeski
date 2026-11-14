@@ -1,7 +1,7 @@
 // Mobile Navigationsleiste. Laeuft nach dem Boot.
 function updateMobileNav(pageId) {
   document.querySelectorAll('.mobile-nav-btn').forEach(b => b.classList.remove('active'));
-  const idx = {'standort':0,'erfassen':1,'entwicklung':2,'datenbank':3,'monitoring':4,'sessionreport':5,'runcheck':6};
+  const idx = {'standort':0,'erfassen':1,'entwicklung':2,'datenbank':3,'monitoring':4,'sessionreport':5,'runcheck':6,'accounts':7};
   const btns = document.querySelectorAll('.mobile-nav-btn');
   if (btns[idx[pageId]] !== undefined) btns[idx[pageId]].classList.add('active');
 }
