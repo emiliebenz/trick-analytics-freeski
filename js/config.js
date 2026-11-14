@@ -11,13 +11,16 @@ const SPORT = new URLSearchParams(location.search).get('sport') === 'snowboard' 
   manifest.rel = 'manifest';
   manifest.href = `manifest-${SPORT}.webmanifest`;
   document.head.appendChild(manifest);
+  // Icon-Version pro Sportart: hochzählen, wenn das Icon neu gezeichnet wird (auch im
+  // Manifest der Sportart), damit Browser und installierte Apps das neue Bild laden
+  const iconVersion = {freeski: 2, snowboard: 3}[SPORT];
   const touchIcon = document.createElement('link');
   touchIcon.rel = 'apple-touch-icon';
-  touchIcon.href = `icons/apple-touch-icon-${SPORT}.png?v=2`;
+  touchIcon.href = `icons/apple-touch-icon-${SPORT}.png?v=${iconVersion}`;
   document.head.appendChild(touchIcon);
   const favicon = document.createElement('link');   // Symbol im Browser-Tab
   favicon.rel = 'icon';
-  favicon.href = `icons/icon-${SPORT}-192.png?v=2`;
+  favicon.href = `icons/icon-${SPORT}-192.png?v=${iconVersion}`;
   document.head.appendChild(favicon);
   const appTitle = document.createElement('meta');
   appTitle.name = 'apple-mobile-web-app-title';
