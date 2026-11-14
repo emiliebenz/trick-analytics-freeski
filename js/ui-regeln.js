@@ -14,6 +14,7 @@
     search:'<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>',
     msg:'<path d="M4 5h16v11H9l-5 4z"/>',
     upload:'<path d="M12 16V4M7 9l5-5 5 5M4 20h16"/>',
+    download:'<path d="M12 4v12M7 11l5 5 5-5M4 20h16"/>',
     pencil:'<path d="M4 20l1-4L16 5l3 3L8 19z"/><path d="M14 7l3 3"/>',
     alert:'<path d="M12 3L2 20h20z"/><path d="M12 10v4M12 17.2v.1"/>',
     trophy:'<path d="M8 4h8v5a4 4 0 01-8 0zM8 6H4v1a3 3 0 003 3M16 6h4v1a3 3 0 01-3 3M12 13v4M8 20h8M9 17h6"/>',
@@ -26,7 +27,7 @@
     snow:'<path d="M12 2v20M4 6l16 12M20 6L4 18"/>',
     mountain:'<path d="M2 20l7-12 4 6 3-4 6 10z"/>',
   };
-  const MAP = {'🎯':'target','⭐':'star','🌟':'star','📄':'file','📋':'note','🗑':'trash','⏳':'clock','⌛':'clock','⏱':'clock','✅':'checkc','📥':'inbox','🔍':'search','💬':'msg','⬆':'upload','✏':'pencil','✎':'pencil','⚠':'alert','🏆':'trophy','📝':'note','▶':'play','📊':'chart','📈':'chart','💾':'save','📅':'calendar','🗓':'calendar','🔥':'fire','❄':'snow','🏔':'mountain','⛰':'mountain'};
+  const MAP = {'🎯':'target','⭐':'star','🌟':'star','📄':'file','📋':'note','🗑':'trash','⏳':'clock','⌛':'clock','⏱':'clock','✅':'checkc','📥':'inbox','🔍':'search','💬':'msg','⬆':'upload','⬇':'download','✏':'pencil','✎':'pencil','⚠':'alert','🏆':'trophy','📝':'note','▶':'play','📊':'chart','📈':'chart','💾':'save','📅':'calendar','🗓':'calendar','🔥':'fire','❄':'snow','🏔':'mountain','⛰':'mountain'};
   const RX = new RegExp('(' + Object.keys(MAP).map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')\\uFE0F?', 'g');
   const ico = k => `<svg class="ico ico-${k}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[k]}</svg>`;
   const SKIP = 'svg,option,select,textarea,input,script,style,title,[data-noicon],[contenteditable]';
