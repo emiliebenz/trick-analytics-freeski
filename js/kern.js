@@ -2072,23 +2072,19 @@ function sbAttPickVideo(ai, ti, i) {
   };
   inp.click();
 }
-async function sbAttPlayPath(path, titel, ersetzen) {
+async function sbAttPlayPath(path, titel, ersetzen, dateiname) {
   const {data, error} = await db.storage.from(TRICK_VIDEO_BUCKET).createSignedUrl(path, 3600);
   if (error) { showToast('Could not load video: ' + error.message, 'error'); return; }
   const zu = `document.getElementById('sbv-modal').remove()`;
   sbVideoOverlay(`<div style="font-weight:700;font-size:16px;margin-bottom:10px;">${srEsc(titel || '')}</div>
     <video src="${data.signedUrl}" controls playsinline autoplay style="width:100%;max-height:70vh;border-radius:10px;background:#000;"></video>
-    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">${ersetzen ? `<button class="btn btn-secondary" onclick="${zu};sbAttPickVideo(${ersetzen})">Replace video</button>` : ''}<button class="btn btn-primary" onclick="${zu}">Close</button></div>`);
+    <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:12px;">${dateiname ? repVidDownloadBtn(path, dateiname) : ''}${ersetzen ? `<button class="btn btn-secondary" onclick="${zu};sbAttPickVideo(${ersetzen})">Replace video</button>` : ''}<button class="btn btn-primary" onclick="${zu}">Close</button></div>`);
 }
 function sbAttPlay(ai, ti, i) {
   const c = sbAttCur(ai, ti, i); if (!c || !c.a.video) return;
   const kann = _sbRVEditable && c.report.id && c.a.dbId;
-  sbAttPlayPath(c.a.video, `${c.td.athlet} · ${c.a.trick || ''}`, kann ? `${ai},${ti},${i}` : '');
-}
-// Video aus der Contest-Sicht: Athlet:in (Index) und Position des Versuchs
-function sbRepPlay(ai, pos) {
-  const td = _sbRV?.report?.trick_data?.[ai], a = td?.attempts?.[pos];
-  if (a?.video) sbAttPlayPath(a.video, `${td.athlet} · ${a.trick || ''}`, '');
+  sbAttPlayPath(c.a.video, `${c.td.athlet} · ${c.a.trick || ''}`, kann ? `${ai},${ti},${i}` : '',
+    repVidFileName(c.a.video, [c.report.datum, c.td.athlet, c.a.trick, 'attempt-' + (c.pos + 1)]));   // Download (js/reports.js)
 }
 
 // ── Team-Übersicht und Contest-Sicht oben im Report ──
@@ -2147,8 +2143,6 @@ const SB_REP_CSS = `<style>
 .sbrep-bar i{display:block;height:100%;}
 .sbrep-leg{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin-top:6px;}
 .sbrep-leg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px;}
-.sbrep-play{border-radius:999px;padding:1px 8px;font-size:11px;font-weight:700;cursor:pointer;background:rgba(62,142,90,.15);border:1px solid #3E8E5A;color:#3E8E5A;font-family:inherit;}
-body > .sbrep-team .sbrep-play{display:none;}
 .sbatt-meta{display:flex;gap:8px 16px;flex-wrap:wrap;align-items:center;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:12px;color:var(--muted);}
 </style>`;
 function sbRepTeamHtml(report) {
@@ -2170,8 +2164,8 @@ function sbRepTeamHtml(report) {
   if (SB_REP_JUMP.test(report.session_type || '')) {
     const F = sbRepFinalLevel();
     const C = TD.map(({td, ai}) => ({td, ai, c: sbRepContest(td), g: sbRepGender(td.athlet, report)})).sort((a, b) => b.c.zwei - a.c.zwei || b.c.summe - a.c.summe);
-    const jump = (x, ai) => !x ? '<span class="sbrep-g">–</span>'
-      : `<b>${srEsc(x.a.trick)}</b>${x.a.video ? ` <button class="sbrep-play" onclick="sbRepPlay(${ai},${x.pos})">▶</button>` : ''}<br><span class="sbrep-g">${x.q === 'perfect' ? lP : 'landed'} · ${x.quote.l} of ${x.quote.n} landed</span>`;
+    const jump = x => !x ? '<span class="sbrep-g">–</span>'
+      : `<b>${srEsc(x.a.trick)}</b><br><span class="sbrep-g">${x.q === 'perfect' ? lP : 'landed'} · ${x.quote.l} of ${x.quote.n} landed</span>`;   // Videos: Punkt beim Versuch unten oder Video-Feed
     const stufe = (c, g) => {
       const f = g && F[g]; if (!c.max) return '<span class="sbrep-g">–</span>';
       if (!f) return `<b>${c.max}°</b>`;
@@ -2181,7 +2175,7 @@ function sbRepTeamHtml(report) {
     const ref = Object.entries(F).sort().map(([g, f]) => `${g === 'W' ? 'Women' : g === 'M' ? 'Men' : srEsc(g)}: final from ${f.min}°${f.typ != null ? ', typical finalist ' + f.typ + '°' : ''} (${f.n} World Cup Big Air${f.n === 1 ? '' : 's'} ${srEsc(f.saison)})`).join(' · ');
     contest = `<div class="sbrep-h" style="margin-top:14px;">If today had been a contest</div>
       <div class="sbrep-tw"><table class="sbrep-t breit"><thead><tr><th>Athlete</th><th>Best jump</th><th>Second jump, other direction</th><th>Biggest landed vs. World Cup final</th></tr></thead><tbody>${C.map(x =>
-        `<tr><td><b>${srEsc(x.td.athlet)}</b></td><td>${jump(x.c.jumps[0], x.ai)}</td><td>${jump(x.c.jumps[1], x.ai)}</td><td>${stufe(x.c, x.g)}</td></tr>`).join('')}</tbody></table></div>
+        `<tr><td><b>${srEsc(x.td.athlet)}</b></td><td>${jump(x.c.jumps[0])}</td><td>${jump(x.c.jumps[1])}</td><td>${stufe(x.c, x.g)}</td></tr>`).join('')}</tbody></table></div>
       <div class="sbrep-g sbrep-fuss">The two biggest landed rotations in different spin directions, as two jumps count in Big Air. Sorted by rotation, not by a judges' score. «x of y landed» = all attempts of this trick today.${ref ? `<br>World Cup final = smallest biggest rotation of a finalist, median over the season. ${ref}.` : (_srData ? '' : '<br>Loading World Cup final level…')}</div>`;
   }
   return `<div id="sbrep-team" class="sbrep-team">${SB_REP_CSS}<div class="sbrep-h">Team overview</div><div class="sbrep-tw">${uebersicht}</div>${contest}</div>`;

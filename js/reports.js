@@ -75,7 +75,7 @@ function repFeedOpen(opts = {}) {
     const nur = opts.ti != null ? new Set((_sbRV.groups && _sbRV.groups[ai] && _sbRV.groups[ai][opts.ti] && _sbRV.groups[ai][opts.ti].attempts) || []) : null;
     atts.forEach((a, pos) => {
       if (!a || !a.video || (nur && !nur.has(a))) return;
-      items.push({path: a.video, athlet: td.athlet || '', trick: a.trick || '—', pos, n: atts.length, a, stomp,
+      items.push({path: a.video, athlet: td.athlet || '', trick: a.trick || '—', pos, n: atts.length, a, stomp, datum: report.datum,
         run: sbAttRun(a), time: a.time ? String(a.time).slice(0, 5) : '', dbId: a.dbId || null});
     });
   });
@@ -146,10 +146,40 @@ function repFeedInfoHtml(x, i) {
   const wo = x.run ? `Run ${x.run.run}${x.run.pos ? ', element ' + x.run.pos : ''}` : `Attempt ${x.pos + 1} of ${x.n}`;
   const res = x.a ? repFeedResHtml(x) : '';            // Athlet:innen-Feed hat kein a: keine Bewertung
   const cmt = x.a ? repFreeText(x.a.comment) : '';
-  const edit = F && F.edit && x.dbId ? `<div class="rep-feed-acts"><button class="rep-feed-btn" onclick="repFeedEdit(${i})">✎ Edit trick / comment</button></div>` : '';
+  const edit = F && F.edit && x.dbId ? `<button class="rep-feed-btn" onclick="repFeedEdit(${i})">✎ Edit trick / comment</button>` : '';
   return `<div class="rep-feed-meta"><b>${srEsc(x.athlet)}</b><span>${wo}${x.time ? ' · ' + srEsc(x.time) : ''}</span><span class="rep-feed-n">${i + 1} / ${n}</span></div>
     <div class="rep-feed-trick">${srEsc(x.trick)}</div>
-    ${res || cmt ? `<div class="rep-feed-res">${res}${cmt ? `<span class="rep-feed-cmt">${srEsc(cmt)}</span>` : ''}</div>` : ''}${edit}`;
+    ${res || cmt ? `<div class="rep-feed-res">${res}${cmt ? `<span class="rep-feed-cmt">${srEsc(cmt)}</span>` : ''}</div>` : ''}
+    <div class="rep-feed-acts"><button class="rep-feed-btn" onclick="repFeedDownload(${i})">⬇ Download</button>${edit}</div>`;
+}
+
+// ═══════════════ VIDEO HERUNTERLADEN (Coaches und Athlet:innen) ═══════════════
+// Signierter Link mit «download»: der Speicher schickt die Datei als Anhang, der Browser speichert sie
+// (iPhone: Dateien-App, von dort «Video sichern» in Fotos). Athlet:innen bekommen nur Links zu eigenen Videos (Policy).
+function repVidFileName(path, teile) {
+  const ext = ((String(path || '').split('.').pop() || 'mp4').toLowerCase().replace(/[^a-z0-9]/g, '') || 'mp4').slice(0, 5);
+  const slug = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  return ((teile || []).map(slug).filter(Boolean).join('_') || 'video') + '.' + ext;
+}
+async function repVidDownload(path, name) {
+  const {data, error} = await db.storage.from(TRICK_VIDEO_BUCKET).createSignedUrl(path, 600, {download: name});
+  if (error || !data || !data.signedUrl) { showToast('Download failed: ' + ((error && error.message) || 'no link'), 'error'); return; }
+  const a = document.createElement('a');
+  a.href = data.signedUrl;
+  a.download = name;
+  a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  showToast('Download started', 'success');
+}
+function repFeedDownload(i) {
+  const F = REP_FEED, x = F && F.items[i];
+  if (x) repVidDownload(x.path, repVidFileName(x.path, [x.datum, x.athlet, x.trick, 'attempt-' + (x.pos + 1)]));
+}
+// Knopf «Download» für das Einzelvideo-Fenster (sbAttPlayPath in kern.js)
+function repVidDownloadBtn(path, name) {
+  return `<button class="btn btn-secondary" onclick="repVidDownload(${srEsc(JSON.stringify(path))}, ${srEsc(JSON.stringify(name))})">⬇ Download</button>`;
 }
 
 function repFeedResHtml(x) {
@@ -498,6 +528,6 @@ function repAthFeed(si) {
   if (!s) return;
   const kurz = shortName(ATHLETE_NAME);
   const zeit = r => r.created_at ? new Date(r.created_at).toLocaleTimeString('en-GB', {hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Zurich'}) : '';
-  const items = s.rows.map((r, pos) => r.video_path ? {path: r.video_path, athlet: kurz, trick: r.trickaufbau || '—', pos, n: s.rows.length, time: zeit(r), run: null} : null).filter(Boolean);
+  const items = s.rows.map((r, pos) => r.video_path ? {path: r.video_path, athlet: kurz, trick: r.trickaufbau || '—', pos, n: s.rows.length, datum: s.datum, time: zeit(r), run: null} : null).filter(Boolean);
   repFeedShow(items, {titel: `${fmtDate(s.datum)} · ${SESS_TYPE_SHORT[s.typ] || s.typ || 'Session'}`});
 }
