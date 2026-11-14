@@ -22,11 +22,12 @@ klassische `<script src>`-Tags in fester Reihenfolge:
 | `js/freeski.js` | `FreeskiModule` - dito |
 | `js/runcheck.js` | Reiter «Run-Check» (Freeski Slopestyle), nur wo `CFG.runCheck` gesetzt ist |
 | `js/accounts.js` | Reiter «Accounts»: Logins der Athlet:innen fuer die ganze App, nur fuer Admins |
+| `js/reports.js` | Reiter «Reports»: Video-Markierungen, Video-Feed, Report bearbeiten, Ansicht fuer Athlet:innen |
 | `runcheck.css` | Aussehen des Run-Checks, alle Regeln nur innerhalb von `#page-runcheck` |
 | `js/boot.js` | waehlt beim `DOMContentLoaded` das Modul, haengt es ans `window`, fuellt Selects und Fragmente |
 | `js/nav.js` | mobile Navigationsleiste |
 
-Die Reihenfolge ist wichtig: `config.js` vor `kern.js` vor den Modulen, `runcheck.js` und `accounts.js` vor `boot.js`.
+Die Reihenfolge ist wichtig: `config.js` vor `kern.js` vor den Modulen, `runcheck.js`, `accounts.js` und `reports.js` vor `boot.js`.
 Wer eine Datei hinzufuegt, traegt sie in `index.html` **und** in den Sanity-Check
 in `.github/workflows/deploy.yml` ein.
 
@@ -35,9 +36,13 @@ in `.github/workflows/deploy.yml` ein.
 ## Rollen (nur Freeski)
 
 - **Coaches** melden sich mit E-Mail an und sehen alles. Im Run-Check sehen sie die gespeicherten Runs
-  aller Athlet:innen und schreiben Feedback.
+  aller Athlet:innen und schreiben Feedback. Im Reiter «Reports» zeigt ein gruener Punkt ueber dem Versuch,
+  wo ein Video hinterlegt ist; «Video feed» spielt alle Videos eines Reports zum Durchscrollen ab, «Edit report»
+  aendert Session-Angaben, Notizen und Contest-Resultate, ✎ beim Versuch auch Trick und Kommentar.
 - **Athlet:innen** melden sich mit Benutzername (`vorname.nachname`) an und sehen nur ihr eigenes
-  Assessment (nur lesen) und den Run-Check. Beim ersten Login waehlen sie ein eigenes Passwort.
+  Assessment (nur lesen), den Run-Check und im Reiter «Reports» ihre eigenen Sessions: welche Tricks wie oft
+  und ihre eigenen Videos, ohne Bewertung. Beim ersten Login waehlen sie ein eigenes Passwort.
+  Fuer aeltere Videos braucht es `supabase/report_videos_athlete_migration.sql`.
 - **Admins** (Tabelle `app_admins`) legen im Reiter «Accounts» die Logins an. Das laeuft ueber die
   Edge Function `athlete-accounts`; Startpasswoerter werden nirgends gespeichert.
 - **Passwort:** Alle (Coaches und Athlet:innen, auch Snowboard) koennen oben rechts mit «Password» ihr

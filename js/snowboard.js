@@ -2078,10 +2078,12 @@ function sbTrickChartSvg(g, ai, ti) {
   }).join('');
   const line = pts.map((p,i) => `${PADL + i*(barW+gap)+barW/2},${(H - p*PH).toFixed(1)}`).join(' ');
   const w = PADL + Math.max(chartW, 70) + PADR;
+  const vTop = g.attempts.some(a => a && a.video) ? REP_VID_ROW : 0;   // row above the chart: video dot above the attempt
   const axisTitle = `<text x="${PADL + chartW/2}" y="${H + 30}" text-anchor="middle" font-size="11" fill="#5c5c61" font-family="Poppins,sans-serif" font-weight="600">Attempts</text>`;
-  return `<div style="overflow-x:auto;padding:4px 0;"><svg width="${(w*TRICK_CHART_SCALE).toFixed(0)}" height="${((H+34)*TRICK_CHART_SCALE).toFixed(0)}" viewBox="0 0 ${w} ${H+34}" style="display:block;">${grid}${bars}
+  return `<div style="overflow-x:auto;padding:4px 0;"><svg width="${(w*TRICK_CHART_SCALE).toFixed(0)}" height="${((H+34+vTop)*TRICK_CHART_SCALE).toFixed(0)}" viewBox="0 0 ${w} ${H+34+vTop}" style="display:block;">
+    ${repVidMarksSvg(g.attempts, i => PADL + i*(barW+gap) + barW/2, ai, ti)}<g transform="translate(0,${vTop})">${grid}${bars}
     ${n>1?`<polyline points="${line}" fill="none" stroke="#8a8a8f" stroke-width="1.5" opacity="0.75"/>`:''}
-    ${labels}${axisTitle}
+    ${labels}${axisTitle}</g>
   </svg></div>`;
 }
 
@@ -2102,6 +2104,7 @@ function sbRVShowDetail(ai, ti, i) {
         }).join('')}
         <button onclick="sbRVEditSave('landed')" style="padding:6px 12px;border-radius:8px;border:2px solid ${stars===5?'#148FA0':'#3E8E5A'};background:${stars===5?'rgba(20,143,160,0.15)':'rgba(62,142,90,0.15)'};color:${stars===5?'#148FA0':'#3E8E5A'};font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;">${stars===5?'⭐ Save Stomped':'✓ Save Landed '+stars+'/5'}</button>
       </div>
+      ${repAttTextFieldsHtml(a, 'rv')}
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
         <select onchange="sbRVEditFailSet(this.value)" style="padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;font-family:inherit;">
           <option value="">— no reason —</option>
@@ -2197,6 +2200,7 @@ function sbRVPrintPdf() {
 function sbRVEditStart(ai, ti, i) {
   const a = _sbRV.groups[ai][ti].attempts[i];
   _sbRVEdit = {ai, ti, i};
+  repAttDraftReset('rv');
   _sbRVEditKpis = {...(a.kpis || {})};
   _sbRVEditFail = sbFailLabel(a.fail);
   sbRVShowDetail(ai, ti, i);
@@ -2260,18 +2264,29 @@ async function sbRVEditSave(mode) {
     sterne = SB_KPIS.filter(([k]) => kpis[k]).length;
     outcome = sterne === 5 ? 'stomped' : 'landed';
   }
+  const tv = repAttTextValues('rv');   // trick and comment (js/reports.js)
+  const trick = tv.trick || a.trick;
+  let kommentar = a.comment || '';
   // 1. Update the tricks row
   if (a.dbId) {
+    const {data: alt} = await db.from('tricks').select('kommentar,disziplin').eq('id', a.dbId).maybeSingle();
     const gesamt = outcome==='failed' ? 3 : outcome==='stomped' ? 10 : 7;
     const baseUpd = {gesamt, ausfuehrung:gesamt, landung:gesamt, setup:gesamt, gelandet: outcome==='failed'?'No':'Yes'};
+    if (alt) { kommentar = attKommentar(alt.kommentar, tv.comment); baseUpd.kommentar = kommentar; }   // run marker stays
+    if (trick !== a.trick) {
+      baseUpd.trickaufbau = trick;
+      if (!alt || alt.disziplin !== 'Rail') baseUpd.grab = splitTrickGrab(trick).grab || null;   // rails: rail type after « — »
+    }
     const fullUpd = {...baseUpd, outcome, kpis, fail_grund: fail, sterne};
     const {error} = await db.from('tricks').update(fullUpd).eq('id', a.dbId);
     if (error && /column|kpis|outcome|fail_grund|sterne|schema/i.test(error.message||'')) {
       await db.from('tricks').update(baseUpd).eq('id', a.dbId);
     } else if (error) { showToast('Error saving: ' + error.message, 'error'); return; }
+    if (baseUpd.trickaufbau) syncTrickNameLocally(a.dbId, trick);
   }
   // 2. Update the report JSON (attempt + recomputed per-trick blocks and totals)
   a.outcome = outcome; a.kpis = kpis; a.fail = fail; a.sterne = sterne;
+  a.trick = trick; a.comment = kommentar || '';
   const td = report.trick_data[ai];
   const ents = td.attempts.map(x => ({trick: x.trick, result: x.outcome==='failed'?'miss':x.outcome==='stomped'?'perfect':'landed'}));
   td.tricks = buildFsTrickBlocks(ents);
@@ -2289,6 +2304,12 @@ async function sbRVEditSave(mode) {
     window.scrollTo(0, sy);
   }
   showToast('Attempt updated', 'success');
+}
+
+// Comment field of an attempt with a new free comment (js/reports.js): the run marker «Run n · p/len» stays in front
+function attKommentar(alt, text) {
+  const run = String(alt || '').split(' | ').map(t => t.trim()).filter(t => /^Run \d+ · /.test(t));
+  return [...run, ...(text ? [text] : [])].join(' | ') || null;
 }
 
 function sbReportInnerHtml(report) {
@@ -2326,9 +2347,9 @@ function sbReportInnerHtml(report) {
       const cmtCol = cmtRows ? `<div style="flex:0 1 220px;min-width:170px;border-left:1px solid var(--border);padding-left:14px;">
           <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:6px;">Comments</div>${cmtRows}</div>` : '';
       return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px;">
-        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
           <div style="font-size:14px;font-weight:700;color:var(--text);">${g.trick}</div>
-          <div class="hinweis">${n} attempt${n!==1?'s':''}</div>
+          <div style="display:flex;align-items:center;gap:8px;">${repVidChip(repVidCount(g.attempts), `repFeedOpen({ai:${ai},ti:${ti}})`)}<div class="hinweis">${n} attempt${n!==1?'s':''}</div></div>
         </div>
         <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;">
           <div style="flex:1 1 300px;min-width:0;">
@@ -2349,7 +2370,7 @@ function sbReportInnerHtml(report) {
     }).join('');
     return `<div class="abstand-20">
       <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
-        <div style="font-size:16px;font-weight:800;color:#148FA0;">${a.athlet}</div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><div style="font-size:16px;font-weight:800;color:#148FA0;">${a.athlet}</div>${repVidChip(repVidCount(attempts), `repFeedOpen({ai:${ai}})`)}</div>
         <div class="hinweis">${attempts.length} attempts · ${groups.length} trick${groups.length!==1?'s':''} · Ø stomp rate <b class="haupttext">${rate}%</b>${a.quali_scores && a.quali_scores.length ? ' · Quali <b class="warnung">' + a.quali_scores.join(' / ') + '</b>' : ''}${a.final_scores && a.final_scores.length ? ' · Final <b class="warnung">' + a.final_scores.join(' / ') + '</b>' : ''}${a.contest_rank ? ' · Rank <b class="warnung">' + a.contest_rank + '</b>' : ''}</div>
       </div>
       ${a.note ? `<div style="font-size:12px;color:#C96A1F;background:rgba(201,106,31,0.08);border-left:3px solid #C96A1F;border-radius:8px;padding:8px 10px;margin-bottom:10px;">📝 <b>Coach note:</b> ${a.note}</div>` : ''}
@@ -2367,6 +2388,7 @@ ${report.comments ? `<div style="background:var(--surface2);border-left:3px soli
       <span><span style="display:inline-block;width:10px;height:10px;background:#396FA8;border-radius:2px;vertical-align:-1px;"></span> Landed/Stomped (height = stars)</span>
       <span><span style="display:inline-block;width:10px;height:10px;background:#e2001a;border-radius:2px;vertical-align:-1px;"></span> Failed</span>
       <span><span style="display:inline-block;width:14px;height:2px;background:#8a8a8f;vertical-align:3px;"></span> running stomp rate (0–100%)</span>
+      ${repVidLegendHtml(report)}
     </div>
     ${sbRepTeamHtml(report)}
     ${sections}`;
@@ -2385,7 +2407,7 @@ function openSessionReportView(report) {
   modal.innerHTML = `<div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;max-width:640px;width:100%;margin:auto 0;">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px;">
       <div class="wert-gross">Session Report · ${dateStr}</div>
-      <div style="display:flex;gap:8px;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">${repReportBtnsHtml(report, false)}
         <button onclick="sbRVPrintPdf()" style="padding:7px 14px;border-radius:8px;background:none;border:1px solid var(--border);color:var(--muted);font-family:inherit;font-size:12px;cursor:pointer;">PDF</button>
         <button onclick="document.getElementById('sbrv-modal').remove()" style="padding:7px 14px;border-radius:8px;background:rgba(20,143,160,0.15);border:1px solid #148FA0;color:#148FA0;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;">Close</button>
       </div>
@@ -2411,6 +2433,7 @@ function sbTypeChipsHtml(current, handler) {
 }
 
 async function loadReportsTab() {
+  if (ATHLETE_NAME) { repAthLoad(); return; }   // Athlet:innen: eigene Tricks und Videos, ohne Bewertung (js/reports.js)
   const root = document.getElementById('sbrep-root');
   if (!root) return;
   root.innerHTML = '<div class="loading"><span class="spinner"></span></div>';
@@ -2446,6 +2469,7 @@ function renderReportsList() {
         <div style="font-size:14px;color:var(--text);font-weight:600;">${typeShort} · ${durStr}${r.location ? ' · '+r.location : ''}</div>
         <div style="font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${athStr}</div>
       </div>
+      ${repListVidBadge(r)}
       <div style="font-size:12px;color:var(--muted);flex-shrink:0;">${att ? att+' att.' : ''}</div>
       <div style="color:#148FA0;font-size:14px;flex-shrink:0;">→</div>
     </div>`;
@@ -2455,7 +2479,7 @@ function renderReportsList() {
     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:2px;">
       <div style="flex:1;min-width:160px;">
         <div style="font-size:20px;font-weight:800;color:var(--text);">Session Reports</div>
-        <div class="hinweis-gross">Tap a session to open the report</div>
+        <div class="hinweis-gross">Tap a session to open the report · <span style="color:#3E8E5A;font-weight:700;">▶</span> = videos</div>
       </div>
       <select onchange="sbRepSetRange(this.value)" style="padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;font-family:inherit;">
         <option value="all" ${_sbRepRange==='all'?'selected':''}>All time</option>
@@ -2495,7 +2519,8 @@ async function sbOpenReportInline(i) {
         <button onclick="renderReportsList()" style="padding:8px 14px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;">← Back</button>
         <div class="wert-gross">Session Report · ${dateStr}</div>
       </div>
-      <button onclick="sbRVPrintPdf()" style="padding:7px 14px;border-radius:8px;background:none;border:1px solid var(--border);color:var(--muted);font-family:inherit;font-size:12px;cursor:pointer;">PDF</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">${repReportBtnsHtml(report, true)}
+        <button onclick="sbRVPrintPdf()" style="padding:7px 14px;border-radius:8px;background:none;border:1px solid var(--border);color:var(--muted);font-family:inherit;font-size:12px;cursor:pointer;">PDF</button></div>
     </div>
     ${inner}
     <div style="border-top:1px solid var(--border);margin-top:20px;padding-top:16px;display:flex;justify-content:center;">
@@ -5124,5 +5149,5 @@ function init() {
   sbLoadCustomFails();   // team-weite Custom-Fail-Tags nachladen
   sbLoadRailData();      // team-weite Rail-Arten und -Tricks nachladen
 }
-return { fragments, init, showPage, sbCustomFailPrompt, toggleSbFail, commitFailedMulti, sbRunToggleAdd, sbRunSetRailType, sbRunNewRailType, sbRunAddJump, sbRunAddRailCommit, sbRunRemoveEl, sbRunRate, sbRunKpiToggle, sbRunDetailOpen, sbRunDetailClose, sbRunCustomFail, sbRunNoteToggle, sbRunTagToggle, sbRunNoteInput, sbRunSave, updateFwdSwBtn, updateSbDisciplines, toggleDisziplin, trickDesc, loadDB, generateAthleteReport, renderSessionReports, rebuildReportFromTimestamps, deleteSessionReport, openTeamPdfReport, saveSessionState, clearSessionStorage, restoreSessionState, toggleSessionAthlete, normSbTrick, tricksForDir, baseLabel, parseGrabsFromLabel, showGrabPicker, toggleDoubleGrab, doubleGrabClick, addTrickWithGrab, renderSessionTrickSelection, toggleSessGrab, renderSessSelected, toggleSessAssessmentTrick, removeSessTrick, toggleSessTrick, selectSessAthlete, sbSetTrick, sbSelectGrab, renderLiveSession, sessSetTrick, logAttempt, logAttemptStart, renderSbDisclosure, toggleSbKpi, commitLandedAttempt, commitFailedAttempt, sbAttemptNo, toggleSbEditKpi, setSbEditFail, saveSbLogEdit, deleteLogEntry, editLogEntry, renderSessionLog, clearSessionSelection, addAthleteToSession, resetSession, cancelSession, endSession, buildFsTrickBlocks, saveSessionReport, loadLastSessionReport, openReportPrint, openSessionReportView, sbReportInnerHtml, sbRVShowDetail, sbRVPrintPdf, loadReportsTab, renderReportsList, sbOpenReportInline, sbRepSetTyp, sbRepSetRange, sbRepApplyCustom, sbRepDeleteCurrent, sbRVEditStart, sbRVEditKpiToggle, sbRVEditFailSet, sbRVEditCancel, sbRVEditDelete, sbRVEditSave, sbMonSetTyp, sbMonApplyCustom, sbMonRealityCheck, sbMonTeamPdf, sbMonAthletePdf, sbMonTimeSel, sbMonOpenTrickReport, sbMonToggleHistory, sbMonSaveComment, viewSessionReportByDate, loadStandort, renderSbDirRadar, renderStandort, sbSave, cycleGrabStatus, loadEntwicklung, openSbEdit, saveSbEdit, extractQuality, trickDir, sortFsTricksByDir, initTrickAnalytics, buildSessionList, setStatsMode, setTypeFilter, parseDateInput, setDateRange, clearDateRange, renderTrickAnalytics, renderRawEntries, syncTrickNameLocally, editRawEntry, cancelRawEdit, saveRawEdit, deleteRawEntry, showPerfTip, hidePerfTip, setPerfFilter, onPfSeasonChange, setPerfDateRange, clearPerfDateRange, getSeasonRange, updateSeasonLabels, renderSessionPerformance, realityCheck, applyRealityCheckSelected, drawSessionDirRadar, loadMonitoring, renderMonitoring, sbMonSetRange, sbMonOpenAthlete, sbMonOpenTrick, sbMonBack, renderMonAthlete, renderMonTeam, renderMonTrick, srParse, srStats }
+return { attKommentar, fragments, init, showPage, sbCustomFailPrompt, toggleSbFail, commitFailedMulti, sbRunToggleAdd, sbRunSetRailType, sbRunNewRailType, sbRunAddJump, sbRunAddRailCommit, sbRunRemoveEl, sbRunRate, sbRunKpiToggle, sbRunDetailOpen, sbRunDetailClose, sbRunCustomFail, sbRunNoteToggle, sbRunTagToggle, sbRunNoteInput, sbRunSave, updateFwdSwBtn, updateSbDisciplines, toggleDisziplin, trickDesc, loadDB, generateAthleteReport, renderSessionReports, rebuildReportFromTimestamps, deleteSessionReport, openTeamPdfReport, saveSessionState, clearSessionStorage, restoreSessionState, toggleSessionAthlete, normSbTrick, tricksForDir, baseLabel, parseGrabsFromLabel, showGrabPicker, toggleDoubleGrab, doubleGrabClick, addTrickWithGrab, renderSessionTrickSelection, toggleSessGrab, renderSessSelected, toggleSessAssessmentTrick, removeSessTrick, toggleSessTrick, selectSessAthlete, sbSetTrick, sbSelectGrab, renderLiveSession, sessSetTrick, logAttempt, logAttemptStart, renderSbDisclosure, toggleSbKpi, commitLandedAttempt, commitFailedAttempt, sbAttemptNo, toggleSbEditKpi, setSbEditFail, saveSbLogEdit, deleteLogEntry, editLogEntry, renderSessionLog, clearSessionSelection, addAthleteToSession, resetSession, cancelSession, endSession, buildFsTrickBlocks, saveSessionReport, loadLastSessionReport, openReportPrint, openSessionReportView, sbReportInnerHtml, sbRVShowDetail, sbRVPrintPdf, loadReportsTab, renderReportsList, sbOpenReportInline, sbRepSetTyp, sbRepSetRange, sbRepApplyCustom, sbRepDeleteCurrent, sbRVEditStart, sbRVEditKpiToggle, sbRVEditFailSet, sbRVEditCancel, sbRVEditDelete, sbRVEditSave, sbMonSetTyp, sbMonApplyCustom, sbMonRealityCheck, sbMonTeamPdf, sbMonAthletePdf, sbMonTimeSel, sbMonOpenTrickReport, sbMonToggleHistory, sbMonSaveComment, viewSessionReportByDate, loadStandort, renderSbDirRadar, renderStandort, sbSave, cycleGrabStatus, loadEntwicklung, openSbEdit, saveSbEdit, extractQuality, trickDir, sortFsTricksByDir, initTrickAnalytics, buildSessionList, setStatsMode, setTypeFilter, parseDateInput, setDateRange, clearDateRange, renderTrickAnalytics, renderRawEntries, syncTrickNameLocally, editRawEntry, cancelRawEdit, saveRawEdit, deleteRawEntry, showPerfTip, hidePerfTip, setPerfFilter, onPfSeasonChange, setPerfDateRange, clearPerfDateRange, getSeasonRange, updateSeasonLabels, renderSessionPerformance, realityCheck, applyRealityCheckSelected, drawSessionDirRadar, loadMonitoring, renderMonitoring, sbMonSetRange, sbMonOpenAthlete, sbMonOpenTrick, sbMonBack, renderMonAthlete, renderMonTeam, renderMonTrick, srParse, srStats }
 })();

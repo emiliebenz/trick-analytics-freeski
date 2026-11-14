@@ -27,7 +27,7 @@
     <button class="nav-tab" style="display:none;order:4;" onclick="showPage('entwicklung', this)">Development</button>
     <button class="nav-tab" style="display:none;order:5;" onclick="showPage('datenbank', this)">Database</button>
     <button class="nav-tab" id="nav-tab-monitoring" style="order:3;" onclick="showPage('monitoring', this)">Monitoring</button>
-    <button class="nav-tab" id="nav-tab-sessionreport" style="order:2;" onclick="showPage('sessionreport', this)">Reports</button>
+    <button class="nav-tab athlete-ok" id="nav-tab-sessionreport" style="order:2;" onclick="showPage('sessionreport', this)">Reports</button>
     <!-- Run-Check: nur wo CFG.runCheck gesetzt ist (Freeski), runcheck.js blendet den Reiter ein -->
     <button class="nav-tab athlete-ok" id="nav-tab-runcheck" style="display:none;order:4;" onclick="showPage('runcheck', this)">Run-Check</button>
     <!-- Accounts: Logins der Athlet:innen, nur fuer Admins (accounts.js blendet den Reiter ein) -->
@@ -414,6 +414,7 @@
 <script src="js/freeski.js"></script>
 <script src="js/runcheck.js"></script>
 <script src="js/accounts.js"></script>
+<script src="js/reports.js"></script>
 <script src="js/boot.js"></script>
 
 <div id="sb-edit-overlay" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.75);align-items:center;justify-content:center;padding:20px;">
@@ -505,7 +506,7 @@
     <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
     Monitoring
   </button>
-  <button class="mobile-nav-btn" id="mobile-nav-sessionreport" style="order:2;" onclick="showPage('sessionreport', this); updateMobileNav('sessionreport')">
+  <button class="mobile-nav-btn athlete-ok" id="mobile-nav-sessionreport" style="order:2;" onclick="showPage('sessionreport', this); updateMobileNav('sessionreport')">
     <svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><rect x="7" y="10" width="3" height="8"/><rect x="12" y="6" width="3" height="12"/><rect x="17" y="13" width="3" height="5"/></svg>
     Reports
   </button>
