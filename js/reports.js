@@ -63,7 +63,8 @@ function repReportBtnsHtml(report, editable) {
 let REP_FEED = null;   // {all, items, namen, filter, muted, rate, urls, cur, dirty, report, edit, io}
 
 // opts: {} = alle Videos des offenen Reports · {ai} = eine Athlet:in · {ai, ti} = ein Trick einer Athlet:in
-function repFeedOpen(opts = {}) {
+// start: dbId des Versuchs, bei dem der Feed beginnt (z.B. nach dem Verschieben eines Videos)
+function repFeedOpen(opts = {}, start = null) {
   const report = _sbRV && _sbRV.report;
   if (!report) return;
   const TD = Array.isArray(report.trick_data) ? report.trick_data : [];
@@ -80,7 +81,7 @@ function repFeedOpen(opts = {}) {
     });
   });
   const typ = report.session_type ? SESS_TYPE_SHORT[report.session_type] || report.session_type : '';
-  repFeedShow(items, {titel: [report.datum ? fmtDate(report.datum) : '', typ].filter(Boolean).join(' · '), report, edit: !!(_sbRVEditable && report.id)});
+  repFeedShow(items, {titel: [report.datum ? fmtDate(report.datum) : '', typ].filter(Boolean).join(' · '), report, edit: !!(_sbRVEditable && report.id), opts, start});
 }
 
 async function repFeedShow(items, o = {}) {
@@ -103,7 +104,7 @@ async function repFeedShow(items, o = {}) {
   document.body.classList.add('rep-feed-open');
   document.addEventListener('keydown', repFeedKey);
   const F = REP_FEED = {all: items, items, namen: [...new Set(items.map(x => x.athlet))], filter: null, muted: true, rate: 1,
-    urls: {}, cur: 0, dirty: false, report: o.report || null, edit: !!o.edit, io: null};
+    urls: {}, cur: 0, dirty: false, report: o.report || null, edit: !!o.edit, io: null, opts: o.opts || {}, start: o.start || null};
   // Alle Links auf einmal holen (privater Bucket, Links gelten 1 h)
   try {
     const paths = [...new Set(items.map(x => x.path))];
@@ -133,6 +134,11 @@ function repFeedRender() {
   F.cur = 0;
   F.io = new IntersectionObserver(es => es.forEach(e => repFeedSeen(e.target, e.isIntersecting && e.intersectionRatio >= 0.6)), {root: list, threshold: [0, 0.6]});
   list.querySelectorAll('.rep-feed-item').forEach(s => F.io.observe(s));
+  if (F.start) {   // einmalig zum gewünschten Versuch springen
+    const k = F.items.findIndex(x => x.dbId === F.start);
+    F.start = null;
+    if (k > 0) list.scrollTop = list.querySelector(`.rep-feed-item[data-i="${k}"]`).offsetTop - list.offsetTop;
+  }
 }
 
 function repFeedFilter(k) {
@@ -146,7 +152,7 @@ function repFeedInfoHtml(x, i) {
   const wo = x.run ? `Run ${x.run.run}${x.run.pos ? ', element ' + x.run.pos : ''}` : `Attempt ${x.pos + 1} of ${x.n}`;
   const res = x.a ? repFeedResHtml(x) : '';            // Athlet:innen-Feed hat kein a: keine Bewertung
   const cmt = x.a ? repFreeText(x.a.comment) : '';
-  const edit = F && F.edit && x.dbId ? `<button class="rep-feed-btn" onclick="repFeedEdit(${i})">✎ Edit trick / comment</button>` : '';
+  const edit = F && F.edit && x.dbId ? `<button class="rep-feed-btn" onclick="repFeedEdit(${i})">✎ Edit trick / comment</button><button class="rep-feed-btn" onclick="repFeedMove(${i})">⇄ Wrong attempt?</button>` : '';
   return `<div class="rep-feed-meta"><b>${srEsc(x.athlet)}</b><span>${wo}${x.time ? ' · ' + srEsc(x.time) : ''}</span><span class="rep-feed-n">${i + 1} / ${n}</span></div>
     <div class="rep-feed-trick">${srEsc(x.trick)}</div>
     ${res || cmt ? `<div class="rep-feed-res">${res}${cmt ? `<span class="rep-feed-cmt">${srEsc(cmt)}</span>` : ''}</div>` : ''}
@@ -180,6 +186,51 @@ function repFeedDownload(i) {
 // Knopf «Download» für das Einzelvideo-Fenster (sbAttPlayPath in kern.js)
 function repVidDownloadBtn(path, name) {
   return `<button class="btn btn-secondary" onclick="repVidDownload(${srEsc(JSON.stringify(path))}, ${srEsc(JSON.stringify(name))})">⬇ Download</button>`;
+}
+
+// ═══════════════ VIDEO EINEM ANDEREN VERSUCH ZUORDNEN ═══════════════
+// Vertauschte Videos korrigieren, ohne neu hochzuladen: Video zu einem anderen Versuch derselben Athlet:in in diesem
+// Report verschieben. Hat der Zielversuch schon ein Video, tauschen die beiden. Nur tricks.video_path ändert sich,
+// die Dateien bleiben, wo sie sind (gleiche Athlet:in = gleicher Ordner).
+function repVidMoveHtml(report, dbId, pre, onclick, btnCls) {
+  const td = ((report && report.trick_data) || []).find(t => (t.attempts || []).some(a => a && a.dbId === dbId));
+  const atts = td ? td.attempts || [] : [];
+  const ziele = atts.map((a, k) => ({a, k})).filter(x => x.a && x.a.dbId && x.a.dbId !== dbId);
+  if (!ziele.length) return '';
+  return `<div class="rep-move">
+    <label for="${pre}-ziel">Wrong attempt? Move this video to</label>
+    <div class="rep-move-row"><select id="${pre}-ziel">${ziele.map(({a, k}) => `<option value="${a.dbId}">Attempt ${k + 1} of ${atts.length}${a.time ? ' · ' + srEsc(String(a.time).slice(0, 5)) : ''} · ${srEsc(a.trick || '—')}${a.video ? ' · has a video: swap' : ''}</option>`).join('')}</select>
+      <button class="${btnCls}" onclick="${onclick}">Move</button></div>
+    <div class="rep-move-hint">If that attempt already has a video, the two videos swap places.</div>
+  </div>`;
+}
+// In tricks umhängen. Erst das Ziel, dann die Quelle; schlägt der zweite Schritt fehl, wird der erste zurückgenommen.
+async function repVidMoveDb(dbId, zielId) {
+  if (!dbId || !zielId || dbId === zielId) return false;
+  const {data: rows, error: e1} = await db.from('tricks').select('id,athlet,video_path').in('id', [dbId, zielId]);
+  const quelle = (rows || []).find(r => r.id === dbId), ziel = (rows || []).find(r => r.id === zielId);
+  if (e1 || !quelle || !ziel) { showToast('Could not load the attempts: ' + ((e1 && e1.message) || 'not found'), 'error'); return false; }
+  if (!quelle.video_path) { showToast('This attempt has no video anymore: reload the report', 'error'); return false; }
+  if (quelle.athlet !== ziel.athlet) { showToast('Videos can only be moved between attempts of the same athlete', 'error'); return false; }
+  const {error: e2} = await db.from('tricks').update({video_path: quelle.video_path}).eq('id', zielId);
+  if (e2) { showToast('Error saving: ' + e2.message, 'error'); return false; }
+  const {error: e3} = await db.from('tricks').update({video_path: ziel.video_path || null}).eq('id', dbId);
+  if (e3) {
+    await db.from('tricks').update({video_path: ziel.video_path || null}).eq('id', zielId);
+    showToast('Error saving: ' + e3.message, 'error');
+    return false;
+  }
+  sbMonRows = null;
+  showToast(ziel.video_path ? 'Videos swapped' : 'Video moved', 'success');
+  return true;
+}
+// Aus dem Einzelvideo-Fenster (sbAttPlay in kern.js)
+async function repVidMove(dbId) {
+  const zielId = +((document.getElementById('mv-ziel') || {}).value || 0);
+  const report = _sbRV && _sbRV.report;
+  if (!report || !(await repVidMoveDb(dbId, zielId))) return;
+  document.getElementById('sbv-modal')?.remove();
+  await sbAttReload(report);
 }
 
 function repFeedResHtml(x) {
@@ -251,6 +302,25 @@ function repFeedEdit(i) {
     ${repAttTextFieldsHtml(x.a, 'rf' + i)}
     <div class="rep-feed-acts"><button class="rep-feed-btn on" onclick="repFeedEditSave(${i})">Save</button><button class="rep-feed-btn" onclick="repFeedEditCancel(${i})">Cancel</button></div>`;
 }
+// Feed: Video einem anderen Versuch zuordnen, danach den Feed neu öffnen und zum verschobenen Video springen
+function repFeedMove(i) {
+  const F = REP_FEED, x = F && F.items[i], el = document.getElementById('rep-feed-info-' + i);
+  if (!x || !el || !F.report) return;
+  el.innerHTML = `<div class="rep-feed-meta"><b>${srEsc(x.athlet)}</b><span>Attempt ${x.pos + 1} of ${x.n}${x.time ? ' · ' + srEsc(x.time) : ''}</span></div>
+    ${repVidMoveHtml(F.report, x.dbId, 'rfm' + i, `repFeedMoveSave(${i})`, 'rep-feed-btn on') || '<div class="rep-feed-cmt">No other attempt of this athlete in this report.</div>'}
+    <div class="rep-feed-acts"><button class="rep-feed-btn" onclick="repFeedEditCancel(${i})">Cancel</button></div>`;
+}
+async function repFeedMoveSave(i) {
+  const F = REP_FEED, x = F && F.items[i];
+  if (!x) return;
+  const zielId = +((document.getElementById('rfm' + i + '-ziel') || {}).value || 0);
+  if (!(await repVidMoveDb(x.dbId, zielId)) || REP_FEED !== F) return;
+  const {opts, report} = F;
+  repFeedClose(true);
+  await sbAttReload(report);
+  repFeedOpen(opts, zielId);
+}
+
 function repFeedEditCancel(i) {
   const F = REP_FEED, el = document.getElementById('rep-feed-info-' + i);
   if (F && el && F.items[i]) el.innerHTML = repFeedInfoHtml(F.items[i], i);

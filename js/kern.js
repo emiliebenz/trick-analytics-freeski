@@ -2072,19 +2072,21 @@ function sbAttPickVideo(ai, ti, i) {
   };
   inp.click();
 }
-async function sbAttPlayPath(path, titel, ersetzen, dateiname) {
+async function sbAttPlayPath(path, titel, ersetzen, dateiname, extra) {
   const {data, error} = await db.storage.from(TRICK_VIDEO_BUCKET).createSignedUrl(path, 3600);
   if (error) { showToast('Could not load video: ' + error.message, 'error'); return; }
   const zu = `document.getElementById('sbv-modal').remove()`;
   sbVideoOverlay(`<div style="font-weight:700;font-size:16px;margin-bottom:10px;">${srEsc(titel || '')}</div>
     <video src="${data.signedUrl}" controls playsinline autoplay style="width:100%;max-height:70vh;border-radius:10px;background:#000;"></video>
-    <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:12px;">${dateiname ? repVidDownloadBtn(path, dateiname) : ''}${ersetzen ? `<button class="btn btn-secondary" onclick="${zu};sbAttPickVideo(${ersetzen})">Replace video</button>` : ''}<button class="btn btn-primary" onclick="${zu}">Close</button></div>`);
+    <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:12px;">${dateiname ? repVidDownloadBtn(path, dateiname) : ''}${ersetzen ? `<button class="btn btn-secondary" onclick="${zu};sbAttPickVideo(${ersetzen})">Replace video</button>` : ''}<button class="btn btn-primary" onclick="${zu}">Close</button></div>${extra || ''}`);
 }
 function sbAttPlay(ai, ti, i) {
   const c = sbAttCur(ai, ti, i); if (!c || !c.a.video) return;
   const kann = _sbRVEditable && c.report.id && c.a.dbId;
-  sbAttPlayPath(c.a.video, `${c.td.athlet} · ${c.a.trick || ''}`, kann ? `${ai},${ti},${i}` : '',
-    repVidFileName(c.a.video, [c.report.datum, c.td.athlet, c.a.trick, 'attempt-' + (c.pos + 1)]));   // Download (js/reports.js)
+  // Titel mit Versuchsnummer und Zeit, damit klar ist, zu welchem Versuch das Video gehört; Verschieben/Tauschen in js/reports.js
+  sbAttPlayPath(c.a.video, `${c.td.athlet} · Attempt ${c.pos + 1} of ${c.n}${c.a.time ? ' · ' + String(c.a.time).slice(0, 5) : ''} · ${c.a.trick || ''}`, kann ? `${ai},${ti},${i}` : '',
+    repVidFileName(c.a.video, [c.report.datum, c.td.athlet, c.a.trick, 'attempt-' + (c.pos + 1)]),
+    kann ? repVidMoveHtml(c.report, c.a.dbId, 'mv', `repVidMove(${c.a.dbId})`, 'btn btn-secondary') : '');
 }
 
 // ── Team-Übersicht und Contest-Sicht oben im Report ──
