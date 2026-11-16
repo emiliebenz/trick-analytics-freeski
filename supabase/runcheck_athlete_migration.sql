@@ -1,5 +1,6 @@
 -- Freeski-App (Elite): Run-Check und Logins für Athlet:innen
--- NUR im Freeski-Projekt ausführen (nvibrxtqknkmsiccauzs). Snowboard folgt später.
+-- NUR im Freeski-Projekt ausführen (nvibrxtqknkmsiccauzs). Snowboard: snowboard_athlete_migration.sql
+-- (gleiche Logins und Policies, ohne Run-Check).
 -- Einmal ausführen: SQL Editor → New query → Run. Die Datei ist wiederholbar (idempotent).
 --
 -- Was sich ändert:

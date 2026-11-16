@@ -1,5 +1,6 @@
 -- Freeski-App: eigenes Passwort statt Startpasswort, für ALLE Konten (Coaches und Athlet:innen)
 -- NUR im Freeski-Projekt ausführen (nvibrxtqknkmsiccauzs). Setzt runcheck_athlete_migration.sql voraus.
+-- Snowboard: steckt in snowboard_athlete_migration.sql.
 --
 -- Wer in password_change_required steht, muss beim nächsten Öffnen der App ein eigenes Passwort setzen.
 -- Neue Konten (im Supabase-Dashboard oder im Reiter «Accounts» angelegt) kommen per Trigger automatisch hinein.
