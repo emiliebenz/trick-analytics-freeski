@@ -1,4 +1,5 @@
-// Supabase Edge Function «athlete-accounts» im Freeski-Projekt (Elite-App).
+// Supabase Edge Function «athlete-accounts» im Freeski- und im Snowboard-Projekt (Elite-App).
+// Gleicher Code in beiden Projekten; bei Änderungen beide deployen.
 // Legt Logins für Athlet:innen an, setzt Startpasswörter zurück und entfernt Konten.
 // Nur für Admins (Tabelle app_admins). Benutzername wie in der Youth-App: vorname.nachname,
 // intern <benutzername>@login.trick-analyses.invalid. Startpasswörter werden NICHT gespeichert,

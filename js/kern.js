@@ -127,7 +127,7 @@ setInterval(flushOutbox, 30000);
 const AUTH_ENABLED = true;
 let AUTH_USER = null;
 let COACH_SQUAD = null;                       // squad key from the coaches table, null = unknown
-// Athlet:innen-Konten (Tabelle athlete_accounts, nur Freeski): Login mit Benutzername statt E-Mail.
+// Athlet:innen-Konten (Tabelle athlete_accounts, Freeski und Snowboard): Login mit Benutzername statt E-Mail.
 // Gesetzt, wenn das angemeldete Konto ein Athlet:innen-Konto ist; dann sieht man nur Assessment und Run-Check.
 const ATHLETE_LOGIN_DOMAIN = 'login.trick-analyses.invalid';
 let ATHLETE_NAME = null;
@@ -289,7 +289,7 @@ async function initAuth() {
     return false;
   }
   AUTH_USER = session.user;
-  // Rolle bestimmen. Im Snowboard-Projekt gibt es die Tabellen noch nicht: Fehler = Coach, kein Admin.
+  // Rolle bestimmen. Fehlen die Tabellen (Projekt ohne Migration): Fehler = Coach, kein Admin.
   try {
     const [acc, adm, pwc] = await Promise.all([
       db.from('athlete_accounts').select('athlet,must_change_pw').eq('user_id', AUTH_USER.id).maybeSingle(),
@@ -324,7 +324,7 @@ function applyAthleteMode() {
   if (typeof updateSbDisciplines === 'function') updateSbDisciplines();
 }
 
-// Startpasswort ersetzt (Freeski: Tabelle password_change_required). Fehlt die Funktion (Snowboard), ohne Folgen.
+// Startpasswort ersetzt (Tabelle password_change_required). Fehlt die Funktion, ohne Folgen.
 async function markPasswordChanged() {
   try { const {error} = await db.rpc('password_changed'); if (error) console.error(error); } catch (e) { console.error(e); }
 }

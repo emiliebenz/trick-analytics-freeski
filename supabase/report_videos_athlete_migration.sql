@@ -1,5 +1,6 @@
 -- Freeski-App (Elite): Athlet:innen sehen im Reiter «Reports» ihre eigenen Session-Videos
--- NUR im Freeski-Projekt ausführen (nvibrxtqknkmsiccauzs). Setzt runcheck_athlete_migration.sql und
+-- NUR im Freeski-Projekt ausführen (nvibrxtqknkmsiccauzs); Snowboard: snowboard_athlete_migration.sql.
+-- Setzt runcheck_athlete_migration.sql und
 -- attempt_video_migration.sql voraus. Einmal ausführen: SQL Editor → New query → Run. Wiederholbar (idempotent).
 --
 -- Warum: Videos zu Versuchen lagen bis 14.11.2026 im Ordner des Kurznamens (z.B. «Max_M_»), die Policy

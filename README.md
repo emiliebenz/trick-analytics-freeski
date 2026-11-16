@@ -33,23 +33,30 @@ in `.github/workflows/deploy.yml` ein.
 
 `moguls.html` bleibt eine eigenstaendige Einzeldatei.
 
-## Rollen (nur Freeski)
+## Rollen (Freeski und Snowboard)
+
+Seit dem 16.11.2026 gelten Rollen, Athlet:innen-Logins und Startpasswort-Pflicht in beiden Projekten.
+Der Run-Check ist weiterhin nur in Freeski aktiv (`CFG.runCheck`); Snowboard-Athlet:innen sehen
+Assessment und Reports.
+
 
 - **Coaches** melden sich mit E-Mail an und sehen alles. Im Run-Check sehen sie die gespeicherten Runs
   aller Athlet:innen und schreiben Feedback. Im Reiter «Reports» zeigt ein gruener Punkt ueber dem Versuch,
   wo ein Video hinterlegt ist; «Video feed» spielt alle Videos eines Reports zum Durchscrollen ab, «Edit report»
   aendert Session-Angaben, Notizen und Contest-Resultate, ✎ beim Versuch auch Trick und Kommentar.
 - **Athlet:innen** melden sich mit Benutzername (`vorname.nachname`) an und sehen nur ihr eigenes
-  Assessment (nur lesen), den Run-Check und im Reiter «Reports» ihre eigenen Sessions: welche Tricks wie oft
+  Assessment (nur lesen), den Run-Check (nur Freeski) und im Reiter «Reports» ihre eigenen Sessions: welche Tricks wie oft
   und ihre eigenen Videos, ohne Bewertung. Beim ersten Login waehlen sie ein eigenes Passwort.
-  Fuer aeltere Videos braucht es `supabase/report_videos_athlete_migration.sql`.
+  Fuer aeltere Videos braucht es `supabase/report_videos_athlete_migration.sql` (Freeski)
+  bzw. `supabase/snowboard_athlete_migration.sql` (Snowboard).
 - **Admins** (Tabelle `app_admins`) legen im Reiter «Accounts» die Logins an. Das laeuft ueber die
-  Edge Function `athlete-accounts`; Startpasswoerter werden nirgends gespeichert.
-- **Passwort:** Alle (Coaches und Athlet:innen, auch Snowboard) koennen oben rechts mit «Password» ihr
+  Edge Function `athlete-accounts` (in beiden Projekten deployt); Startpasswoerter werden nirgends gespeichert.
+- **Passwort:** Alle (Coaches und Athlet:innen) koennen oben rechts mit «Password» ihr
   Passwort aendern. Konten mit vorgegebenem Startpasswort stehen in `password_change_required` (per Trigger
   fuer jedes neue Konto) und muessen beim ersten Oeffnen der App ein eigenes Passwort setzen.
-  SQL: `supabase/password_change_migration.sql`.
-- Durchgesetzt wird das in der Datenbank: `supabase/runcheck_athlete_migration.sql` beschraenkt alle
+  SQL: `supabase/password_change_migration.sql` (Freeski), `supabase/snowboard_athlete_migration.sql` (Snowboard).
+- Durchgesetzt wird das in der Datenbank: `supabase/runcheck_athlete_migration.sql` (Freeski) bzw.
+  `supabase/snowboard_athlete_migration.sql` (Snowboard) beschraenkt alle
   bestehenden Policies auf Nicht-Athlet:innen und gibt Athlet:innen nur ihre eigenen Zeilen frei.
 
 ## Regeln
