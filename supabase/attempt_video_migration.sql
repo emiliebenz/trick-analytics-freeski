@@ -5,7 +5,7 @@
 
 -- Reihenfolge des Versuchs innerhalb der Session einer Athlet:in. Leer = Reihenfolge der Eingabe (created_at).
 alter table public.tricks add column if not exists versuch_nr integer;
--- Verweis auf den Clip in Protern (Clip-Name oder Uhrzeit), frei wählbar
+-- Verweis auf den Clip in Protern: wird seit 16.11.2026 nicht mehr genutzt (Feld aus der App entfernt), Spalte bleibt leer bestehen
 alter table public.tricks add column if not exists clip_ref text;
 -- Pfad des Videos im Bucket «trick-videos»
 alter table public.tricks add column if not exists video_path text;

@@ -1968,12 +1968,12 @@ function sbVideoBtn(e) {
     : `<button onclick="sbPickVideo(${e.id})" style="${st}background:none;border:1px solid #e7e3e1;color:#5c5c61;">⬆ Video</button>`;
 }
 
-// ═══════════════ SESSION REPORT: TEAM-ÜBERSICHT, CONTEST-SICHT, SPRUNG-NUMMER, CLIP UND VIDEO ═══════════════
+// ═══════════════ SESSION REPORT: TEAM-ÜBERSICHT, CONTEST-SICHT, SPRUNG-NUMMER UND VIDEO ═══════════════
 // Gemeinsam für Freeski und Snowboard (Wunsch Emilie 14.11.2026). Die Module rufen nur drei Stellen auf:
 // sbRepTeamHtml(report) oben im Report, sbAttMetaHtml(ai, ti, i) im Detail eines Versuchs, sbAttSort / sbAttExtra / sbAttKeep beim Neuaufbau.
-// Spalten tricks.versuch_nr, clip_ref, video_path (SQL: supabase/attempt_video_migration.sql). Der Report wird bei jedem Laden aus
-// der Tabelle tricks neu aufgebaut, deshalb stehen Nummer, Clip und Video dort und nicht im Report-JSON.
-const SB_ATT_COLS = 'versuch_nr,clip_ref,video_path';
+// Spalten tricks.versuch_nr, video_path (SQL: supabase/attempt_video_migration.sql). Der Report wird bei jedem Laden aus
+// der Tabelle tricks neu aufgebaut, deshalb stehen Nummer und Video dort und nicht im Report-JSON.
+const SB_ATT_COLS = 'versuch_nr,video_path';
 // Reihenfolge pro Athlet:in: nummerierte Versuche nach Nummer, die übrigen dahinter in der Reihenfolge der Eingabe
 function sbAttSort(entries) {
   return entries.map((e, i) => ({e, i})).sort((x, y) => {
@@ -1984,8 +1984,8 @@ function sbAttSort(entries) {
     return x.i - y.i;
   }).map(x => x.e);
 }
-function sbAttExtra(row) { return {...(row.clip_ref ? {clip: row.clip_ref} : {}), ...(row.video_path ? {video: row.video_path} : {})}; }
-function sbAttKeep(a) { return {...(a.clip ? {clip: a.clip} : {}), ...(a.video ? {video: a.video} : {})}; }
+function sbAttExtra(row) { return row.video_path ? {video: row.video_path} : {}; }
+function sbAttKeep(a) { return a.video ? {video: a.video} : {}; }
 // Qualität eines Versuchs, gleich für beide Sportarten: perfect (Snowboard: stomped) / landed / miss (failed)
 function sbAttQ(a) {
   if (a.outcome) return a.outcome === 'stomped' ? 'perfect' : a.outcome === 'failed' ? 'miss' : 'landed';
@@ -1997,7 +1997,7 @@ function sbAttCur(ai, ti, i) {
   const pos = td.attempts.indexOf(a);
   return pos < 0 ? null : {a, td, pos, n: td.attempts.length, report: _sbRV.report};
 }
-// Zeile im Detail eines Versuchs: Sprung-Nummer, Protern-Clip, Video
+// Zeile im Detail eines Versuchs: Sprung-Nummer, Video
 function sbAttMetaHtml(ai, ti, i) {
   const c = sbAttCur(ai, ti, i); if (!c) return '';
   const {a, pos, n} = c, kann = !!(_sbRVEditable && c.report.id && a.dbId);
@@ -2007,13 +2007,10 @@ function sbAttMetaHtml(ai, ti, i) {
   const nr = a.run ? '' : kann
     ? `<span>Jump <input id="sbatt-nr" type="number" min="1" max="${n}" value="${pos + 1}" style="${fe}width:56px;"> of ${n} <button onclick="sbAttMove(${arg})" style="${bt}background:none;border:1px solid var(--border);color:var(--muted);">Move</button></span>`
     : `<span>Jump ${pos + 1} of ${n}</span>`;
-  const clip = kann
-    ? `<span>Protern clip <input id="sbatt-clip" type="text" value="${srEsc(a.clip || '')}" placeholder="clip name or time" style="${fe}width:150px;"> <button onclick="sbAttClipSave(${arg})" style="${bt}background:none;border:1px solid var(--border);color:var(--muted);">Save</button></span>`
-    : (a.clip ? `<span>Protern clip <b class="haupttext">${srEsc(a.clip)}</b></span>` : '');
   const video = a.video
     ? `<button onclick="sbAttPlay(${arg})" style="${bt}background:rgba(62,142,90,.15);border:1px solid #3E8E5A;color:#3E8E5A;">▶ Video</button>`
     : (kann ? `<button onclick="sbAttPickVideo(${arg})" style="${bt}background:none;border:1px solid #e7e3e1;color:#5c5c61;">⬆ Video</button>` : '');
-  const teile = [nr, clip, video].filter(Boolean);
+  const teile = [nr, video].filter(Boolean);
   return teile.length ? `<div class="sbatt-meta">${teile.join('')}</div>` : '';
 }
 // Nach einer Änderung in tricks: Report neu aus der Tabelle aufbauen und die Ansicht an derselben Stelle wieder öffnen
@@ -2035,14 +2032,6 @@ async function sbAttMove(ai, ti, i) {
   if (err) showToast(/versuch_nr|column/i.test(err.error.message || '') ? 'Jump number column missing: please run supabase/attempt_video_migration.sql' : 'Error saving: ' + err.error.message, 'error');
   await sbAttReload(c.report);
   if (!err) showToast(`Moved to jump ${ziel}`, 'success');
-}
-async function sbAttClipSave(ai, ti, i) {
-  const c = sbAttCur(ai, ti, i); if (!c || !c.a.dbId) return;
-  const v = (document.getElementById('sbatt-clip')?.value || '').trim();
-  const {error} = await db.from('tricks').update({clip_ref: v || null}).eq('id', c.a.dbId);
-  if (error) { showToast(/clip_ref|column/i.test(error.message || '') ? 'Clip column missing: please run supabase/attempt_video_migration.sql' : 'Error saving: ' + error.message, 'error'); return; }
-  await sbAttReload(c.report);
-  showToast(v ? 'Clip saved' : 'Clip removed', 'success');
 }
 function sbAttPickVideo(ai, ti, i) {
   const c = sbAttCur(ai, ti, i); if (!c || !c.a.dbId) return;
