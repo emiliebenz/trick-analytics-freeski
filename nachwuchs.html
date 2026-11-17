@@ -736,6 +736,7 @@ const I18N = {
   'created':['erstellt am','créé le','creato il'],
   'Please run database update 15 and redeploy the function «create-accounts» first.':['Bitte zuerst Datenbank-Update 15 ausführen und die Function «create-accounts» neu deployen.','Exécute d’abord la mise à jour 15 de la base et redéploie la fonction «create-accounts».','Esegui prima l’aggiornamento 15 del database e ridistribuisci la funzione «create-accounts».'],
   'E-mail or username':['E-Mail oder Benutzername','E-mail ou nom d’utilisateur','E-mail o nome utente'],
+  'Accounts are being created. Please wait.':['Konten werden erstellt. Bitte warten.','Les comptes sont en cours de création. Merci de patienter.','Gli account sono in creazione. Attendi.'],
   'Failed logins':['Fehlgeschlagene Logins','Connexions échouées','Accessi non riusciti'],
   'Last 30 days. Only the name or e-mail typed is saved, never the password.':['Letzte 30 Tage. Gespeichert wird nur der eingegebene Name oder die E-Mail, nie das Passwort.','30 derniers jours. Seul le nom ou l’e-mail saisi est enregistré, jamais le mot de passe.','Ultimi 30 giorni. Viene salvato solo il nome o l’e-mail inseriti, mai la password.'],
   'Not available yet: run database update 21.':['Noch nicht verfügbar: Datenbank-Update 21 ausführen.','Pas encore disponible : exécute la mise à jour 21 de la base de données.','Non ancora disponibile: esegui l’aggiornamento 21 del database.'],
@@ -3468,8 +3469,13 @@ async function createAccounts(role, reset){
   if ((!role || role==='athlete') && ath0 && !('username' in ath0)){ alert(trString('Please run database update 15 and redeploy the function «create-accounts» first.')); return; }
   const n = noLoginYet(role).length;
   if (reset ? !confirm(trString('Create new start passwords for all accounts that have never logged in? The old start passwords stop working. You get the new ones only once: save the PDF right away.')) : !confirm(`${n} · ` + trString('Create accounts with a start password for all coaches and athletes with an e-mail and no login yet? You get the start passwords only once: save the PDF right away.'))) return;
+  // nur ein Lauf gleichzeitig: ein zweiter Klick während des ersten Laufs überschrieb sonst alle Startpasswörter (14.11.2026)
+  if (ST._accBusy){ toast('Accounts are being created. Please wait.', true); return; }
+  ST._accBusy = true; document.querySelectorAll('.login-row button').forEach(b => b.disabled = true);
   toast('Creating accounts…');
-  const { data, error } = await db.functions.invoke('create-accounts', {body:{roles: role ? [role] : [], reset: !!reset}});
+  let data, error;
+  try { ({ data, error } = await db.functions.invoke('create-accounts', {body:{roles: role ? [role] : [], reset: !!reset}})); }
+  finally { ST._accBusy = false; document.querySelectorAll('.login-row button').forEach(b => b.disabled = false); }
   if (error || data?.error){ toast('Could not create accounts: ' + (data?.error || error.message), true); return; }
   ST._newAccounts = data.created || [];
   const gname = id => (ST.allGroups||[]).find(g => g.id===id)?.name || '–';
@@ -3484,6 +3490,7 @@ async function createAccounts(role, reset){
 // Passwort vergessen (Benutzername-Login): Admin erstellt ein neues Startpasswort für eine Person
 async function resetStartPassword(id){
   const p = (ST.allProfiles||[]).find(x => x.id===id) || prof(id); if (!p) return;
+  if (ST._accBusy){ toast('Accounts are being created. Please wait.', true); return; }
   if (p.role==='coach' && !p.user_id && !p.email){ alert(trString('Coaches need an e-mail for their login.')); return; }
   if (!confirm(trString('Create a new start password for') + ' ' + p.name + '? ' + (p.user_id ? trString('The old password stops working.') : ''))) return;
   const { data, error } = await db.functions.invoke('create-accounts', {body:{roles:[p.role], reset:!!p.user_id, force:true, ids:[id]}});
