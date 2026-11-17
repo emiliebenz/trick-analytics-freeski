@@ -736,6 +736,11 @@ const I18N = {
   'created':['erstellt am','créé le','creato il'],
   'Please run database update 15 and redeploy the function «create-accounts» first.':['Bitte zuerst Datenbank-Update 15 ausführen und die Function «create-accounts» neu deployen.','Exécute d’abord la mise à jour 15 de la base et redéploie la fonction «create-accounts».','Esegui prima l’aggiornamento 15 del database e ridistribuisci la funzione «create-accounts».'],
   'E-mail or username':['E-Mail oder Benutzername','E-mail ou nom d’utilisateur','E-mail o nome utente'],
+  'Athletes: username, e.g. lena.muster. Coaches: e-mail.':['Athlet:innen: Benutzername, z.B. lena.muster. Coaches: E-Mail.','Athlètes : nom d’utilisateur, p. ex. lena.muster. Coaches : e-mail.','Atleti: nome utente, ad es. lena.muster. Coach: e-mail.'],
+  'Athletes: log in directly with the username and start password from your coach. No activation needed.':['Athlet:innen: Direkt mit Benutzername und Startpasswort vom Coach einloggen. Keine Aktivierung nötig.','Athlètes : connecte-toi directement avec le nom d’utilisateur et le mot de passe de départ reçus de ton coach. Pas besoin d’activation.','Atleti: accedi direttamente con nome utente e password iniziale ricevuti dal coach. Nessuna attivazione necessaria.'],
+  'Coaches: Swiss-Ski has registered your e-mail. Enter it above and activate your account.':['Coaches: Swiss-Ski hat deine E-Mail hinterlegt. Gib sie oben ein und aktiviere dein Konto.','Coaches : Swiss-Ski a enregistré ton e-mail. Saisis-le ci-dessus et active ton compte.','Coach: Swiss-Ski ha registrato la tua e-mail. Inseriscila sopra e attiva il tuo account.'],
+  'Login failed. Athletes log in with their username (e.g. lena.muster), not with an e-mail. Coaches: check e-mail and password.':['Login fehlgeschlagen. Athlet:innen loggen sich mit dem Benutzernamen ein (z.B. lena.muster), nicht mit der E-Mail. Coaches: E-Mail und Passwort prüfen.','Échec de la connexion. Les athlètes se connectent avec leur nom d’utilisateur (p. ex. lena.muster), pas avec leur e-mail. Coaches : vérifie e-mail et mot de passe.','Accesso non riuscito. Gli atleti accedono con il nome utente (ad es. lena.muster), non con l’e-mail. Coach: controlla e-mail e password.'],
+  'Username or password incorrect. At the first login, type the start password exactly as on the sheet, with the dashes and upper and lower case.':['Benutzername oder Passwort falsch. Beim ersten Login das Startpasswort genau wie auf dem Blatt eingeben, mit Bindestrichen sowie Gross- und Kleinschreibung.','Nom d’utilisateur ou mot de passe incorrect. À la première connexion, saisis le mot de passe de départ exactement comme sur la feuille, avec les tirets, majuscules et minuscules.','Nome utente o password errati. Al primo accesso inserisci la password iniziale esattamente come sul foglio, con i trattini, maiuscole e minuscole.'],
   'Logging in with a username: ask your coach or an admin for a new start password.':['Login mit Benutzername: Frag deinen Coach oder einen Admin nach einem neuen Startpasswort.','Connexion avec nom d’utilisateur : demande un nouveau mot de passe de départ à ton coach ou à un admin.','Accesso con nome utente: chiedi al tuo coach o a un admin una nuova password iniziale.'],
   'Athletes get their username and start password from their coach. Log in with them above.':['Athlet:innen bekommen Benutzername und Startpasswort vom Coach. Damit oben einloggen.','Les athlètes reçoivent nom d’utilisateur et mot de passe de départ de leur coach. Connecte-toi ci-dessus.','Gli atleti ricevono nome utente e password iniziale dal coach. Accedi qui sopra.'],
   'Athletes log in with a username (e.g. lena.muster), coaches with their e-mail':['Athlet:innen loggen sich mit Benutzername ein (z.B. lena.muster), Coaches mit ihrer E-Mail','Les athlètes se connectent avec un nom d’utilisateur (p.ex. lena.muster), les coachs avec leur e-mail','Gli atleti accedono con un nome utente (es. lena.muster), i coach con la loro e-mail'],
@@ -5008,23 +5013,35 @@ function showLoginGate(msg){
   $('#gate').innerHTML = gateShell(`
     <div class="card"><h2>Log in</h2>
       <div style="display:grid;gap:12px">
-        <label class="f">E-mail or username<input type="text" id="lg-mail" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false"></label>
+        <label class="f">E-mail or username<input type="text" id="lg-mail" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false"><span class="tiny muted" style="font-weight:400;text-transform:none;letter-spacing:0;margin-top:2px">Athletes: username, e.g. lena.muster. Coaches: e-mail.</span></label>
         <label class="f">Password<input type="password" id="lg-pw" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"></label>
       </div>
       <div class="small" id="lg-msg" style="margin-top:10px;min-height:18px;color:var(--red)">${esc(msg||'')}</div>
       <div class="btnrow"><button class="btn red" onclick="doLogin()">Log in</button></div>
       <div class="small" style="margin-top:14px;text-align:center"><a href="#" onclick="authForgotPassword();return false">Forgot password?</a> <span class="muted">·</span> <a href="#" onclick="authHaveCode();return false">Have a code?</a></div>
-      <div class="first-time"><b>First time here?</b><span>Your coach or Swiss-Ski has registered your e-mail. Enter it above and activate your account.</span><button class="btn ghost" onclick="authActivate()">Activate account</button></div>
+      <div class="first-time"><b>First time here?</b><span>Athletes: log in directly with the username and start password from your coach. No activation needed.</span><span>Coaches: Swiss-Ski has registered your e-mail. Enter it above and activate your account.</span><button class="btn ghost" onclick="authActivate()">Activate account</button></div>
       <div class="small privacy-link"><a href="#" onclick="showPrivacy();return false">Privacy</a></div></div>`);
   $('#gate').hidden = false; $('#app').hidden = true;
 }
 // Athlet:innen melden sich mit Benutzername an (Update 15): intern <benutzername>@login.trick-collector.invalid
 const LOGIN_DOMAIN = 'login.trick-collector.invalid';
-const loginEmail = v => { v = (v || '').trim().toLowerCase(); return v.includes('@') ? v : `${v}@${LOGIN_DOMAIN}`; };
+// Benutzername tolerant: Akzente/Umlaute weg (mäder → mader), «Lena Muster» → lena.muster
+const normUser = v => { v = v.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/ß/g, 'ss'); if (!v.includes('.')) v = v.replace(/\s+/, '.'); return v.replace(/\s+/g, ''); };
+const loginEmail = v => { v = (v || '').trim().toLowerCase(); return v.includes('@') ? v : `${normUser(v)}@${LOGIN_DOMAIN}`; };
 const isUsername = v => !!(v || '').trim() && !(v || '').includes('@');
 async function doLogin(){
-  try { await SupaStore.login(loginEmail($('#lg-mail').value), $('#lg-pw').value); await startApp(); }
-  catch (err){ $('#lg-msg').textContent = 'Login failed: ' + (err.message||err); }
+  const user = $('#lg-mail').value || '', pw = $('#lg-pw').value || '';
+  try {
+    try { await SupaStore.login(loginEmail(user), pw); }
+    catch (e){ if (pw.trim() !== pw && pw.trim()) await SupaStore.login(loginEmail(user), pw.trim()); else throw e; }   // Leerzeichen beim Kopieren
+    await startApp();
+  }
+  catch (err){
+    const m = String(err?.message || err);
+    if (!/invalid login credentials/i.test(m)){ loginMsg('Login failed: ' + m); return; }
+    loginMsg(user.includes('@') ? 'Login failed. Athletes log in with their username (e.g. lena.muster), not with an e-mail. Coaches: check e-mail and password.'
+      : 'Username or password incorrect. At the first login, type the start password exactly as on the sheet, with the dashes and upper and lower case.');
+  }
 }
 // Ablauf wie Freeski/Snowboard: Code (6-stellig) statt Link: Links werden von Mail-Scannern verbraucht
 function loginMsg(t, ok){ const m = $('#lg-msg'); if (!m) return; m.style.color = ok ? 'var(--muted)' : 'var(--red)'; m.textContent = t; }
