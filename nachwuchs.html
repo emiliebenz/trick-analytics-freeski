@@ -736,6 +736,16 @@ const I18N = {
   'created':['erstellt am','créé le','creato il'],
   'Please run database update 15 and redeploy the function «create-accounts» first.':['Bitte zuerst Datenbank-Update 15 ausführen und die Function «create-accounts» neu deployen.','Exécute d’abord la mise à jour 15 de la base et redéploie la fonction «create-accounts».','Esegui prima l’aggiornamento 15 del database e ridistribuisci la funzione «create-accounts».'],
   'E-mail or username':['E-Mail oder Benutzername','E-mail ou nom d’utilisateur','E-mail o nome utente'],
+  'Failed logins':['Fehlgeschlagene Logins','Connexions échouées','Accessi non riusciti'],
+  'Last 30 days. Only the name or e-mail typed is saved, never the password.':['Letzte 30 Tage. Gespeichert wird nur der eingegebene Name oder die E-Mail, nie das Passwort.','30 derniers jours. Seul le nom ou l’e-mail saisi est enregistré, jamais le mot de passe.','Ultimi 30 giorni. Viene salvato solo il nome o l’e-mail inseriti, mai la password.'],
+  'Not available yet: run database update 21.':['Noch nicht verfügbar: Datenbank-Update 21 ausführen.','Pas encore disponible : exécute la mise à jour 21 de la base de données.','Non ancora disponibile: esegui l’aggiornamento 21 del database.'],
+  'No failed logins.':['Keine fehlgeschlagenen Logins.','Aucune connexion échouée.','Nessun accesso non riuscito.'],
+  'Person':['Person','Personne','Persona'], 'Club':['Club','Club','Club'], 'Last attempt':['Letzter Versuch','Dernier essai','Ultimo tentativo'], 'Probably':['Wahrscheinlich','Probablement','Probabilmente'],
+  'Password wrong':['Passwort falsch','Mot de passe incorrect','Password errata'],
+  'Typed e-mail instead of username':['E-Mail statt Benutzername eingegeben','E-mail saisi au lieu du nom d’utilisateur','E-mail inserita invece del nome utente'],
+  'No account yet':['Noch kein Konto','Pas encore de compte','Ancora nessun account'],
+  'Name not found':['Name nicht gefunden','Nom introuvable','Nome non trovato'],
+  '✓ Logged in since':['✓ Seither eingeloggt','✓ Connecté depuis','✓ Ha effettuato l’accesso dopo'],
   'Athletes: username, e.g. lena.muster. Coaches: e-mail.':['Athlet:innen: Benutzername, z.B. lena.muster. Coaches: E-Mail.','Athlètes : nom d’utilisateur, p. ex. lena.muster. Coaches : e-mail.','Atleti: nome utente, ad es. lena.muster. Coach: e-mail.'],
   'Athletes: log in directly with the username and start password from your coach. No activation needed.':['Athlet:innen: Direkt mit Benutzername und Startpasswort vom Coach einloggen. Keine Aktivierung nötig.','Athlètes : connecte-toi directement avec le nom d’utilisateur et le mot de passe de départ reçus de ton coach. Pas besoin d’activation.','Atleti: accedi direttamente con nome utente e password iniziale ricevuti dal coach. Nessuna attivazione necessaria.'],
   'Coaches: Swiss-Ski has registered your e-mail. Enter it above and activate your account.':['Coaches: Swiss-Ski hat deine E-Mail hinterlegt. Gib sie oben ein und aktiviere dein Konto.','Coaches : Swiss-Ski a enregistré ton e-mail. Saisis-le ci-dessus et active ton compte.','Coach: Swiss-Ski ha registrato la tua e-mail. Inseriscila sopra e attiva il tuo account.'],
@@ -3417,6 +3427,7 @@ function setExtraCoach(aid, cid, on){
 }
 // Karte «Logins» im Team-Tab (nur Admins)
 function loginsCard(){
+  setTimeout(loadLoginFailures, 0);
   const P = (ST.allProfiles||[]).filter(p => ['coach','athlete'].includes(p.role) && p.name !== 'ZZ Test Athlet');
   const row = (role, label) => {
     const all = P.filter(p => p.role===role), withLogin = all.filter(p => p.user_id).length, open = noLoginYet(role).length, noMail = all.filter(p => !p.email && !p.user_id && role==='coach').length;
@@ -3430,7 +3441,24 @@ function loginsCard(){
       <div class="row" style="gap:8px"><select id="pw-one" style="max-width:260px"><option value="">Choose person…</option>${
         [['dvlp','Admins'],['coach','Coaches'],['athlete','Athletes']].map(([r, l]) => `<optgroup label="${l}">${(ST.allProfiles||[]).filter(p => p.role===r && p.name !== 'ZZ Test Athlet').sort((a,b) => a.name.localeCompare(b.name))
           .map(p => `<option value="${p.id}">${esc(p.name)}${p.user_id ? '' : ' · no account yet'}</option>`).join('')}</optgroup>`).join('')}</select>
-      <button class="btn ghost sm" onclick="const v=$('#pw-one').value; if(v) resetStartPassword(v)">Create password</button></div></div></div>`;
+      <button class="btn ghost sm" onclick="const v=$('#pw-one').value; if(v) resetStartPassword(v)">Create password</button></div></div>
+    <div class="login-row"><div style="flex:1;min-width:0"><b>Failed logins</b><div class="tiny muted">Last 30 days. Only the name or e-mail typed is saved, never the password.</div>
+      <div id="lf-box" class="tiny muted" style="margin-top:8px">Loading…</div></div></div></div>`;
+}
+// Fehlgeschlagene Logins (Update 21): pro Person Anzahl, letzter Versuch, wahrscheinlicher Grund
+const LF_REASON = {wrong_password:'Password wrong', email_instead_of_username:'Typed e-mail instead of username', no_account:'No account yet', unknown:'Name not found'};
+async function loadLoginFailures(){
+  if (!$('#lf-box')) return;
+  const { data, error } = await db.rpc('login_failures_summary');
+  const box = $('#lf-box'); if (!box) return;
+  if (error){ box.textContent = 'Not available yet: run database update 21.'; return; }
+  if (!data?.length){ box.textContent = 'No failed logins.'; return; }
+  const loc = LANG==='en' ? 'en-GB' : LANG + '-CH';
+  const when = d => new Date(d).toLocaleString(loc, {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
+  box.classList.remove('muted');
+  box.innerHTML = `<div class="scroll-x"><table class="tbl"><thead><tr><th>Person</th><th>Club</th><th class="num">Attempts</th><th>Last attempt</th><th>Probably</th></tr></thead><tbody>${
+    data.map(r => `<tr><td>${r.reason==='unknown' ? `<span class="muted">«${esc(r.input)}»</span>` : esc(r.name)}</td><td>${esc(r.grp || '–')}</td><td class="num">${r.attempts}</td><td>${when(r.last_at)}</td>
+      <td>${r.logged_in_since ? '<b style="color:var(--green,#1a7f37)">✓ Logged in since</b>' : esc(LF_REASON[r.reason] || r.reason)}</td></tr>`).join('')}</tbody></table></div>`;
 }
 // Konten mit Startpasswort anlegen (nur Admins, Edge Function «create-accounts»)
 const noLoginYet = role => (ST.allProfiles||[]).filter(p => (role ? p.role===role : ['athlete','coach'].includes(p.role)) && (p.role==='athlete' || p.email) && !p.user_id);
@@ -5039,6 +5067,8 @@ async function doLogin(){
   catch (err){
     const m = String(err?.message || err);
     if (!/invalid login credentials/i.test(m)){ loginMsg('Login failed: ' + m); return; }
+    // für Admins protokollieren (nur die Eingabe im Namensfeld, nie das Passwort, Update 21)
+    if (!DEMO) db.rpc('log_login_failure', {p_input:user, p_login:loginEmail(user)}).then(() => {}, () => {});
     loginMsg(user.includes('@') ? 'Login failed. Athletes log in with their username (e.g. lena.muster), not with an e-mail. Coaches: check e-mail and password.'
       : 'Username or password incorrect. At the first login, type the start password exactly as on the sheet, with the dashes and upper and lower case.');
   }
