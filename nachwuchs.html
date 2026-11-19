@@ -580,6 +580,10 @@ main svg text{font-size:var(--fs-label)}
 .sel-note.ok{background:#eaf7ef;color:#1e6b3a}
 .privacy-link{margin-top:14px;text-align:center}
 .privacy h3{margin-bottom:8px}.privacy h4{margin:14px 0 4px}.privacy p,.privacy li{font-size:var(--fs-meta);line-height:1.5}
+.pw-wrap{position:relative;display:block}.pw-wrap input{width:100%;padding-right:46px}
+.pw-eye{position:absolute;right:4px;top:50%;transform:translateY(-50%);display:flex;align-items:center;justify-content:center;width:38px;height:38px;border:0;background:none;padding:0;color:var(--muted);cursor:pointer;border-radius:8px}
+.pw-wrap > button.pw-eye{background:transparent !important;box-shadow:none !important;min-height:0;-webkit-tap-highlight-color:transparent}
+.pw-eye:hover{color:var(--ink,#111)}
 .first-time{margin-top:18px;padding:14px;border-radius:12px;background:#f3f7fb;border:1px solid #d9e4f0;display:grid;gap:6px;font-size:var(--fs-meta)}
 .first-time span{color:var(--muted)}
 .first-time .btn{justify-self:start;margin-top:4px}
@@ -736,6 +740,7 @@ const I18N = {
   'created':['erstellt am','créé le','creato il'],
   'Please run database update 15 and redeploy the function «create-accounts» first.':['Bitte zuerst Datenbank-Update 15 ausführen und die Function «create-accounts» neu deployen.','Exécute d’abord la mise à jour 15 de la base et redéploie la fonction «create-accounts».','Esegui prima l’aggiornamento 15 del database e ridistribuisci la funzione «create-accounts».'],
   'E-mail or username':['E-Mail oder Benutzername','E-mail ou nom d’utilisateur','E-mail o nome utente'],
+  'Show password':['Passwort anzeigen','Afficher le mot de passe','Mostra password'], 'Hide password':['Passwort verbergen','Masquer le mot de passe','Nascondi password'],
   'Accounts are being created. Please wait.':['Konten werden erstellt. Bitte warten.','Les comptes sont en cours de création. Merci de patienter.','Gli account sono in creazione. Attendi.'],
   'Failed logins':['Fehlgeschlagene Logins','Connexions échouées','Accessi non riusciti'],
   'Last 30 days. Only the name or e-mail typed is saved, never the password.':['Letzte 30 Tage. Gespeichert wird nur der eingegebene Name oder die E-Mail, nie das Passwort.','30 derniers jours. Seul le nom ou l’e-mail saisi est enregistré, jamais le mot de passe.','Ultimi 30 giorni. Viene salvato solo il nome o l’e-mail inseriti, mai la password.'],
@@ -5025,6 +5030,17 @@ document.addEventListener('keydown', e => { if (e.key==='Escape' && $('#modal-ro
 /* ══════════════════════════════════════════════════════════════════════
    LOGIN / START
    ══════════════════════════════════════════════════════════════════════ */
+// Passwort anzeigen/verbergen (Auge-Symbol im Passwortfeld)
+const EYE_ON = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+const EYE_OFF = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 5.1A10.4 10.4 0 0 1 12 5c6.5 0 10 7 10 7a17.6 17.6 0 0 1-3.1 4.1M6.6 6.6C3.9 8.4 2 12 2 12s3.5 7 10 7c1.8 0 3.4-.5 4.8-1.3"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>';
+function togglePw(btn){
+  const inp = btn.parentElement.querySelector('input'); if (!inp) return;
+  const show = inp.type === 'password';
+  inp.type = show ? 'text' : 'password';
+  btn.innerHTML = show ? EYE_OFF : EYE_ON;
+  const l = trString(show ? 'Hide password' : 'Show password'); btn.setAttribute('aria-label', l); btn.title = l;
+  inp.focus({preventScroll:true});
+}
 function gateShell(inner){
   return `<header><div class="hd"><div><h1>${esc(APP_TITLE)}<span class="dot">.</span></h1></div>
     <div class="brand">${document.querySelector('.brand svg').outerHTML}<div class="who">${langSelect()}</div></div></div></header><div class="box">${inner}</div>`;
@@ -5049,7 +5065,7 @@ function showLoginGate(msg){
     <div class="card"><h2>Log in</h2>
       <div style="display:grid;gap:12px">
         <label class="f">E-mail or username<input type="text" id="lg-mail" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false"><span class="tiny muted" style="font-weight:400;text-transform:none;letter-spacing:0;margin-top:2px">Athletes: username, e.g. lena.muster. Coaches: e-mail.</span></label>
-        <label class="f">Password<input type="password" id="lg-pw" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"></label>
+        <label class="f">Password<span class="pw-wrap"><input type="password" id="lg-pw" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"><button type="button" class="pw-eye" onclick="togglePw(this)" aria-label="Show password" title="Show password">${EYE_ON}</button></span></label>
       </div>
       <div class="small" id="lg-msg" style="margin-top:10px;min-height:18px;color:var(--red)">${esc(msg||'')}</div>
       <div class="btnrow"><button class="btn red" onclick="doLogin()">Log in</button></div>
@@ -5134,8 +5150,8 @@ function showSetPasswordGate(reset){
   $('#gate').innerHTML = gateShell(`
     <div class="card"><h2>${reset ? 'Choose a new password' : 'Welcome! Choose your password'}</h2>
       <div style="display:grid;gap:12px">
-        <label class="f">New password<input type="password" id="sp-pw" autocomplete="new-password" minlength="8"></label>
-        <label class="f">Repeat password<input type="password" id="sp-pw2" autocomplete="new-password" minlength="8" onkeydown="if(event.key==='Enter')doSetPassword()"></label>
+        <label class="f">New password<span class="pw-wrap"><input type="password" id="sp-pw" autocomplete="new-password" minlength="8"><button type="button" class="pw-eye" onclick="togglePw(this)" aria-label="Show password" title="Show password">${EYE_ON}</button></span></label>
+        <label class="f">Repeat password<span class="pw-wrap"><input type="password" id="sp-pw2" autocomplete="new-password" minlength="8" onkeydown="if(event.key==='Enter')doSetPassword()"><button type="button" class="pw-eye" onclick="togglePw(this)" aria-label="Show password" title="Show password">${EYE_ON}</button></span></label>
       </div>
       <div class="small muted" style="margin-top:6px">At least 8 characters.</div>
       <div class="small" id="sp-msg" style="margin-top:10px;min-height:18px;color:var(--red)"></div>
