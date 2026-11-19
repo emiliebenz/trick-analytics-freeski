@@ -740,6 +740,11 @@ const I18N = {
   'created':['erstellt am','créé le','creato il'],
   'Please run database update 15 and redeploy the function «create-accounts» first.':['Bitte zuerst Datenbank-Update 15 ausführen und die Function «create-accounts» neu deployen.','Exécute d’abord la mise à jour 15 de la base et redéploie la fonction «create-accounts».','Esegui prima l’aggiornamento 15 del database e ridistribuisci la funzione «create-accounts».'],
   'E-mail or username':['E-Mail oder Benutzername','E-mail ou nom d’utilisateur','E-mail o nome utente'],
+  'This e-mail is not registered. Athletes log in with their username (e.g. lena.muster).':['Diese E-Mail ist nicht registriert. Athlet:innen loggen sich mit dem Benutzernamen ein (z.B. lena.muster).','Cet e-mail n’est pas enregistré. Les athlètes se connectent avec leur nom d’utilisateur (p. ex. lena.muster).','Questa e-mail non è registrata. Gli atleti accedono con il nome utente (ad es. lena.muster).'],
+  'Username not found. Check the spelling: firstname.lastname without accents (e.g. lena.muster).':['Benutzername nicht gefunden. Schreibweise prüfen: vorname.nachname ohne Akzente (z.B. lena.muster).','Nom d’utilisateur introuvable. Vérifie l’orthographe : prénom.nom sans accents (p. ex. lena.muster).','Nome utente non trovato. Controlla l’ortografia: nome.cognome senza accenti (ad es. lena.muster).'],
+  'Wrong password. Tap the eye to see what you typed. At the first login, enter the start password exactly as on the sheet.':['Falsches Passwort. Tippe auf das Auge, um deine Eingabe zu sehen. Beim ersten Login das Startpasswort genau wie auf dem Blatt eingeben.','Mot de passe incorrect. Touche l’œil pour voir ta saisie. À la première connexion, saisis le mot de passe de départ exactement comme sur la feuille.','Password errata. Tocca l’occhio per vedere cosa hai digitato. Al primo accesso inserisci la password iniziale esattamente come sul foglio.'],
+  'Athletes log in with their username (e.g. lena.muster), not with an e-mail.':['Athlet:innen loggen sich mit dem Benutzernamen ein (z.B. lena.muster), nicht mit der E-Mail.','Les athlètes se connectent avec leur nom d’utilisateur (p. ex. lena.muster), pas avec leur e-mail.','Gli atleti accedono con il nome utente (ad es. lena.muster), non con l’e-mail.'],
+  'There is no account for this name yet. Athletes: ask your coach. Coaches: use «Activate account» below.':['Für diesen Namen gibt es noch kein Konto. Athlet:innen: beim Coach nachfragen. Coaches: unten «Konto aktivieren» nutzen.','Il n’existe pas encore de compte pour ce nom. Athlètes : demande à ton coach. Coaches : utilise « Activer le compte » ci-dessous.','Non esiste ancora un account per questo nome. Atleti: chiedete al coach. Coach: usate «Attiva account» qui sotto.'],
   'Show password':['Passwort anzeigen','Afficher le mot de passe','Mostra password'], 'Hide password':['Passwort verbergen','Masquer le mot de passe','Nascondi password'],
   'Accounts are being created. Please wait.':['Konten werden erstellt. Bitte warten.','Les comptes sont en cours de création. Merci de patienter.','Gli account sono in creazione. Attendi.'],
   'Failed logins':['Fehlgeschlagene Logins','Connexions échouées','Accessi non riusciti'],
@@ -5091,7 +5096,16 @@ async function doLogin(){
     const m = String(err?.message || err);
     if (!/invalid login credentials/i.test(m)){ loginMsg('Login failed: ' + m); return; }
     // für Admins protokollieren (nur die Eingabe im Namensfeld, nie das Passwort, Update 21)
-    if (!DEMO) db.rpc('log_login_failure', {p_input:user, p_login:loginEmail(user)}).then(() => {}, () => {});
+    // Update 22: die Funktion meldet den Grund zurück → gezielte Meldung (Benutzername oder Passwort)
+    let why = null;
+    if (!DEMO){ try { why = (await db.rpc('log_login_failure', {p_input:user, p_login:loginEmail(user)}))?.data || null; } catch {} }
+    const LM = {
+      unknown: user.includes('@') ? 'This e-mail is not registered. Athletes log in with their username (e.g. lena.muster).'
+        : 'Username not found. Check the spelling: firstname.lastname without accents (e.g. lena.muster).',
+      wrong_password: 'Wrong password. Tap the eye to see what you typed. At the first login, enter the start password exactly as on the sheet.',
+      email_instead_of_username: 'Athletes log in with their username (e.g. lena.muster), not with an e-mail.',
+      no_account: 'There is no account for this name yet. Athletes: ask your coach. Coaches: use «Activate account» below.'};
+    if (LM[why]){ loginMsg(LM[why]); return; }
     loginMsg(user.includes('@') ? 'Login failed. Athletes log in with their username (e.g. lena.muster), not with an e-mail. Coaches: check e-mail and password.'
       : 'Username or password incorrect. At the first login, type the start password exactly as on the sheet, with the dashes and upper and lower case.');
   }
