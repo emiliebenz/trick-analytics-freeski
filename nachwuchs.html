@@ -99,6 +99,9 @@ textarea{min-height:64px;resize:vertical}
 .seg button.on{background:var(--char);color:#fff}
 
 .chip{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);border-radius:999px;padding:2px 10px;font-size:var(--fs-label);font-weight:600;color:var(--char);background:#fff;white-space:nowrap}
+.rv-list{border-left:3px solid var(--line);padding-left:8px;display:grid;gap:3px}
+.rv-line{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;color:var(--char);margin-top:3px}
+.rv-line .rv-n{flex-basis:100%;color:#C96A1F}
 .chip.green{background:var(--green-bg);border-color:transparent;color:var(--green)}
 .chip.gold{background:var(--gold-bg);border-color:transparent;color:var(--gold)}
 .chip.blue{background:var(--cblue-bg);border-color:transparent;color:var(--cblue)}
@@ -829,6 +832,11 @@ const I18N = {
   'No notifications':['Keine Mitteilungen','Aucune notification','Nessuna notifica'],
   '📥 New trick to review':['📥 Neuer Trick zur Bewertung','📥 Nouveau trick à évaluer','📥 Nuovo trick da valutare'],
   '↺ Coach asks for a new video':['↺ Coach wünscht ein neues Video','↺ Le coach demande une nouvelle vidéo','↺ Il coach chiede un nuovo video'],
+  'Ratings by the coaches':['Bewertungen der Coaches','Évaluations des coachs','Valutazioni dei coach'],
+  'The average of all coach ratings counts.':['Es zählt der Durchschnitt aller Coach-Bewertungen.','C’est la moyenne de toutes les évaluations des coachs qui compte.','Conta la media di tutte le valutazioni dei coach.'],
+  'Your rating':['Deine Bewertung','Ton évaluation','La tua valutazione'],
+  'Other coaches already rated this trick. Your rating is added, the average counts.':['Andere Coaches haben diesen Trick schon bewertet. Deine Bewertung kommt dazu, es zählt der Durchschnitt.','D’autres coachs ont déjà évalué ce trick. Ton évaluation s’ajoute, c’est la moyenne qui compte.','Altri coach hanno già valutato questo trick. La tua valutazione si aggiunge, conta la media.'],
+  'Rate too':['Auch bewerten','Évaluer aussi','Valuta anche tu'],
   '⭐ Your trick was rated':['⭐ Dein Trick wurde bewertet','⭐ Ton trick a été évalué','⭐ Il tuo trick è stato valutato'],
   'just now':['gerade eben','à l’instant','proprio ora'],
   // Login
@@ -1364,7 +1372,7 @@ function setLang(l){
   location.reload();   // sauber neu aufbauen (Session läuft in der DB weiter)
 }
 
-const DEMO_KEY = 'nw-demo-v9';
+const DEMO_KEY = 'nw-demo-v10';   // v10: Einzelbewertungen pro Coach (Update 23)
 
 /* ══════════════════════════════════════════════════════════════════════
    TRICK-VOKABULAR
@@ -1831,6 +1839,25 @@ function assignedSlots(e){
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : 'id-' + Math.random().toString(36).slice(2) + Date.now().toString(36));
 const nowIso = () => new Date().toISOString();
 
+// Update 23: mehrere Coaches bewerten den gleichen Trick. Gesamtergebnis wie Trigger entry_reviews_aggregate:
+// Punkte = Durchschnitt (gerundet), Kriterium erfüllt = Mehrheit der Coaches (Patt = nicht erfüllt), Rest von der letzten Bewertung.
+function aggReviews(list){
+  if (!list.length) return {};
+  const last = list.slice().sort((a,b) => (b.reviewed_at||'').localeCompare(a.reviewed_at||''))[0];
+  const keys = [...new Set(list.flatMap(r => Object.keys(r.crit || {})))];
+  const crit = Object.fromEntries(keys.map(k => [k, list.filter(r => r.crit?.[k]===true).length * 2 > list.filter(r => r.crit && k in r.crit).length]));
+  return {status:'reviewed', crit, score:Math.round(list.reduce((t, r) => t + (r.score||0), 0) / list.length),
+    review_note:last.review_note || null, reviewed_by:last.coach_id, reviewed_at:last.reviewed_at};
+}
+const reviewsFromEntries = (entries, profs = ST.profiles || []) => entries.filter(e => e.status==='reviewed' && e.crit && e.reviewed_by)
+  .map(e => ({entry_id:e.id, coach_id:e.reviewed_by, coach_name:profs.find(p => p.id===e.reviewed_by)?.name || null, crit:e.crit, score:e.score, review_note:e.review_note || null, reviewed_at:e.reviewed_at || e.created_at}));
+// Einzelbewertungen eines Tricks, älteste zuerst. Ohne Tabelle (Update 23 fehlt) die eine bisherige Bewertung.
+function reviewsOf(e){
+  if (!e || e.status!=='reviewed') return [];
+  const list = (ST.reviews || []).filter(r => r.entry_id===e.id);
+  return (list.length ? list : reviewsFromEntries([e])).sort((a,b) => (a.reviewed_at||'').localeCompare(b.reviewed_at||''));
+}
+
 function demoSeed(){
   const g1 = 'g-a', g2 = 'g-b';
   const P = (id, name, role, group_id, gender, level) => ({id, name, email:`${id}@demo.ch`, role, group_id, gender, level});
@@ -1838,7 +1865,7 @@ function demoSeed(){
     P('u-lena','Lena Muster','athlete',g1,'W','T4'), P('u-noah','Noah Beispiel','athlete',g1,'M','T4'),
     P('u-luca','Luca Demo','athlete',g1,'M','T4'), P('u-mia','Mia Test','athlete',g2,'W','T4'),
     {...P('u-elia','Elia Probe','athlete',g2,'M','T4'), focus:'hp'},
-    P('u-coach-a','Coach Gruppe A','coach',g1,null,null), P('u-coach-b','Coach Gruppe B','coach',g2,null,null),
+    P('u-coach-a','Coach Gruppe A','coach',g1,null,null), P('u-coach-a2','Co-Coach Gruppe A','coach',g1,null,null), P('u-coach-b','Coach Gruppe B','coach',g2,null,null),
     P('u-dvlp','DVLP Demo','dvlp',null,null,null),
   ];
   const groups = [{id:g1, name:'Demo TG Nachwuchs A'}, {id:g2, name:'Demo TG Nachwuchs B'}];
@@ -1875,7 +1902,11 @@ function demoSeed(){
     {id:5, user_id:'u-lena', entry_id:entries[2].id, kind:'reviewed', text:`Rated 3/4: ${entries[2].label}`, created_at:d(14), read_at:null},
     {id:6, user_id:'u-mia', entry_id:entries[12].id, kind:'rework', text:`New video requested: ${entries[12].label}`, created_at:d(4), read_at:null},
   ];
-  return {profiles, groups, entries, notes, nextNote:7, ...demoSessions()};
+  const reviews = reviewsFromEntries(entries, profiles);
+  // Zweite Meinung: der Co-Coach hat Lenas Switch Left 540 auch bewertet (Durchschnitt zählt)
+  const e2 = entries[2]; reviews.push({entry_id:e2.id, coach_id:'u-coach-a2', coach_name:'Co-Coach Gruppe A', crit:{...e2.crit, landing:true}, score:e2.score + 1, review_note:'Für mich war die Landung sauber genug.', reviewed_at:d(13)});
+  Object.assign(e2, aggReviews(reviews.filter(r => r.entry_id===e2.id)));
+  return {profiles, groups, entries, notes, reviews, nextNote:7, ...demoSessions()};
 }
 
 // Demo-Sessions mit Versuchen (deterministischer Zufall, Qualität steigt über die Sessions)
@@ -1918,7 +1949,7 @@ function demoSessions(){
 
 const DemoStore = {
   data:null, videos:{},
-  load(){ try { this.data = JSON.parse(localStorage.getItem(DEMO_KEY)); } catch { this.data = null; } if (!this.data) { this.data = demoSeed(); this.save(); } },
+  load(){ try { this.data = JSON.parse(localStorage.getItem(DEMO_KEY)); } catch { this.data = null; } if (!this.data) { this.data = demoSeed(); this.save(); } this.data.reviews ||= reviewsFromEntries(this.data.entries, this.data.profiles); },
   save(){ try { localStorage.setItem(DEMO_KEY, JSON.stringify(this.data)); } catch {} },
   reset(){ try { localStorage.removeItem(DEMO_KEY); } catch {} this.load(); },
   async currentUser(){ let id = null; try { id = sessionStorage.getItem('nw-demo-user'); } catch {} return this.data.profiles.find(p => p.id===id) || null; },
@@ -1930,7 +1961,8 @@ const DemoStore = {
     const staff = me.role !== 'athlete';
     return {profiles:d.profiles, groups:d.groups, entries:d.entries.filter(e => vis.has(e.athlete_id)), notes:d.notes.filter(n => n.user_id===me.id),
       sessions:(d.sessions||[]).filter(s => s.created_by===me.id || s.athlete_ids.some(id => vis.has(id)) && (staff || s.athlete_ids.includes(me.id))),
-      attempts:(d.attempts||[]).filter(a => vis.has(a.athlete_id))};
+      attempts:(d.attempts||[]).filter(a => vis.has(a.athlete_id)),
+      reviews:(d.reviews||[]).filter(r => d.entries.some(e => e.id===r.entry_id && vis.has(e.athlete_id)))};
   },
   _upsert(list, row, me){ const i = list.findIndex(x => x.id===row.id); if (i >= 0) list[i] = row; else { row.id ||= uid(); row.created_at ||= nowIso(); row.created_by ||= me.id; list.push(row); } this.save(); return row; },
   async saveSession(me, s){ return this._upsert(this.data.sessions, {...s}, me); },
@@ -1959,13 +1991,25 @@ const DemoStore = {
     const prev = i >= 0 ? list[i].status : null;
     const row = {...e, updated_at:nowIso()};
     if (i >= 0) list[i] = row; else { row.id ||= uid(); row.created_at ||= nowIso(); row.created_by = me.id; list.push(row); }
+    if (prev==='reviewed' && (row.status!=='reviewed' || !row.crit)){ this.data.reviews = (this.data.reviews||[]).filter(r => r.entry_id!==row.id); ST.reviews = (ST.reviews||[]).filter(r => r.entry_id!==row.id); }   // wie Trigger entry_reviews_reset
     this._afterStatus(me, row, prev); this.save(); return row;
   },
-  async deleteEntry(id){ this.data.entries = this.data.entries.filter(e => e.id!==id); this.data.notes = this.data.notes.filter(n => n.entry_id!==id); this.save(); },
+  async deleteEntry(id){ this.data.entries = this.data.entries.filter(e => e.id!==id); this.data.reviews = (this.data.reviews||[]).filter(r => r.entry_id!==id); this.data.notes = this.data.notes.filter(n => n.entry_id!==id); this.save(); },
   async review(me, id, patch){
-    const e = this.data.entries.find(x => x.id===id); Object.assign(e, patch, {reviewed_by:me.id, reviewed_at:nowIso()});
+    const e = this.data.entries.find(x => x.id===id);
+    const R = this.data.reviews ||= [];
+    if (patch.status==='reviewed'){
+      // Update 23: eigene Bewertung speichern, Gesamtergebnis = Durchschnitt aller Coaches
+      const own = {entry_id:id, coach_id:me.id, coach_name:me.name, crit:patch.crit, score:patch.score, review_note:patch.review_note || null, reviewed_at:nowIso()};
+      const i = R.findIndex(r => r.entry_id===id && r.coach_id===me.id); if (i >= 0) R[i] = own; else R.push(own);
+      Object.assign(e, aggReviews(R.filter(r => r.entry_id===id)));
+    } else {
+      Object.assign(e, patch, {reviewed_by:me.id, reviewed_at:nowIso()});
+      this.data.reviews = R.filter(r => r.entry_id!==id);
+    }
+    ST.reviews = (ST.reviews || []).filter(r => r.entry_id!==id).concat(this.data.reviews.filter(r => r.entry_id===id));
     (this.data.log ||= []).push({entry_id:e.id, athlete_id:e.athlete_id, label:e.label, discipline:e.discipline, status:e.status, crit:e.crit, score:e.score, review_note:e.review_note, video_path:e.video_path, changed_by:me.id, changed_at:nowIso(), action:'update'});   // Verlauf wie Update 4
-    if (e.athlete_id !== me.id) this.notify(e.athlete_id, e, patch.status==='rework' ? 'rework' : 'reviewed', patch.status==='rework' ? `New video requested: ${e.label}` : `Rated ${patch.score}/${maxFor(e.discipline)}: ${e.label}`);
+    if (e.athlete_id !== me.id) this.notify(e.athlete_id, e, patch.status==='rework' ? 'rework' : 'reviewed', patch.status==='rework' ? `New video requested: ${e.label}` : `Rated ${e.score}/${maxFor(e.discipline)}: ${e.label}`);
     this.save(); return e;
   },
   async uploadVideo(me, e, file, onProgress){
@@ -2071,7 +2115,10 @@ const SupaStore = {
       for (const r of [s, a]) if (r.error) throw r.error;
       sessions = s.data; attempts = a.data;
     }
-    return {profiles:p.data, groups:g.data, entries:e.data, notes:n.data, sessions, attempts};
+    // Update 23: Einzelbewertungen; null = Tabelle fehlt noch (dann wie bisher eine Bewertung pro Trick)
+    const r = await db.from('entry_reviews').select('*').limit(50000);
+    if (r.error) console.warn('entry_reviews', r.error.message);
+    return {profiles:p.data, groups:g.data, entries:e.data, notes:n.data, sessions, attempts, reviews:r.error ? null : r.data};
   },
   async _upsert(table, list, row){
     const exists = list.some(x => x.id===row.id);
@@ -2113,7 +2160,9 @@ const SupaStore = {
     const run = r => exists ? db.from('entries').update(r).eq('id', e.id).select().single() : db.from('entries').insert({...r, id:e.id||undefined}).select().single();
     let { data, error } = await run(row);
     if (error && 'achieved_at' in row && /column|schema cache/i.test(error.message || '')){ delete row.achieved_at; ({ data, error } = await run(row)); }
-    if (error) throw error; return data;
+    if (error) throw error;
+    if (ST.reviews && (data.status!=='reviewed' || !data.crit)) ST.reviews = ST.reviews.filter(r => r.entry_id!==data.id);   // Trigger entry_reviews_reset
+    return data;
   },
   async removeVideos(paths){ for (let i = 0; i < paths.length; i += 100){ const { error } = await db.storage.from(VIDEO_BUCKET).remove(paths.slice(i, i + 100)); if (error) throw error; } },
   async deleteEntry(id){
@@ -2122,8 +2171,18 @@ const SupaStore = {
     if (e?.video_path) await db.storage.from(VIDEO_BUCKET).remove([e.video_path]);
   },
   async review(me, id, patch){
-    const { data, error } = await db.from('entries').update({...patch, reviewed_by:me.id, reviewed_at:nowIso()}).eq('id', id).select().single();
-    if (error) throw error; return data;
+    if (patch.status==='reviewed' && ST.reviews){
+      // Update 23: eigene Bewertung speichern; der Trigger rechnet das Gesamtergebnis (Durchschnitt) in entries nach
+      const { error } = await db.from('entry_reviews').upsert({entry_id:id, coach_id:me.id, crit:patch.crit, score:patch.score, review_note:patch.review_note || null, reviewed_at:nowIso()});
+      if (error) throw error;
+    } else {
+      const { error } = await db.from('entries').update({...patch, reviewed_by:me.id, reviewed_at:nowIso()}).eq('id', id);
+      if (error) throw error;
+    }
+    const [e, r] = await Promise.all([db.from('entries').select().eq('id', id).single(), ST.reviews ? db.from('entry_reviews').select('*').eq('entry_id', id) : null]);
+    if (e.error) throw e.error;
+    if (r && !r.error) ST.reviews = ST.reviews.filter(x => x.entry_id!==id).concat(r.data);
+    return e.data;
   },
   async uploadVideo(me, e, file, onProgress){
     const ext = (file.name.split('.').pop() || 'mp4').toLowerCase();
@@ -2211,6 +2270,17 @@ function statusChip(e){
   if (e.status==='pending') return `<span class="chip blue">⏳ Waiting for coach</span>`;
   if (e.status==='rework') return `<span class="chip red">↺ New video requested</span>`;
   return `<span class="chip">🎯 Goal</span>`;
+}
+// Update 23: jede Coach-Bewertung mit Namen (für Coaches und Athlet:innen)
+const rateLabel = e => e.status!=='reviewed' ? 'Rate' : reviewsOf(e).some(r => r.coach_id===ST.me?.id) ? 'Edit rating' : 'Rate too';
+const reviewerName = r => r.coach_name || prof(r.coach_id)?.name || trString('Coach');
+function ratingsHtml(e, small){
+  const rs = reviewsOf(e), cls = small ? 'tiny' : 'small';
+  if (!rs.length) return e.review_note ? `<div class="${cls}" style="margin-top:${small?4:6}px;color:${small?'#C96A1F':'var(--char)'}"><b>Coach:</b> ${esc(e.review_note)}</div>` : '';
+  const mx = maxFor(e.discipline);
+  const line = r => `<div class="${cls} rv-line"><b>${esc(reviewerName(r))}</b> <span class="rv-sc">${stars(r.score||0, mx)} ${r.score}/${mx}</span>${r.review_note ? `<span class="rv-n">${esc(r.review_note)}</span>` : ''}</div>`;
+  if (rs.length===1) return rs[0].review_note ? `<div class="${cls}" style="margin-top:${small?4:6}px;color:${small?'#C96A1F':'var(--char)'}"><b>${esc(reviewerName(rs[0]))}:</b> ${esc(rs[0].review_note)}</div>` : '';
+  return `<div class="rv-list" style="margin-top:${small?4:6}px"><div class="tiny muted">Ratings by the coaches</div>${rs.map(line).join('')}<div class="tiny muted">The average of all coach ratings counts.</div></div>`;
 }
 const ICON = {done:'✓', partial:'½', pending:'⏳', goal:'🎯', open:'', na:'–'};
 function athleteSelect(onchangeFn){
@@ -2818,7 +2888,7 @@ function entryRow(e, opts2={}){
   const ownMatch = m.some(x => x.level===ath.level);
   const covered = !mine.length && m.some(x => x.level===ath.level);
   const canEdit = (staff || e.status!=='reviewed') && !(isElite(e) && e.status==='goal');   // Elite-Ziele ändert die Elite-App
-  const reviewer = e.reviewed_by ? prof(e.reviewed_by)?.name : null;
+  const reviewer = reviewsOf(e).map(reviewerName).join(', ') || null;
   return `<div class="item" id="en-${e.id}">
     <div class="main">
       <div class="t">${esc(e.label)}</div>
@@ -2826,10 +2896,10 @@ function entryRow(e, opts2={}){
       <div class="chips">${statusChip(e)}${eliteChip(e)}${kudosChip(e)}${e.video_path ? `<button class="chip" style="cursor:pointer" onclick="playVideo('${e.id}')">▶ Video</button>` : ''}
         ${mine.map(x => `<span class="chip dark">✓ ${x.level} · ${esc(x.text)}</span>`).join('')}${covered ? `<span class="chip">${ath.level} · already covered by another trick</span>` : ''}${!(staff ? m.length : ownMatch) ? (HAS_SC ? '<span class="chip">Free trick</span>' : '') : ''}</div>
       ${e.note ? `<div class="small" style="margin-top:6px">💬 ${esc(e.note)}</div>` : ''}
-      ${e.review_note ? `<div class="small" style="margin-top:6px;color:var(--char)"><b>Coach:</b> ${esc(e.review_note)}</div>` : ''}
+      ${ratingsHtml(e)}
     </div>
     <div class="acts">
-      ${staff ? `<button class="btn ${e.status==='pending'?'red':'ghost'} sm" onclick="openReview('${e.id}')">${e.status==='reviewed'?'Edit rating':'Rate'}</button>` : ''}${kudosBtn(e, 'sm')}
+      ${staff ? `<button class="btn ${e.status==='pending'?'red':'ghost'} sm" onclick="openReview('${e.id}')">${rateLabel(e)}</button>` : ''}${kudosBtn(e, 'sm')}
       ${!staff && e.status==='goal' ? `<button class="btn red sm" onclick="submitGoal('${e.id}')">Submit for review</button>` : ''}
       ${e.status==='reviewed' && e.discipline ? `<button class="btn ghost sm" onclick="newAttempt('${e.id}')" title="Show that you improved: upload a new video, your coach rates it again">⬆ New attempt</button>` : `<button class="btn ${!staff && e.status==='rework'?'red':'ghost'} sm" onclick="pickVideo('${e.id}')">⬆ ${e.video_path ? (e.status==='rework' ? 'New video' : 'Replace video') : 'Upload video'}</button>`}
       ${canEdit ? `<button class="btn ghost sm" onclick="openForm('${e.id}')">Edit</button>${canDelete() ? `<button class="btn ghost sm" onclick="deleteEntry('${e.id}')" title="Delete">🗑</button>` : ''}` : ''}
@@ -2855,9 +2925,9 @@ function asRow(e){
         ${e.video_path ? `<button class="chip" style="cursor:pointer;background:#e6f6ec;color:#1f7a3f;border-color:#bfe5cc" onclick="playVideo('${e.id}')"><span>✓ Video uploaded</span> ▶</button>` : ''}
       </div>
       ${e.note ? `<div class="tiny" style="margin-top:4px">💬 ${esc(e.note)}</div>` : ''}
-      ${e.review_note ? `<div class="tiny" style="margin-top:4px;color:#C96A1F"><b>Coach:</b> ${esc(e.review_note)}</div>` : ''}
+      ${ratingsHtml(e, true)}
       <div class="row" style="gap:6px;margin-top:6px">
-        ${staff && e.status!=='goal' ? `<button class="btn ${e.status==='pending'?'red':'ghost'} xs" onclick="openReview('${e.id}')">${e.status==='reviewed'?'Edit rating':'Rate'}</button>` : ''}${kudosBtn(e)}
+        ${staff && e.status!=='goal' ? `<button class="btn ${e.status==='pending'?'red':'ghost'} xs" onclick="openReview('${e.id}')">${rateLabel(e)}</button>` : ''}${kudosBtn(e)}
         ${!staff && e.status==='goal' ? `<button class="btn red xs" onclick="submitGoal('${e.id}')">✓ Learned · submit</button>` : ''}
         ${staff && e.status==='goal' ? `<button class="btn ghost xs" onclick="submitGoal('${e.id}')">Move to learned</button>` : ''}
         ${e.status==='reviewed' ? `<button class="btn ghost xs" onclick="newAttempt('${e.id}')" title="Show that you improved: upload a new video, your coach rates it again">⬆ New attempt</button>` : `<button class="btn ${!staff && e.status==='rework'?'red':'ghost'} xs" onclick="pickVideo('${e.id}')">⬆ ${e.video_path ? (e.status==='rework' ? 'New video' : 'Replace video') : 'Video'}</button>`}
@@ -3318,7 +3388,13 @@ let RV = null;
 async function openReview(id){
   const e = ST.entries.find(x => x.id===id); if (!e) return;
   const set = critSet(e);
-  RV = {id, crit:Object.fromEntries(set.map(c => [c.k, e.crit ? !!e.crit[c.k] : null]))};
+  // Update 23: jeder Coach bewertet für sich; vorausgefüllt wird nur die eigene Bewertung
+  const rs = reviewsOf(e), own = rs.find(r => r.coach_id===ST.me.id), others = rs.filter(r => r !== own);
+  RV = {id, crit:Object.fromEntries(set.map(c => [c.k, own?.crit ? !!own.crit[c.k] : null]))};
+  const mx = maxFor(e.discipline);
+  const othersHtml = others.length ? `<div class="rule" style="margin:12px 0"><div class="small">Other coaches already rated this trick. Your rating is added, the average counts.</div>
+    ${others.map(r => `<div class="small rv-line"><b>${esc(reviewerName(r))}</b> <span class="rv-sc">${stars(r.score||0, mx)} ${r.score}/${mx}</span>
+      <span class="tiny">${set.map(c => `${r.crit?.[c.k] ? '✓' : '✗'} ${esc(c.name.replace(/ \(.*\)/, ''))}`).join(' · ')}</span>${r.review_note ? `<span class="rv-n">${esc(r.review_note)}</span>` : ''}</div>`).join('')}</div>` : '';
   const ath = prof(e.athlete_id);
   const m = ath?.gender ? directMatches(e.discipline, ath.gender, e.trick) : [];
   modal(`<div class="muted small">${esc(ath?.name)} · ${ath?.level||'–'} · ${DISC_LABEL[e.discipline]} · ${trString('submitted')} ${fmtAgo(e.created_at)}</div>
@@ -3326,10 +3402,12 @@ async function openReview(id){
     <div class="chips" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">${m.map(x => `<span class="chip ${x.level===ath.level?'dark':''}">${x.level} · ${esc(x.text)}</span>`).join('') || (HAS_SC ? '<span class="chip">Free trick</span>' : '')}</div>
     <div id="rv-video">${e.video_path ? '<div class="empty">Loading video…</div>' : '<div class="rule" style="margin:14px 0">📵 No video attached. A rating is only possible with a video: request one from the athlete or upload it yourself.</div>'}</div>
     ${e.note ? `<div class="small" style="margin-bottom:6px">💬 <b>Athlete:</b> ${esc(e.note)}</div>` : ''}
+    ${e.video_path ? othersHtml : ''}
+    ${e.video_path && others.length ? '<div class="small" style="font-weight:600;margin-top:6px">Your rating</div>' : ''}
     <div id="rv-crit" ${e.video_path ? '' : 'hidden'}></div>
     <div class="tiny muted" style="margin-top:6px" ${e.video_path ? '' : 'hidden'}>Based on the FIS Park & Pipe Judges Handbook, ch. 8.1 Execution and 8.3 Amplitude</div>
     <div id="rv-log"></div>
-    <label class="f" style="margin-top:12px">Feedback for the athlete<textarea id="rv-note" placeholder="What was good, what to work on?">${esc(e.review_note||'')}</textarea></label>
+    <label class="f" style="margin-top:12px">Feedback for the athlete<textarea id="rv-note" placeholder="What was good, what to work on?">${esc(own ? own.review_note||'' : e.status==='reviewed' ? '' : e.review_note||'')}</textarea></label>
     <div class="btnrow" style="align-items:center">
       ${e.video_path ? `<button class="btn red" id="rv-save" onclick="saveReview()">Save rating</button>` : `<button class="btn red" onclick="closeModal();pickVideo('${e.id}')">⬆ Upload video</button>`}
       <button class="btn ghost" onclick="saveReview('rework')">${e.video_path ? 'Request new video' : 'Request video'}</button>
@@ -3366,7 +3444,7 @@ async function saveReview(kind){
   try {
     upsertLocal(await Store.review(ST.me, RV.id, patch));
     pushSnapshots([prof(ST.entries.find(x => x.id===RV.id)?.athlete_id)]);
-    closeModal(); toast(kind==='rework' ? 'Athlete asked for a new video' : `Rated ${patch.score}/${Object.keys(patch.crit).length}: athlete notified`); render();
+    closeModal(); toast(kind==='rework' ? 'Athlete asked for a new video' : `Rated ${patch.score}/${Object.keys(patch.crit).length}: athlete notified`); render();   // Gesamtergebnis (Durchschnitt) steht danach auf der Karte
   } catch (err){ console.error(err); toast('Could not save: ' + (err.message||err), true); }
 }
 
@@ -5199,7 +5277,7 @@ async function loadData(){
   const profiles = d.profiles.filter(p => p.role !== 'athlete' ? (!p.group_id || gids.has(p.group_id) || p.role==='dvlp') : sp(p));
   const aids = new Set(profiles.filter(p => p.role==='athlete').map(p => p.id));
   const sessions = (d.sessions||[]).filter(sp), sids = new Set(sessions.map(x => x.id));
-  Object.assign(ST, {profiles, groups, entries:d.entries.filter(e => aids.has(e.athlete_id)), notes:d.notes, sessions, attempts:(d.attempts||[]).filter(a => sids.has(a.session_id))});
+  Object.assign(ST, {profiles, groups, entries:d.entries.filter(e => aids.has(e.athlete_id)), notes:d.notes, sessions, attempts:(d.attempts||[]).filter(a => sids.has(a.session_id)), reviews:d.reviews || null});
   const me = d.profiles.find(p => p.id===ST.me.id); if (me) ST.me = me;
   const vis = visibleAthletes();
   if (ST.me.role==='athlete') ST.athleteId = ST.me.id;
