@@ -361,8 +361,11 @@ function renderSessionReports() {
 }
 
 async function rebuildReportFromTimestamps(id, silent=false) {
-  const report = dbSessionReports.find(r => r.id === id) || _sbRepList.find(r => r.id === id);
-  if (!report) return;
+  const cached = dbSessionReports.find(r => r.id === id) || _sbRepList.find(r => r.id === id);
+  if (!cached) return;
+  // Aktuellen Stand aus der Datenbank nehmen (siehe freeski.js): sonst überschreibt ein alter Stand neue Versuche
+  const {data: frisch} = await db.from('session_reports').select('trick_data,athletes,datum').eq('id', id).maybeSingle();
+  const report = frisch ? {...cached, ...frisch} : cached;
   if (!silent) showToast('Rebuilding…', 'success');
   const athletes = Array.isArray(report.athletes) ? report.athletes : [];
   const storedIds = Array.isArray(report.trick_data)
