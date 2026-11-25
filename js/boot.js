@@ -2,6 +2,7 @@
 // ═══════════════ SPORT BOOT ═══════════════
 document.addEventListener('DOMContentLoaded', async function bootSport(){
   document.title = CFG.title;
+  const maxHint = document.getElementById('sess-max-hint'); if (maxHint && SPORT !== 'snowboard') maxHint.remove();   // Freeski: no athlete limit per session
   const h1 = document.querySelector('header h1'); if (h1) h1.innerHTML = CFG.title + '<span class="dot">.</span>';   // roter Punkt wie Youth
   if (!(await initAuth())) return;   // not signed in → login gate, stop booting
   applyGroupFilter();

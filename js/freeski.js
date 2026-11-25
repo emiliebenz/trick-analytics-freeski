@@ -1003,11 +1003,6 @@ async function toggleSessionAthlete(name) {
     const card = document.getElementById('sess-ath-card-' + name.replace(/\s/g,'_'));
     if (card) card.style.borderColor = 'var(--border)';
   } else {
-    if (sessSelectedAthletes.length >= 8) {
-      showToast('Max. 8 athletes per session', 'error');
-      if (cb) cb.checked = false;
-      return;
-    }
     sessSelectedAthletes.push(name);
     sessAthleteData[name] = { tricks: [], currentTrick: '', currentGrab: '', stats: {attempts:0,landed:0,perfect:0} };
     const card = document.getElementById('sess-ath-card-' + name.replace(/\s/g,'_'));
