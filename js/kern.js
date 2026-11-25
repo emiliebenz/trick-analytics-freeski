@@ -2136,14 +2136,21 @@ const SB_REP_CSS = `<style>
 .sbrep-fuss{font-size:11px;margin-top:6px;line-height:1.45;}
 .sbrep-bar{display:flex;height:14px;border-radius:4px;overflow:hidden;min-width:14px;}
 .sbrep-bar i{display:block;height:100%;}
+.sbrep-name{background:none;border:none;padding:0;font:inherit;font-weight:700;color:#148FA0;cursor:pointer;text-align:left;white-space:nowrap;}
+.sbrep-name:hover{text-decoration:underline;}
 .sbrep-leg{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin-top:6px;}
 .sbrep-leg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px;}
 .sbatt-meta{display:flex;gap:8px 16px;flex-wrap:wrap;align-items:center;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:12px;color:var(--muted);}
 </style>`;
-function sbRepTeamHtml(report) {
+// opts.drill: Name antippen öffnet nur diese Athlet:in (repFocusAthlete); opts.contest === false: ohne «If today had been a contest»
+function sbRepTeamHtml(report, opts = {}) {
   const TD = (Array.isArray(report.trick_data) ? report.trick_data : []).map((td, ai) => ({td, ai})).filter(x => Array.isArray(x.td.attempts) && x.td.attempts.length);
   if (!TD.length) return '';
-  if (!_srData) srLoad().then(() => { const el = document.getElementById('sbrep-team'); if (el && _sbRV && _sbRV.report === report) el.outerHTML = sbRepTeamHtml(report); });
+  const mitContest = opts.contest !== false;
+  if (!_srData && mitContest) srLoad().then(() => { const el = document.getElementById('sbrep-team'); if (el && _sbRV && _sbRV.report === report) { const aus = el.style.display; el.outerHTML = sbRepTeamHtml(report, opts); const neu = document.getElementById('sbrep-team'); if (neu) neu.style.display = aus; } });
+  const name = z => opts.drill
+    ? `<button class="sbrep-name" onclick="repFocusAthlete(${z.ai})" title="Show only ${srEsc(z.td.athlet)}">${srEsc(z.td.athlet)} ›</button>`
+    : `<b>${srEsc(z.td.athlet)}</b>`;
   const stomp = TD.some(x => x.td.attempts.some(a => a.outcome));
   const lP = stomp ? 'stomped' : 'perfect', lL = stomp ? 'landed' : 'landed, not perfect', lM = stomp ? 'failed' : 'miss';
   // 1) Übersicht: wer hat wie viele Versuche gemacht, in welcher Qualität
@@ -2152,11 +2159,11 @@ function sbRepTeamHtml(report) {
   const maxN = Math.max(...Z.map(z => z.n));
   const seg = (k, c, n) => k ? `<i style="width:${k / n * 100}%;background:${c};" title="${k}"></i>` : '';
   const uebersicht = `<table class="sbrep-t"><thead><tr><th>Athlete</th><th class="num">Attempts</th><th style="width:45%;">Quality</th><th class="num">Landed</th><th class="num">${lP}</th></tr></thead><tbody>${Z.map(z =>
-    `<tr><td><b>${srEsc(z.td.athlet)}</b></td><td class="num">${z.n}</td><td><div class="sbrep-bar" style="width:${Math.max(8, z.n / maxN * 100)}%;">${seg(z.p, '#148FA0', z.n)}${seg(z.l, '#3E8E5A', z.n)}${seg(z.m, '#e2001a', z.n)}</div></td><td class="num">${z.p + z.l} of ${z.n}</td><td class="num">${z.p}</td></tr>`).join('')}</tbody></table>
+    `<tr><td>${name(z)}</td><td class="num">${z.n}</td><td><div class="sbrep-bar" style="width:${Math.max(8, z.n / maxN * 100)}%;">${seg(z.p, '#148FA0', z.n)}${seg(z.l, '#3E8E5A', z.n)}${seg(z.m, '#e2001a', z.n)}</div></td><td class="num">${z.p + z.l} of ${z.n}</td><td class="num">${z.p}</td></tr>`).join('')}</tbody></table>
     <div class="sbrep-leg"><span><i style="background:#148FA0;"></i>${lP}</span><span><i style="background:#3E8E5A;"></i>${lL}</span><span><i style="background:#e2001a;"></i>${lM}</span></div>`;
   // 2) Contest-Sicht: nur für Sprung-Sessions
   let contest = '';
-  if (SB_REP_JUMP.test(report.session_type || '')) {
+  if (mitContest && SB_REP_JUMP.test(report.session_type || '')) {
     const F = sbRepFinalLevel();
     const C = TD.map(({td, ai}) => ({td, ai, c: sbRepContest(td), g: sbRepGender(td.athlet, report)})).sort((a, b) => b.c.zwei - a.c.zwei || b.c.summe - a.c.summe);
     const jump = x => !x ? '<span class="sbrep-g">–</span>'
@@ -2173,7 +2180,22 @@ function sbRepTeamHtml(report) {
         `<tr><td><b>${srEsc(x.td.athlet)}</b></td><td>${jump(x.c.jumps[0])}</td><td>${jump(x.c.jumps[1])}</td><td>${stufe(x.c, x.g)}</td></tr>`).join('')}</tbody></table></div>
       <div class="sbrep-g sbrep-fuss">The two biggest landed rotations in different spin directions, as two jumps count in Big Air. Sorted by rotation, not by a judges' score. «x of y landed» = all attempts of this trick today.${ref ? `<br>World Cup final = smallest biggest rotation of a finalist, median over the season. ${ref}.` : (_srData ? '' : '<br>Loading World Cup final level…')}</div>`;
   }
-  return `<div id="sbrep-team" class="sbrep-team">${SB_REP_CSS}<div class="sbrep-h">Team overview</div><div class="sbrep-tw">${uebersicht}</div>${contest}</div>`;
+  const tipp = opts.drill ? '<span class="sbrep-g" style="font-weight:400;font-size:11px;"> · tap a name to see only that athlete</span>' : '';
+  return `<div id="sbrep-team" class="sbrep-team"${opts.drill && _repFocusAi !== null ? ' style="display:none;"' : ''}>${SB_REP_CSS}<div class="sbrep-h">Team overview${tipp}</div><div class="sbrep-tw">${uebersicht}</div>${contest}</div>`;
+}
+
+// Drill-down im Session-Report: nur eine Athlet:in zeigen (ai) oder wieder alle (null).
+// Die Abschnitte tragen class="rep-ath-sec" data-ai; der Zustand bleibt beim Neuzeichnen nach dem Bearbeiten erhalten.
+let _repFocusAi = null;
+function repFocusAthlete(ai) {
+  _repFocusAi = ai;
+  const team = document.getElementById('sbrep-team');
+  const root = team ? team.parentElement : document;
+  root.querySelectorAll('.rep-ath-sec').forEach(el => { el.style.display = (ai === null || +el.dataset.ai === ai) ? '' : 'none'; });
+  root.querySelectorAll('.rep-ath-back').forEach(el => { el.style.display = ai === null ? 'none' : ''; });
+  if (team) team.style.display = ai === null ? '' : 'none';
+  const ziel = ai === null ? team : root.querySelector(`.rep-ath-sec[data-ai="${ai}"]`);
+  if (ziel) ziel.scrollIntoView({block: 'start', behavior: 'smooth'});
 }
 
 // ═══════════════ SEASON REVIEW & WETTKÄMPFE (Monitoring, Athlet:innen-Ebene) ═══════════════

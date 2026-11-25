@@ -4197,6 +4197,7 @@ async function loadReportsTab() {
 }
 
 function renderReportsList() {
+  _repFocusAi = null;
   const root = document.getElementById('sbrep-root');
   if (!root) return;
   if (!_sbRepList.length) {
@@ -4251,6 +4252,7 @@ function renderReportsList() {
 async function sbOpenReportInline(i) {
   let report = _sbRepList[i];
   if (!report) return;
+  if (i !== _sbRepSelIdx) _repFocusAi = null;   // beim Neuzeichnen nach dem Bearbeiten bleibt die gewählte Athlet:in
   _sbRepSelIdx = i;
   _sbRVEdit = null;
   // Ältere FS-Reports haben keine attempts (oder ohne dbIds) — einmalig aus der tricks-Tabelle rekonstruieren
@@ -4293,52 +4295,90 @@ function fsGroupAttempts(attempts) {
   return groups;
 }
 
-// Pro Versuch vier Kategorie-Balken (Take-off/Trick/Grab/Landing, Höhe = Bewertung 0/50/100%),
-// Miss-Versuche mit rotem Band + roter Nummer; graue Linie = laufender Ø-QoE.
-// Farben wie das Kategorie-Verlaufs-Chart im Monitoring. Mit X/Y-Achsenbeschriftung.
-const FS_RV_CHART_CATS = [['takeoff','#148FA0'],['trick_r','#396FA8'],['grab','#8E5BB8'],['land','#3E8E5A']];
+// Pro Trick zwei Grafiken nebeneinander:
+// 1) Raster: Zeilen Take-off / Trick / Grab / Landing, Spalten = Versuche, Zelle = Bewertung (★ perfect, ✓ okay, ✗ miss).
+//    So sieht man auf einen Blick, woran es gescheitert ist. Rechts pro Zeile «perfect von bewertet», oben die Schwachstelle.
+// 2) Kurve: Ø Ausführung (QoE) laufend über die Versuche, dazu als Punkte die QoE jedes Versuchs.
+// Antippen einer Spalte zeigt die Details (sbRVShowDetail). Masse in FS_MX, damit die Markierung dort dieselben Werte nutzt.
+const FS_MX = {LBL: 62, CW: 22, CH: 18, GAP: 3, TOP: 14};
+const FS_MX_COL = {perfect: '#3E8E5A', okay: '#C96A1F', miss: '#e2001a'};
+const FS_MX_SYM = {perfect: '★', okay: '✓', miss: '✗'};
+const FS_MX_CATS = [['takeoff','Take-off'],['trick_r','Trick'],['grab','Grab'],['land','Landing']];
+function fsWeakSpot(attempts) {
+  const S = {perfect: 100, okay: 50, miss: 0};
+  const stats = FS_MX_CATS.map(([c, l]) => {
+    const v = attempts.map(a => a[c]).filter(x => S[x] !== undefined);
+    return {l, n: v.length, miss: v.filter(x => x === 'miss').length, okay: v.filter(x => x === 'okay').length,
+      avg: v.length ? v.reduce((s, x) => s + S[x], 0) / v.length : null};
+  });
+  const bewertet = stats.filter(x => x.avg !== null);
+  if (!bewertet.length) return null;
+  const min = Math.min(...bewertet.map(x => x.avg));
+  if (min >= 100) return {ok: true};
+  const schwach = bewertet.filter(x => x.avg === min);
+  const teil = x => [x.miss && `${x.miss} miss`, x.okay && `${x.okay} okay`].filter(Boolean).join(', ');
+  return {ok: false, text: schwach.map(x => `${x.l} (${teil(x)})`).join(' · ')};
+}
 function fsTrickChartSvg(g, ai, ti) {
   const n = g.attempts.length;
-  const H = 90, PAD = 36, catW = 6, catGap = 1;
-  const groupW = 4*catW + 3*catGap, gap = 10, slot = groupW + gap;
-  const yOf = p => H - p/100 * (H - 8);
-  const SCORE = {perfect:100, okay:50, miss:0};
+  const {LBL, CW, CH, GAP, TOP} = FS_MX;
+  const slot = CW + GAP, RIGHT = 34;
+  const font = 'font-family="Poppins,sans-serif"';
+  const vTop = g.attempts.some(a => a && a.video) ? REP_VID_ROW : 0;
+  const cx = i => LBL + i * slot + CW / 2;
+  // ── Raster ──
+  let cells = '', head = '', hits = '';
+  g.attempts.forEach((a, i) => {
+    const isMiss = a.result === 'miss';
+    head += `<text x="${cx(i)}" y="${TOP - 3}" text-anchor="middle" font-size="11" font-weight="${isMiss ? '700' : '400'}" fill="${isMiss ? '#e2001a' : '#5c5c61'}" ${font}>${i + 1}</text>`;
+    hits += `<rect x="${LBL + i * slot - 1}" y="0" width="${slot}" height="${TOP + 4 * (CH + GAP)}" fill="transparent" style="cursor:pointer;" onclick="sbRVShowDetail(${ai},${ti},${i})"><title>Attempt ${i + 1}</title></rect>`;
+  });
+  const rows = FS_MX_CATS.map(([c, l], r) => {
+    const y = TOP + r * (CH + GAP);
+    const vals = g.attempts.map(a => a[c]).filter(v => FS_MX_COL[v]);
+    const perf = vals.filter(v => v === 'perfect').length;
+    const schlecht = vals.some(v => v === 'miss');
+    let row = `<text x="0" y="${y + CH / 2 + 4}" font-size="11" font-weight="${schlecht ? '700' : '400'}" fill="${schlecht ? '#e2001a' : '#5c5c61'}" ${font}>${l}</text>`;
+    g.attempts.forEach((a, i) => {
+      const v = a[c], x = LBL + i * slot;
+      if (!FS_MX_COL[v]) { row += `<rect x="${x + .5}" y="${y + .5}" width="${CW - 1}" height="${CH - 1}" rx="4" fill="none" stroke="var(--border)" stroke-dasharray="2 2"/>`; return; }
+      const col = FS_MX_COL[v];
+      row += `<rect x="${x}" y="${y}" width="${CW}" height="${CH}" rx="4" fill="${col}" fill-opacity="${v === 'perfect' ? .18 : .28}"/>`
+        + `<text x="${x + CW / 2}" y="${y + CH / 2 + 4}" text-anchor="middle" font-size="11" font-weight="700" fill="${col}" ${font}>${FS_MX_SYM[v]}</text>`;
+    });
+    if (vals.length) row += `<text x="${LBL + n * slot + 4}" y="${y + CH / 2 + 4}" font-size="11" font-weight="${schlecht ? '700' : '400'}" fill="${schlecht ? '#e2001a' : '#5c5c61'}" ${font}>${perf}/${vals.length}</text>`;
+    return row;
+  }).join('');
+  const mxW = LBL + n * slot + RIGHT, mxH = TOP + 4 * (CH + GAP);
+  const sel = `<rect id="sbrv-sel-${ai}-${ti}" x="0" y="1" width="${CW + 4}" height="${mxH - 1}" fill="none" stroke="#148FA0" stroke-width="1.5" rx="5" style="display:none;"/>`;
+  const raster = `<svg width="${(mxW * TRICK_CHART_SCALE).toFixed(0)}" height="${((mxH + vTop) * TRICK_CHART_SCALE).toFixed(0)}" viewBox="0 0 ${mxW} ${mxH + vTop}" style="display:block;">
+    ${repVidMarksSvg(g.attempts, cx, ai, ti)}<g transform="translate(0,${vTop})">${head}${rows}${sel}${hits}</g></svg>`;
+  // ── Kurve: Ø Ausführung ──
+  const KP = 30, KH = mxH - 14, KW = KP + Math.max(n * slot, 60) + 6;
+  const yOf = p => 4 + (1 - p / 100) * (KH - 8);
   let grid = '';
   [0, 50, 100].forEach(p => {
-    grid += `<line x1="${PAD}" y1="${yOf(p).toFixed(1)}" x2="${PAD + n*slot}" y2="${yOf(p).toFixed(1)}" stroke="var(--border)" stroke-width="1" ${p ? 'stroke-dasharray="2 4"' : ''}/>`;
-    grid += `<text x="${PAD - 5}" y="${(yOf(p) + 3).toFixed(1)}" text-anchor="end" font-size="11" fill="#5c5c61" font-family="Poppins,sans-serif">${p}%</text>`;
+    grid += `<line x1="${KP}" y1="${yOf(p).toFixed(1)}" x2="${KW}" y2="${yOf(p).toFixed(1)}" stroke="var(--border)" stroke-width="1" ${p ? 'stroke-dasharray="2 4"' : ''}/>`
+      + `<text x="${KP - 4}" y="${(yOf(p) + 3).toFixed(1)}" text-anchor="end" font-size="10" fill="#5c5c61" ${font}>${p}%</text>`;
   });
-  let qoeSum = 0;
-  const pts = [];
-  let marks = '', bars = '', labels = '', hits = '';
-  g.attempts.forEach((a, i) => {
-    const q = qoeOfLogEntry(a);
-    qoeSum += q;
-    const gx = PAD + i*slot;
-    pts.push([gx + groupW/2, yOf(qoeSum/(i+1)).toFixed(1)]);
-    const isMiss = a.result === 'miss';
-    if (isMiss) marks += `<rect x="${gx-3}" y="2" width="${groupW+6}" height="${H-2}" fill="rgba(226,0,26,0.05)" rx="3"/>
-      <text x="${gx + groupW/2}" y="11" text-anchor="middle" font-size="11" font-weight="700" fill="#e2001a" font-family="Poppins,sans-serif">✗</text>`;
-    FS_RV_CHART_CATS.forEach(([c, col], k) => {
-      const v = SCORE[a[c]];
-      if (v === undefined) return;
-      const h = Math.max(4, v/100 * (H - 8));
-      bars += `<rect x="${gx + k*(catW+catGap)}" y="${(H-h).toFixed(1)}" width="${catW}" height="${h.toFixed(1)}" rx="1.5" fill="${col}"/>`;
-    });
-    labels += `<text x="${gx + groupW/2}" y="${H + 12}" text-anchor="middle" font-size="11" font-weight="${isMiss?'700':'400'}" fill="${isMiss?'#e2001a':'#5c5c61'}" font-family="Poppins,sans-serif">${i+1}</text>`;
-    hits += `<rect x="${gx-3}" y="0" width="${slot}" height="${H+14}" fill="transparent" style="cursor:pointer;" onclick="sbRVShowDetail(${ai},${ti},${i})"/>`;
-  });
-  const w = PAD + Math.max(n*slot, 70);   // Mindestbreite: Achsentitel «Attempts» passt
-  const vTop = g.attempts.some(a => a && a.video) ? REP_VID_ROW : 0;   // Zeile über dem Chart: Video-Punkt über dem Versuch
-  const axisTitle = `<text x="${PAD + (w-PAD)/2}" y="${H + 30}" text-anchor="middle" font-size="11" fill="#5c5c61" font-family="Poppins,sans-serif" font-weight="600">Attempts</text>`;
-  const lineDots = pts.map(p => `<circle cx="${p[0]}" cy="${p[1]}" r="2.5" fill="#2c2c2e" stroke="#ffffff" stroke-width="1"/>`).join('');
-  return `<div style="overflow-x:auto;padding:4px 0;"><svg width="${(w*TRICK_CHART_SCALE).toFixed(0)}" height="${((H+34+vTop)*TRICK_CHART_SCALE).toFixed(0)}" viewBox="0 0 ${w} ${H+34+vTop}" style="display:block;">
-    ${repVidMarksSvg(g.attempts, i => PAD + i*slot + groupW/2, ai, ti)}<g transform="translate(0,${vTop})">${grid}${marks}${bars}
-    ${n>1?`<polyline points="${pts.map(p=>p.join(',')).join(' ')}" fill="none" stroke="#2c2c2e" stroke-width="2"/>`:''}
-    ${lineDots}
-    <rect id="sbrv-sel-${ai}-${ti}" x="0" y="1" width="${groupW+6}" height="${H+16}" fill="none" stroke="#148FA0" stroke-width="1.5" rx="4" style="display:none;"/>
-    ${labels}${axisTitle}${hits}</g>
-  </svg></div>`;
+  const kx = i => KP + i * slot + CW / 2;
+  let sum = 0;
+  const pts = g.attempts.map((a, i) => { const q = qoeOfLogEntry(a); sum += q; return {x: kx(i), q, avg: sum / (i + 1)}; });
+  const einzel = pts.map(p => `<circle cx="${p.x}" cy="${yOf(p.q).toFixed(1)}" r="2.5" fill="#9a9a9f"/>`).join('');
+  const linie = n > 1 ? `<polyline points="${pts.map(p => p.x + ',' + yOf(p.avg).toFixed(1)).join(' ')}" fill="none" stroke="#148FA0" stroke-width="2"/>` : '';
+  const avgDots = pts.map(p => `<circle cx="${p.x}" cy="${yOf(p.avg).toFixed(1)}" r="3" fill="#148FA0" stroke="#fff" stroke-width="1"/>`).join('');
+  const last = pts[pts.length - 1];
+  const kurve = `<svg width="${(KW * TRICK_CHART_SCALE).toFixed(0)}" height="${((KH + 14 + vTop) * TRICK_CHART_SCALE).toFixed(0)}" viewBox="0 0 ${KW} ${KH + 14 + vTop}" style="display:block;">
+    <g transform="translate(0,${vTop})">${grid}${einzel}${linie}${avgDots}
+    <text x="${KP}" y="${KH + 11}" font-size="10" fill="#5c5c61" ${font}>Ø execution ${last ? Math.round(last.avg) + '%' : ''}</text></g></svg>`;
+  // ── Schwachstelle ──
+  const ws = fsWeakSpot(g.attempts);
+  const wsHtml = !ws ? '' : ws.ok
+    ? `<div style="font-size:12px;color:#3E8E5A;font-weight:600;margin:6px 0 4px;">All areas perfect</div>`
+    : `<div style="font-size:12px;color:#e2001a;background:rgba(226,0,26,0.07);border-radius:6px;padding:4px 8px;margin:6px 0 4px;display:inline-block;"><b>Weak spot:</b> ${ws.text}</div>`;
+  return `${wsHtml}<div style="display:flex;gap:10px 18px;flex-wrap:wrap;align-items:flex-start;padding:4px 0;">
+    <div style="overflow-x:auto;max-width:100%;">${raster}</div>
+    <div style="overflow-x:auto;max-width:100%;">${kurve}</div></div>`;
 }
 
 const FS_RV_CATS = [['takeoff','Take-off'],['trick_r','Trick'],['grab','Grab'],['land','Landing']];
@@ -4353,8 +4393,7 @@ function sbRVShowDetail(ai, ti, i) {
   // Ausgewählten Versuch im Chart markieren (Konstanten identisch zu fsTrickChartSvg)
   const selRect = document.getElementById(`sbrv-sel-${ai}-${ti}`);
   if (selRect) {
-    const PAD = 36, groupW = 4*6 + 3*1, slot = groupW + 10;
-    selRect.setAttribute('x', PAD + i*slot - 3);
+    selRect.setAttribute('x', FS_MX.LBL + i * (FS_MX.CW + FS_MX.GAP) - 2);
     selRect.style.display = '';
   }
   if (_sbRVEdit && _sbRVEdit.ai === ai && _sbRVEdit.ti === ti && _sbRVEdit.i === i) {
@@ -4551,7 +4590,7 @@ function fsReportInnerHtml(report) {
         <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;">
           <div style="flex:1 1 300px;min-width:0;">
             ${fsTrickChartSvg(g, ai, ti)}
-            <div id="sbrv-det-${ai}-${ti}" style="font-size:12px;color:var(--muted);min-height:16px;margin:2px 0 8px;">Tap a bar for details</div>
+            <div id="sbrv-det-${ai}-${ti}" style="font-size:12px;color:var(--muted);min-height:16px;margin:2px 0 8px;">Tap an attempt for details</div>
             <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:12px;">
               <span><b class="gut">${landed}</b> landed</span>
               <span><b class="schlecht">${missed}</b> missed</span>
@@ -4563,7 +4602,9 @@ function fsReportInnerHtml(report) {
         </div>
       </div>`;
     }).join('');
-    return `<div class="abstand-20">
+    const fokusAus = _repFocusAi !== null && _repFocusAi !== ai;
+    return `<div class="abstand-20 rep-ath-sec" data-ai="${ai}"${fokusAus ? ' style="display:none;"' : ''}>
+      <button class="rep-ath-back" onclick="repFocusAthlete(null)" style="${_repFocusAi === null ? 'display:none;' : ''}margin-bottom:10px;padding:6px 12px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;">← All athletes</button>
       <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><div style="font-size:16px;font-weight:800;color:#148FA0;">${a.athlet}</div>${repVidChip(repVidCount(attempts), `repFeedOpen({ai:${ai}})`)}</div>
         <div class="hinweis">${attempts.length} attempts · ${groups.length} trick${groups.length!==1?'s':''} · ${athLandedPct}% landed · Ø QoE <b class="haupttext">${athQoe}%</b>${a.quali_scores && a.quali_scores.length ? ' · Quali <b class="warnung">' + a.quali_scores.join(' / ') + '</b>' : ''}${a.final_scores && a.final_scores.length ? ' · Final <b class="warnung">' + a.final_scores.join(' / ') + '</b>' : ''}${a.contest_rank ? ' · Rank <b class="warnung">' + a.contest_rank + '</b>' : ''}</div>
@@ -4579,20 +4620,21 @@ function fsReportInnerHtml(report) {
   return `<div class="hinweis-block">${typeShort}${report.location ? ' · '+report.location : ''}${report.duration_min ? ' · '+report.duration_min+' min' : ''}</div>
 ${report.comments ? `<div style="background:var(--surface2);border-left:3px solid #148FA0;border-radius:8px;padding:10px 12px;font-size:12px;color:var(--text);margin-bottom:14px;"><b class="akzent">Coach comments:</b> ${report.comments}</div>` : ''}
     <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-bottom:14px;">
-      <span>Bars per attempt (height = rating 0/50/100%):</span>
-      <span><span style="display:inline-block;width:10px;height:10px;background:#148FA0;border-radius:2px;vertical-align:-1px;"></span> Take-off</span>
-      <span><span style="display:inline-block;width:10px;height:10px;background:#396FA8;border-radius:2px;vertical-align:-1px;"></span> Trick</span>
-      <span><span style="display:inline-block;width:10px;height:10px;background:#8E5BB8;border-radius:2px;vertical-align:-1px;"></span> Grab</span>
-      <span><span style="display:inline-block;width:10px;height:10px;background:#3E8E5A;border-radius:2px;vertical-align:-1px;"></span> Landing</span>
-      <span><span style="display:inline-block;width:14px;height:2px;background:#2c2c2e;vertical-align:3px;"></span> running Ø QoE</span>
-      <span><b class="schlecht">✗ / red number</b> = Miss</span>
+      <span>Grid per trick: rows = Take-off, Trick, Grab, Landing · columns = attempts</span>
+      <span><b style="color:#3E8E5A;">★</b> perfect</span>
+      <span><b style="color:#C96A1F;">✓</b> okay</span>
+      <span><b style="color:#e2001a;">✗</b> miss</span>
+      <span>right: perfect / rated</span>
+      <span><span style="display:inline-block;width:14px;height:2px;background:#148FA0;vertical-align:3px;"></span> running Ø execution (QoE), grey dots = single attempt</span>
+      <span><b class="schlecht">red number</b> = attempt missed</span>
       ${repVidLegendHtml(report)}
     </div>
-    ${sbRepTeamHtml(report)}
+    ${sbRepTeamHtml(report, {drill: true, contest: false})}
     ${sections}`;
 }
 
 function openSessionReportView(report) {
+  _repFocusAi = null;
   _sbRVEditable = false;
   _sbRVEdit = null;
   const inner = fsReportInnerHtml(report);
@@ -4620,15 +4662,21 @@ function openSessionReportView(report) {
 function sbRVPrintPdf() {
   const report = _sbRV && _sbRV.report;
   if (!report) { showToast('No report open', 'error'); return; }
+  const fokus = _repFocusAi;
+  _repFocusAi = null;   // PDF zeigt immer alle Athlet:innen
   const inner = fsReportInnerHtml(report);
+  _repFocusAi = fokus;
   if (inner === null) { openReportPrint(report); return; }
 
   const dateStr = report.datum ? (() => { const p=report.datum.split('-'); return p[2]+'.'+p[1]+'.'+p[0].slice(2); })() : '';
   const athleteStr = Array.isArray(report.athletes) ? report.athletes.map(a=>shortName(a)).join(', ') : (report.athletes||'');
   const condLabel = report.conditions ? (report.conditions+'/5 '+(['','Poor','Below Average','Average','Good','Excellent'][report.conditions]||'')) : '—';
   const printable = inner
-    .replace(/<div id="sbrv-det-\d+-\d+"[^>]*>Tap a bar for details<\/div>/g, '')
+    .replace(/<div id="sbrv-det-\d+-\d+"[^>]*>Tap an attempt for details<\/div>/g, '')
     .replace(/ onclick="sbRVShowDetail\([^"]*\)"/g, '')
+    .replace(/<button class="rep-ath-back"[^>]*>[^<]*<\/button>/g, '')
+    .replace(/<span class="sbrep-g"[^>]*> · tap a name to see only that athlete<\/span>/g, '')
+    .replace(/<button class="sbrep-name"[^>]*>([^<]*) ›<\/button>/g, '<b>$1</b>')
     .replace(/cursor:pointer;/g, '');
   const today = new Date().toLocaleDateString('de-CH');
 
@@ -4838,18 +4886,17 @@ function sbMonOpenTrickReport(d) {
       <button onclick="document.getElementById('sbrv-modal').remove()" style="padding:7px 14px;border-radius:8px;background:rgba(20,143,160,0.15);border:1px solid #148FA0;color:#148FA0;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;">Close</button>
     </div>
     <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-bottom:10px;">
-      <span>Bars per attempt (height = rating 0/50/100%):</span>
-      <span><span style="display:inline-block;width:10px;height:10px;background:#148FA0;border-radius:2px;vertical-align:-1px;"></span> Take-off</span>
-      <span><span style="display:inline-block;width:10px;height:10px;background:#396FA8;border-radius:2px;vertical-align:-1px;"></span> Trick</span>
-      <span><span style="display:inline-block;width:10px;height:10px;background:#8E5BB8;border-radius:2px;vertical-align:-1px;"></span> Grab</span>
-      <span><span style="display:inline-block;width:10px;height:10px;background:#3E8E5A;border-radius:2px;vertical-align:-1px;"></span> Landing</span>
-      <span><span style="display:inline-block;width:14px;height:2px;background:#2c2c2e;vertical-align:3px;"></span> running Ø QoE</span>
+      <span>Rows = Take-off, Trick, Grab, Landing · columns = attempts</span>
+      <span><b style="color:#3E8E5A;">★</b> perfect</span>
+      <span><b style="color:#C96A1F;">✓</b> okay</span>
+      <span><b style="color:#e2001a;">✗</b> miss</span>
+      <span><span style="display:inline-block;width:14px;height:2px;background:#148FA0;vertical-align:3px;"></span> running Ø execution (QoE)</span>
     </div>
     <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:14px;">
       <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;">
         <div style="flex:1 1 300px;min-width:0;">
           ${fsTrickChartSvg(g, 0, 0)}
-          <div id="sbrv-det-0-0" style="font-size:12px;color:var(--muted);min-height:16px;margin:2px 0 8px;">Tap a bar for details</div>
+          <div id="sbrv-det-0-0" style="font-size:12px;color:var(--muted);min-height:16px;margin:2px 0 8px;">Tap an attempt for details</div>
           <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:12px;">
             <span><b class="gut">${landed}</b> landed</span>
             <span><b class="schlecht">${n - landed}</b> missed</span>
@@ -5190,8 +5237,23 @@ const fragments = {
   coachFields: `      <div class="form-group full"><label>Coach Comment</label>
         <textarea id="sbe-coach-kommentar" rows="2" placeholder="Coach comment..."></textarea></div>`,
 };
+// Bringback als Freitext statt Auswahl 180/360/540: die Coaches schreiben den Bringback wie einen Trick (z. B. «R Cork 9»).
+// Der Trickname bleibt wie bisher «… Bringback <Eingabe>»; alte Werte wie «180» bleiben gültig. Snowboard behält die Auswahl.
+function fsBringbackAsText() {
+  ['sb-bringback', 'sbe-bringback'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel || sel.tagName !== 'SELECT') return;
+    const inp = document.createElement('input');
+    inp.type = 'text'; inp.id = id; inp.className = sel.className;
+    inp.placeholder = 'e.g. R Cork 9'; inp.autocomplete = 'off';
+    inp.value = sel.value || '';
+    sel.replaceWith(inp);
+  });
+}
+
 function init() {
   initStandortGrabs();
+  fsBringbackAsText();
   // Gleiche Tab-Struktur wie Snowboard: Assessment · Session · Reports · Monitoring.
   // Reports = die geteilte page-sessionreport (inkl. SB-Reports-Icon); Development und
   // Database sind versteckt (DOM bleibt — Reality Check/PDF nutzen deren Elemente).
