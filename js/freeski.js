@@ -82,6 +82,20 @@ function toggleDisziplin(prefix) {
   document.querySelectorAll('.rail-field-' + prefix).forEach(el => el.classList.toggle('hidden', v !== 'Rail'));
 }
 
+// Bringback im Tricknamen als Kurzform des Teils vor dem Zurückdrehen: Drehrichtung + Achse + (Rotation − Bringback) in Hundertern.
+// Beispiel: Right Double 1080 Cork, Bringback 180 → «Bringback R Cork 9». Im Assessment bleibt die Auswahl 180/360/540.
+// Ohne Rotation oder bei Freitext bleibt es wie bisher «Bringback <Wert>».
+function fsBringbackTeil(dreh, rot, achse, bb) {
+  if (!bb) return null;
+  const b = parseInt(bb, 10), r = parseInt(rot, 10);
+  if (!b || !r || r <= b || String(b) !== String(bb).trim()) return 'Bringback ' + bb;
+  const dir = {'Right':'R', 'Left':'L', 'Switch Right':'SW R', 'Switch Left':'SW L'}[dreh] || dreh || '';
+  const netto = r - b;
+  const zahl = netto >= 360 ? Math.floor(netto / 100) : netto;
+  const ax = achse ? String(achse).split('/')[0].split(' ')[0] : '';
+  return 'Bringback ' + [dir, ax, zahl].filter(Boolean).join(' ');
+}
+
 function trickDesc(t, prefix) {
   // Works for both DB trick objects and field-read objects (using prefix)
   const p = prefix ? prefix + '-' : '';
@@ -108,7 +122,7 @@ function trickDesc(t, prefix) {
       t ? t.rotation     : val(p+'rotation'),
       t ? t.achse : val(p+'achse'),
       t ? t.grab  : val(p+'grab'),
-      (t ? t.bringback : val(p+'bringback')) ? 'Bringback ' + (t ? t.bringback : val(p+'bringback')) : null,
+      fsBringbackTeil(t ? t.drehrichtung : val(p+'drehrichtung'), t ? t.rotation : val(p+'rotation'), t ? t.achse : val(p+'achse'), t ? t.bringback : val(p+'bringback')),
       t ? t.style : val(p+'style'),
     ].filter(Boolean);
     return parts.join(' ') || '–';
@@ -3544,8 +3558,9 @@ function openSbEdit(id){
   sbeGrabMatrix={...effGrabStatus(e)};
   // Label-Rest merken (Angaben ohne eigene Spalte, z. B. Bones/Todeo) — wird beim Speichern wieder angehängt
   const oldIsK=['Jump','Halfpipe','Landing Bag'].includes(e.disziplin);
-  const oldBb=e.bringback?'Bringback '+e.bringback:null;
-  const oldParts=oldIsK?[e.absprung,e.drehrichtung,e.flips&&!['keine','None','none','—'].includes(e.flips)?e.flips:null,e.rotation,e.achse,oldBb]:[e.inspin,e.slideform,e.railart,e.outspin];
+  const oldBb=e.bringback?'Bringback '+e.bringback:null;   // alte Schreibweise, falls das Label noch so heisst
+  const oldBbNeu=fsBringbackTeil(e.drehrichtung,e.rotation,e.achse,e.bringback);
+  const oldParts=oldIsK?[e.absprung,e.drehrichtung,e.flips&&!['keine','None','none','—'].includes(e.flips)?e.flips:null,e.rotation,e.achse,oldBb,oldBbNeu]:[e.inspin,e.slideform,e.railart,e.outspin];
   sbeLabelResidual=labelResidual(e.trick_label,[...oldParts,...Object.keys(sbeGrabMatrix),...(e.grab||'').split(',').map(s=>s.trim())]);
   Array.from(wrap.querySelectorAll('button,div')).forEach(b=>b.remove());
   FS_ASSESS_GRABS.forEach(g=>{
@@ -3591,7 +3606,7 @@ async function saveSbEdit(){
     grab:Object.keys(sbeGrabMatrix).join(', ')||null,
   };
   const isK=['Jump','Halfpipe','Landing Bag'].includes(updates.disziplin);
-  const bb = updates.bringback ? 'Bringback ' + updates.bringback : null;
+  const bb = fsBringbackTeil(updates.drehrichtung, updates.rotation, updates.achse, updates.bringback);
   // Label aus Feldern OHNE Grab (lebt in grab_status/Chips) + gemerktem Label-Rest
   const parts=isK?[updates.absprung,updates.drehrichtung,updates.flips&&!['keine','None','none','—'].includes(updates.flips)?updates.flips:null,updates.rotation,updates.achse,bb]:[updates.inspin,updates.slideform,updates.railart,updates.outspin];
   updates.trick_label=(parts.filter(Boolean).join(' ')+(sbeLabelResidual?' '+sbeLabelResidual:'')).trim()||'–';
@@ -4354,7 +4369,7 @@ function fsTrickChartSvg(g, ai, ti) {
   const raster = `<svg width="${(mxW * TRICK_CHART_SCALE).toFixed(0)}" height="${((mxH + vTop) * TRICK_CHART_SCALE).toFixed(0)}" viewBox="0 0 ${mxW} ${mxH + vTop}" style="display:block;">
     ${repVidMarksSvg(g.attempts, cx, ai, ti)}<g transform="translate(0,${vTop})">${head}${rows}${sel}${hits}</g></svg>`;
   // ── Kurve: Ø Ausführung ──
-  const KP = 30, KH = mxH - 14, KW = KP + Math.max(n * slot, 60) + 6;
+  const KP = 30, KH = mxH - 14, KW = KP + Math.max(n * slot, 100) + 6;   // Mindestbreite: «Ø execution 100%» passt
   const yOf = p => 4 + (1 - p / 100) * (KH - 8);
   let grid = '';
   [0, 50, 100].forEach(p => {
