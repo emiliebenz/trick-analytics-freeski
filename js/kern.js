@@ -1907,9 +1907,13 @@ function sbVideoProgress(p) {
   document.getElementById('sbv-pct').textContent = p + '%';
 }
 // Datei in den privaten Bucket laden (tus, damit grosse Dateien nach einem Unterbruch weiterlaufen); wirft bei Fehler
+// Gibt den Pfad zurück, unter dem die Datei wirklich liegt. Wird ein abgebrochener Upload derselben Datei fortgesetzt,
+// behält tus den Objektnamen des ersten Versuchs. Würde der Aufrufer dann seinen neuen Pfad speichern, zeigt die App
+// «Object not found» (so passiert am 25.11. bei Nils Rhyner, tricks.id 2468).
 async function sbVideoUploadFile(file, path) {
   const { data:{ session } } = await db.auth.getSession();
   if (window.tus && session) {
+    let ziel = path;
     await new Promise((resolve, reject) => {
       const up = new tus.Upload(file, {
         endpoint: `${SUPABASE_URL}/storage/v1/upload/resumable`,
@@ -1919,11 +1923,19 @@ async function sbVideoUploadFile(file, path) {
         metadata: { bucketName: TRICK_VIDEO_BUCKET, objectName: path, contentType: file.type || 'video/mp4', cacheControl: '3600' },
         onError: reject, onProgress: (a, b) => sbVideoProgress(Math.round(a / b * 100)), onSuccess: resolve,
       });
-      up.findPreviousUploads().then(prev => { if (prev.length) up.resumeFromPreviousUpload(prev[0]); up.start(); });
+      up.findPreviousUploads().then(prev => {
+        // nur einen früheren Upload für denselben Versuch fortsetzen (gleicher Pfad bis auf den Zeitstempel), dann dessen Objektnamen übernehmen
+        const praefix = path.slice(0, path.lastIndexOf('-') + 1);
+        const alt = prev.find(x => x.metadata && x.metadata.bucketName === TRICK_VIDEO_BUCKET && String(x.metadata.objectName || '').startsWith(praefix));
+        if (alt) { up.resumeFromPreviousUpload(alt); ziel = alt.metadata.objectName; up.options.metadata.objectName = ziel; }
+        up.start();
+      }).catch(reject);
     });
+    return ziel;
   } else {
     const { error } = await db.storage.from(TRICK_VIDEO_BUCKET).upload(path, file, { contentType: file.type || 'video/mp4' });
     if (error) throw error;
+    return path;
   }
 }
 function sbPickVideo(id) {
@@ -1934,14 +1946,14 @@ function sbPickVideo(id) {
     const file = inp.files[0]; if (!file) return;
     if (await sbVideoIsLow(file)) { alert('This video was recorded directly in the upload dialog and its quality is too low (below 720p). Please film with the camera app and choose the video from your photo library.'); return; }
     const ext = (file.name.split('.').pop() || 'mp4').toLowerCase();
-    const path = `${(e.athlet || 'athlete').replace(/[^\w-]+/g, '_')}/${e.id}-${Date.now()}.${ext}`;
+    let path = `${(e.athlet || 'athlete').replace(/[^\w-]+/g, '_')}/${e.id}-${Date.now()}.${ext}`;
     sbVideoProgress(0);
     try {
-      await sbVideoUploadFile(file, path);
+      path = await sbVideoUploadFile(file, path);
       const old = e.video_path;
       const { error } = await db.from('standort').update({ video_path: path }).eq('id', id);
       if (error) throw error;
-      if (old) db.storage.from(TRICK_VIDEO_BUCKET).remove([old]);
+      if (old && old !== path) db.storage.from(TRICK_VIDEO_BUCKET).remove([old]);
       e.video_path = path;
       sbVideoOverlay(`<div style="font-weight:700;font-size:16px;">✓ Video uploaded</div><div style="margin-top:14px;text-align:right;"><button class="btn btn-primary" onclick="document.getElementById('sbv-modal').remove()">OK</button></div>`);
       renderStandort();
@@ -2044,14 +2056,14 @@ function sbAttPickVideo(ai, ti, i) {
     // im Reiter Reports selbst abspielen (Policy trick_videos_select, supabase/report_videos_athlete_migration.sql)
     const {data: zeile} = await db.from('tricks').select('athlet').eq('id', c.a.dbId).maybeSingle();
     const voll = (zeile && zeile.athlet) || (Array.isArray(c.report.athletes) ? c.report.athletes.find(n => shortName(n) === c.td.athlet) : null) || c.td.athlet || 'athlete';
-    const path = `${voll.replace(/[^\w-]+/g, '_')}/att-${c.a.dbId}-${Date.now()}.${ext}`;
+    let path = `${voll.replace(/[^\w-]+/g, '_')}/att-${c.a.dbId}-${Date.now()}.${ext}`;
     sbVideoProgress(0);
     try {
-      await sbVideoUploadFile(file, path);
+      path = await sbVideoUploadFile(file, path);
       const old = c.a.video;
       const {error} = await db.from('tricks').update({video_path: path}).eq('id', c.a.dbId);
       if (error) throw error;
-      if (old) db.storage.from(TRICK_VIDEO_BUCKET).remove([old]);
+      if (old && old !== path) db.storage.from(TRICK_VIDEO_BUCKET).remove([old]);
       sbVideoOverlay(`<div style="font-weight:700;font-size:16px;">✓ Video uploaded</div><div style="margin-top:14px;text-align:right;"><button class="btn btn-primary" onclick="document.getElementById('sbv-modal').remove()">OK</button></div>`);
       await sbAttReload(c.report);
     } catch (err) {
