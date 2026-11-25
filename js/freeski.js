@@ -5237,23 +5237,8 @@ const fragments = {
   coachFields: `      <div class="form-group full"><label>Coach Comment</label>
         <textarea id="sbe-coach-kommentar" rows="2" placeholder="Coach comment..."></textarea></div>`,
 };
-// Bringback als Freitext statt Auswahl 180/360/540: die Coaches schreiben den Bringback wie einen Trick (z. B. «R Cork 9»).
-// Der Trickname bleibt wie bisher «… Bringback <Eingabe>»; alte Werte wie «180» bleiben gültig. Snowboard behält die Auswahl.
-function fsBringbackAsText() {
-  ['sb-bringback', 'sbe-bringback'].forEach(id => {
-    const sel = document.getElementById(id);
-    if (!sel || sel.tagName !== 'SELECT') return;
-    const inp = document.createElement('input');
-    inp.type = 'text'; inp.id = id; inp.className = sel.className;
-    inp.placeholder = 'e.g. R Cork 9'; inp.autocomplete = 'off';
-    inp.value = sel.value || '';
-    sel.replaceWith(inp);
-  });
-}
-
 function init() {
   initStandortGrabs();
-  fsBringbackAsText();
   // Gleiche Tab-Struktur wie Snowboard: Assessment · Session · Reports · Monitoring.
   // Reports = die geteilte page-sessionreport (inkl. SB-Reports-Icon); Development und
   // Database sind versteckt (DOM bleibt — Reality Check/PDF nutzen deren Elemente).
