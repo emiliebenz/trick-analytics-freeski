@@ -82,17 +82,15 @@ function toggleDisziplin(prefix) {
   document.querySelectorAll('.rail-field-' + prefix).forEach(el => el.classList.toggle('hidden', v !== 'Rail'));
 }
 
-// Bringback im Tricknamen: vorne die Kurzform des Tricks bis zum Zurückdrehen, dahinter in Klammern der bisherige Trickcode.
-// Rechnung: Rotation − Bringback, in Hundertern. Beispiel: Right Double 1080 Cork, Bringback 180
-// → «Right Double Cork 9 (Right Double 1080 Cork Bringback 180)». Im Assessment bleibt die Auswahl 180/360/540.
-function fsBringbackKurz(dreh, flips, rot, achse, bb) {
+// Bringback im Tricknamen: vorne der Trick bis zum Zurückdrehen, geschrieben wie alle anderen Tricks,
+// dahinter in Klammern der bisherige Trickcode. Rechnung: Rotation − Bringback.
+// Beispiel: Right Double 1080 Cork, Bringback 180 → «Right Double 900 Cork (Right Double 1080 Cork Bringback 180)».
+// Gilt für alle Bringback-Werte; im Assessment bleibt die Auswahl 180/360/540.
+function fsBringbackKurz(absprung, dreh, flips, rot, achse, bb) {
   const b = parseInt(bb, 10), r = parseInt(rot, 10);
   if (!b || !r || r <= b || String(b) !== String(bb).trim()) return null;
-  const netto = r - b;
-  const zahl = netto >= 360 ? Math.floor(netto / 100) : netto;
   const fl = flips && !['keine', 'None', 'none', '—'].includes(flips) ? flips : null;
-  const ax = achse ? String(achse).split('/')[0].split(' ')[0] : null;
-  return [dreh, fl, ax, zahl].filter(Boolean).join(' ');
+  return [absprung, dreh, fl, String(r - b), achse].filter(Boolean).join(' ');
 }
 function fsBringbackLabel(code, kurz) { return kurz ? `${kurz} (${code})` : code; }
 // Gegenstück für das Bearbeiten: liefert den Trickcode in der Klammer, sonst das Label unverändert
@@ -127,7 +125,7 @@ function trickDesc(t, prefix) {
       (t ? t.bringback : val(p+'bringback')) ? 'Bringback ' + (t ? t.bringback : val(p+'bringback')) : null,
       t ? t.style : val(p+'style'),
     ].filter(Boolean);
-    const kurz = fsBringbackKurz(t ? t.drehrichtung : val(p+'drehrichtung'), t ? t.flips : val(p+'flips'), t ? t.rotation : val(p+'rotation'), t ? t.achse : val(p+'achse'), t ? t.bringback : val(p+'bringback'));
+    const kurz = fsBringbackKurz(t ? t.absprung : val(p+'absprung'), t ? t.drehrichtung : val(p+'drehrichtung'), t ? t.flips : val(p+'flips'), t ? t.rotation : val(p+'rotation'), t ? t.achse : val(p+'achse'), t ? t.bringback : val(p+'bringback'));
     return parts.length ? fsBringbackLabel(parts.join(' '), kurz) : '–';
   }
 }
@@ -3612,7 +3610,7 @@ async function saveSbEdit(){
   // Label aus Feldern OHNE Grab (lebt in grab_status/Chips) + gemerktem Label-Rest
   const parts=isK?[updates.absprung,updates.drehrichtung,updates.flips&&!['keine','None','none','—'].includes(updates.flips)?updates.flips:null,updates.rotation,updates.achse,bb]:[updates.inspin,updates.slideform,updates.railart,updates.outspin];
   updates.trick_label=(parts.filter(Boolean).join(' ')+(sbeLabelResidual?' '+sbeLabelResidual:'')).trim()||'–';
-  if(isK&&updates.trick_label!=='–')updates.trick_label=fsBringbackLabel(updates.trick_label,fsBringbackKurz(updates.drehrichtung,updates.flips,updates.rotation,updates.achse,updates.bringback));
+  if(isK&&updates.trick_label!=='–')updates.trick_label=fsBringbackLabel(updates.trick_label,fsBringbackKurz(updates.absprung,updates.drehrichtung,updates.flips,updates.rotation,updates.achse,updates.bringback));
   if(_standortHasGrabStatus)updates.grab_status={...sbeGrabMatrix};
   let {error}=await db.from('standort').update(updates).eq('id',id);
   if(error&&/grab_status/.test(error.message||'')){
