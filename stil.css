@@ -721,6 +721,7 @@ header h1 .dot{color:#E2001A}
 .sr-karriere-leg .an { background: var(--surface2); color: var(--muted); font-weight: 600; }
 .sr-sub.wc { color: #396FA8; }
 .sr-sub.ec { color: #C96A1F; }
+.sr-sub.app { color: #148FA0; }
 .sr-karriere th { white-space: normal !important; line-height: 1.2; vertical-align: bottom; }
 .sr-karriere td, .sr-karriere th { padding: 6px 8px !important; }
 .sr-info { margin-top: 8px; }

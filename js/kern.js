@@ -2215,7 +2215,8 @@ function repFocusAthlete(ai) {
 // Tabs auf der Athlet:innen-Seite:
 //   Bag, BA/SS/HP Train, All: nur das Training (wie bisher).
 //   BA/SS/HP Comp: nur die Wettkämpfe aus den FIS-Daten: pro Event Runde, Rang, jeder Sprung oder Run mit vollem Trickname
-//                  und Note; dazu Europacup und weitere FIS-Rennen mit Rang. Die Wettkampf-Einträge der App bleiben weg.
+//                  und Note; dazu Europacup und weitere FIS-Rennen mit Rang; darunter die Wettkampf-Versuche aus der App
+//                  (pro Tag und Trick: Versuche und Qualität, srAppCompHtml).
 //   Season & career: Übersicht (wie die erste Folie des Athletenfeedbacks), Karriere (alle Saisons), Athletenweg, fehlende
 //                  Podiums-Tricks mit «Set as goal», Selektion und Coach-Eingabe, für die gewählte Saison.
 // Inhalte aus der Wettkampf-Auswertung (Tabellen season_review und selection_check). Sie kommen per SQL aus der Pipeline
@@ -2437,6 +2438,38 @@ function srEventHtml(dz, ev, name) {
     ${srNiveauHtml(dz, ev, name)}
   </div>`;
 }
+// Wettkampf-Versuche aus der App (Tabelle tricks, Typ «… Competition») einer Saison: pro Wettkampftag eine Karte, darin pro Trick
+// Versuche und Qualität wie auf den Trick-Karten (srStats des Sportmoduls). Liegt ein FIS-Event am selben Tag oder einen Tag
+// daneben, steht sein Ort im Kopf. Wunsch Emilie 27.11.2026: sehen, wie gut welcher Trick im Wettkampf gelang.
+function srAppCompRows(name, sa) {
+  const typ = Object.keys(SR_COMP).find(k => k === sbMonTyp);
+  const von = `${sa.slice(0, 4)}-05-01`, bis = `${+sa.slice(0, 4) + 1}-04-30`;
+  return (sbMonRows || []).filter(t => t.athlet === name && t.typ === typ && (t.datum || '') >= von && (t.datum || '') <= bis);
+}
+function srAppCompHtml(name, sa, evs) {
+  const rows = srAppCompRows(name, sa);
+  const sub = `<div class="sr-sub app">App · competition attempts logged by the coaches</div>`;
+  if (!rows.length) return sub + `<div class="leer-schmal">No competition attempts logged in the app for ${srEsc(sa)}.</div>`;
+  const tage = {};
+  rows.forEach(t => (tage[t.datum] = tage[t.datum] || []).push(t));
+  const tagMs = d => Date.parse(String(d).slice(0, 10) + 'T00:00:00Z');
+  const karten = Object.keys(tage).sort().reverse().map(d => {
+    const R = tage[d].sort((a, b) => (a.versuch_nr ?? 0) - (b.versuch_nr ?? 0) || (a.created_at || '').localeCompare(b.created_at || ''));
+    const ev = (evs || []).find(e => e.datum && Math.abs(tagMs(e.datum) - tagMs(d)) <= 864e5);
+    const tricks = {};
+    R.forEach(t => (tricks[(t.trickaufbau || '').trim() || '–'] = tricks[(t.trickaufbau || '').trim() || '–'] || []).push(t));
+    const zeilen = Object.entries(tricks).map(([tr, X]) => {
+      // Status der Trick-Karten (ab 5 Versuchen) passt hier nicht, im Wettkampf hat ein Trick meist 1–3 Versuche: gelandet x/y statt Status
+      const s = srStats(X), col = s.landed === s.att ? SR_GUT : s.landed ? SR_MITTEL : SR_SCHLECHT;
+      return `<div class="sr-lauf"><span class="sr-lauf-n">${s.att}×</span><span>${srEsc(tr)}<div class="gedaempft">${srEsc(s.text)}</div></span><span><b style="color:${col};">${s.landed}/${s.att} landed</b></span></div>`;
+    }).join('');
+    return `<div class="sr-event">
+      <div class="sr-event-h"><span>${srDatum(d)}</span><b>${ev ? srEsc(ev.event === 'Olympia' ? 'Olympics' : ev.event) : 'Competition'}</b><span class="sr-event-erg gedaempft">${R.length} attempt${R.length === 1 ? '' : 's'}</span></div>
+      <div class="sr-runde">${zeilen}</div>
+    </div>`;
+  }).join('');
+  return sub + karten;
+}
 function srCompHtml(name, dz) {
   const saisonen = srSaisonen(name);
   const teile = saisonen.map(sa => {
@@ -2445,7 +2478,8 @@ function srCompHtml(name, dz) {
     const fr = (R.fis_resultate || []).filter(x => x.disz === dz);
     const kopf = `<div class="sr-h">${SR_DN[dz]} ${sa}</div>`;
     const elite = `<div class="sr-sub wc">WC · World Cup, Worlds, Olympics</div>` + (evs.length ? evs.map(ev => srEventHtml(dz, ev, name)).join('')
-      : `<div class="leer-schmal">No World Cup, Worlds or Olympic start in ${SR_DN[dz]} ${sa}${sa === SR_JETZT ? ' yet' : ''}.</div>`);
+      : `<div class="leer-schmal">No World Cup, Worlds or Olympic start in ${SR_DN[dz]} ${sa}${sa === SR_JETZT ? ' yet' : ''}.</div>`)
+      + srAppCompHtml(name, sa, evs);
     // untereinander, in Spalten: Datum · Ort · Stufe · Rang
     const liste = (xs) => `<div class="sr-fr">${xs.map(x =>
       `<div class="sr-fr-z"><span>${srDatum(x.datum).slice(0, 6)}</span><span>${srEsc(x.ort)}</span><span class="gedaempft">${SR_KAT[x.kat] || x.kat}</span><span><b>${x.rang ? srOrd(x.rang) : srEsc(srStatusTxt(x.status))}</b>${x.n ? `<span class="gedaempft"> of ${x.n}</span>` : ''}</span></div>`).join('')}</div>`;
@@ -2455,7 +2489,7 @@ function srCompHtml(name, dz) {
     return `<div class="sr-sek">${kopf}${elite}${weitere}</div>`;
   }).join('');
   return `<div class="sr-comp">${teile || '<div class="leer-schmal">No season in this period.</div>'}
-    <details class="sr-info"><summary>How to read</summary><div class="sr-fuss">${srListe([`<b>Source:</b> FIS result lists and Results Analysis (World Cup, Worlds, Olympics): rank per round, every ${dz === 'BA' ? 'jump' : 'run'} with the full trick name from the FIS trick code and its score${dz === 'BA' ? '; the two counting jumps are marked' : dz === 'SS' ? '; sections with their score and maximum' : ''}.`, 'Older seasons: some lists give only the best score and no trick codes.', 'Europa Cup and other FIS races: rank only.', 'The competition entries logged in the app are not shown here.'])}</div></details></div>`;
+    <details class="sr-info"><summary>How to read</summary><div class="sr-fuss">${srListe([`<b>Source:</b> FIS result lists and Results Analysis (World Cup, Worlds, Olympics): rank per round, every ${dz === 'BA' ? 'jump' : 'run'} with the full trick name from the FIS trick code and its score${dz === 'BA' ? '; the two counting jumps are marked' : dz === 'SS' ? '; sections with their score and maximum' : ''}.`, 'Older seasons: some lists give only the best score and no trick codes.', 'Europa Cup and other FIS races: rank only.', '<b>App:</b> the competition attempts the coaches logged in the app, one card per day, per trick with attempts and quality as on the trick cards. If a FIS event lies on the same day or the day next to it, its place is in the card header.'])}</div></details></div>`;
 }
 
 // ─── Season & career: Übersicht ───
